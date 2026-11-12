@@ -342,7 +342,7 @@
     <!-- Right visual -->
     <div class="hero-visual">
       <!-- Floating card — Patient -->
-      <div class="float-card fc-left">
+      <div class="float-card fc-left" onclick="window.location.href='patient-dashboard.html'" style="cursor:pointer;" title="Open Patient Portal">
         <div class="float-card-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -426,7 +426,7 @@
 
     <div class="roles-grid">
       <!-- Patient -->
-      <div class="role-card">
+      <div class="role-card" onclick="window.location.href='patient-dashboard.html'" style="cursor:pointer;" title="Open Patient Portal">
         <div class="role-icon-wrap">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -438,10 +438,13 @@
           convert files to PDF and set precise access rules — deciding exactly who
           can view or download your records.
         </p>
+        <div style="margin-top:16px; font-size:13px; font-weight:700; color:var(--green); display:flex; align-items:center; gap:6px;">
+          Open Patient Portal &rarr;
+        </div>
       </div>
 
       <!-- Doctor -->
-      <div class="role-card">
+      <div class="role-card" onclick="showComingSoon('Doctor')" style="cursor:pointer;" title="Doctor Portal (Coming Soon)">
         <div class="role-icon-wrap">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -456,7 +459,7 @@
       </div>
 
       <!-- Caretaker -->
-      <div class="role-card">
+      <div class="role-card" onclick="showComingSoon('Caretaker')" style="cursor:pointer;" title="Caretaker Portal (Coming Soon)">
         <div class="role-icon-wrap">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -518,7 +521,7 @@
     </div>
 
     <!-- Doctor -->
-    <div class="role-opt" onclick="selectRole(this,'Patient')">
+    <div class="role-opt" onclick="selectRole(this,'Doctor')">
       <div class="role-opt-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -532,7 +535,7 @@
     </div>
 
     <!-- Caretaker -->
-    <div class="role-opt" onclick="selectRole(this,'Patient')">
+    <div class="role-opt" onclick="selectRole(this,'Caretaker')">
       <div class="role-opt-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>

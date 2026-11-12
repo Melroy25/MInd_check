@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
   StyleSheet, StatusBar, useWindowDimensions, TextInput,
@@ -8,19 +8,24 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react
 
 // ─── TOKENS ──────────────────────────────────────────────────────────────────
 const G = {
-  green:   '#74A842',
-  greenD:  '#5d8a32',
-  greenL:  '#EBF3E6',
-  bg:      '#F7F9F6',
-  white:   '#ffffff',
-  charcoal:'#1C2B1A',
-  text:    '#2d3a2e',
-  muted:   '#6b7f6c',
-  border:  '#d4e8c8',
-  shadow:  'rgba(116,168,66,0.12)',
+  green:    '#74A842',
+  greenD:   '#5d8a32',
+  greenL:   '#EBF3E6',
+  bg:       '#F7F9F6',
+  white:    '#ffffff',
+  charcoal: '#1C2B1A',
+  text:     '#2d3a2e',
+  muted:    '#6b7f6c',
+  border:   '#d4e8c8',
+  borderGray:'#e5e7eb',
+  shadow:   'rgba(116,168,66,0.12)',
+  red:      '#dc2626',
+  blue:     '#2563eb',
+  purple:   '#7c3aed',
+  amber:    '#d97706',
 };
 
-// ─── SVG ICONS ───────────────────────────────────────────────────────────────
+// ─── SVG ICONS (STRICTLY NO EMOJIS) ──────────────────────────────────────────
 const IconShield = ({ size = 20, color = G.green, strokeWidth = 2 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/>
@@ -54,6 +59,58 @@ const IconCheck = ({ size = 11, color = 'white' }) => (
     <Polyline points="1,6 4,10 11,2"/>
   </Svg>
 );
+const IconFolder = ({ size = 20, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </Svg>
+);
+const IconFile = ({ size = 20, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <Polyline points="14 2 14 8 20 8"/>
+    <Line x1="16" y1="13" x2="8" y2="13"/>
+    <Line x1="16" y1="17" x2="8" y2="17"/>
+  </Svg>
+);
+const IconUpload = ({ size = 20, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <Polyline points="17 8 12 3 7 8"/>
+    <Line x1="12" y1="3" x2="12" y2="15"/>
+  </Svg>
+);
+const IconShare = ({ size = 20, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="18" cy="5" r="3"/><Circle cx="6" cy="12" r="3"/><Circle cx="18" cy="19" r="3"/>
+    <Line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+    <Line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+  </Svg>
+);
+const IconSearch = ({ size = 18, color = G.muted }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="11" cy="11" r="8"/>
+    <Line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </Svg>
+);
+const IconLock = ({ size = 18, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+    <Path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </Svg>
+);
+const IconLogOut = ({ size = 18, color = G.muted }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <Polyline points="16 17 21 12 16 7"/>
+    <Line x1="21" y1="12" x2="9" y2="12"/>
+  </Svg>
+);
+const IconTrash = ({ size = 16, color = '#dc2626' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="3 6 5 6 21 6"/>
+    <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+  </Svg>
+);
 
 // ─── ROLE DATA ────────────────────────────────────────────────────────────────
 const ROLES = [
@@ -62,8 +119,593 @@ const ROLES = [
   { key: 'caretaker', label: 'Caretaker', sub: 'Support a patient with shared access',    Icon: IconGroup },
 ];
 
-// ─── NAVBAR ───────────────────────────────────────────────────────────────────
-function Navbar({ onLogin, onSignup, isDesktop }) {
+// ─── INITIAL MOCK DATA ────────────────────────────────────────────────────────
+const INITIAL_FOLDERS = [
+  { id: 'cardio', name: 'Cardiology Reports', count: 4, date: '2 days ago', desc: 'ECG, Echo, stress tests, lipid panels' },
+  { id: 'labs',   name: 'Blood & Lab Tests',  count: 8, date: 'Yesterday',  desc: 'CBC, Metabolic panel, HbA1c, Thyroid' },
+  { id: 'rx',     name: 'Prescriptions & Rx', count: 3, date: '1 week ago', desc: 'Current regimens, dosages, refills' },
+  { id: 'rad',    name: 'Radiology & Scans',  count: 2, date: '3 weeks ago',desc: 'Chest X-Ray, Brain MRI, CT scans' },
+];
+
+const INITIAL_FILES = [
+  { id: '1', name: 'Comprehensive Metabolic Panel', folder: 'labs', type: 'PDF', size: '1.4 MB', date: 'Oct 24, 2026', doctor: 'Dr. Sarah Jenkins', tags: ['Metabolic', 'Routine', 'Verified'] },
+  { id: '2', name: 'Resting ECG & 2D Echo Report', folder: 'cardio', type: 'PDF', size: '3.8 MB', date: 'Oct 12, 2026', doctor: 'Dr. Mark Vance', tags: ['Cardio', 'Echo', 'Normal Sinus'] },
+  { id: '3', name: 'Chest X-Ray PA & Lateral View', folder: 'rad', type: 'IMG', size: '14.2 MB', date: 'Sep 28, 2026', doctor: 'Metro Diagnostic Center', tags: ['Radiology', 'X-Ray'] },
+  { id: '4', name: 'Atorvastatin & Lisinopril Active Rx', folder: 'rx', type: 'PDF', size: '420 KB', date: 'Sep 15, 2026', doctor: 'Dr. Sarah Jenkins', tags: ['Prescription', 'Daily'] },
+  { id: '5', name: 'HbA1c & Fasting Glucose Profile', folder: 'labs', type: 'DOC', size: '890 KB', date: 'Aug 30, 2026', doctor: 'Dr. Mark Vance', tags: ['Endocrine', 'Glucose 94'] },
+];
+
+const INITIAL_PEOPLE = [
+  { id: '1', name: 'Dr. Sarah Jenkins', role: 'Cardiologist', clinic: 'Metro Hospital & Cardiac Wing', perm: 'Full Access' },
+  { id: '2', name: 'Dr. Mark Vance', role: 'Primary Care Physician', clinic: 'City Health Clinic', perm: 'View Only' },
+  { id: '3', name: 'Elena Almeida', role: 'Caretaker (Family)', clinic: 'Designated Health Proxy', perm: 'View & Download' },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PATIENT PORTAL SCREEN ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+function PatientPortal({ onSignOut, isDesktop }) {
+  const [activeTab, setActiveTab] = useState('folders'); // 'folders' | 'upload' | 'share' | 'access'
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [search, setSearch] = useState('');
+  const [files, setFiles] = useState(INITIAL_FILES);
+  const [folders, setFolders] = useState(INITIAL_FOLDERS);
+  const [people, setPeople] = useState(INITIAL_PEOPLE);
+  const [selectedFileModal, setSelectedFileModal] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  // Upload Form State
+  const [newTitle, setNewTitle] = useState('');
+  const [newFolder, setNewFolder] = useState('cardio');
+  const [newDoctor, setNewDoctor] = useState('');
+  const [convertToPdf, setConvertToPdf] = useState(true);
+
+  // Share Form State
+  const [shareName, setShareName] = useState('');
+  const [shareRole, setShareRole] = useState('Doctor');
+  const [sharePerm, setSharePerm] = useState('Full Access');
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleUploadSubmit = () => {
+    if (!newTitle.trim()) {
+      showToast('Please enter a record or file name');
+      return;
+    }
+    const newDoc = {
+      id: Date.now().toString(),
+      name: newTitle.trim(),
+      folder: newFolder,
+      type: convertToPdf ? 'PDF' : 'DOC',
+      size: '2.1 MB',
+      date: 'Just now',
+      doctor: newDoctor.trim() || 'Self-Uploaded',
+      tags: ['Sovereign Vault', 'Encrypted'],
+    };
+    setFiles([newDoc, ...files]);
+    // update folder count
+    setFolders(folders.map(f => f.id === newFolder ? { ...f, count: f.count + 1, date: 'Just now' } : f));
+    setNewTitle('');
+    setNewDoctor('');
+    setActiveTab('folders');
+    showToast('Document securely added to your vault');
+  };
+
+  const handleShareSubmit = () => {
+    if (!shareName.trim()) {
+      showToast('Please enter doctor or caretaker name');
+      return;
+    }
+    const newPerson = {
+      id: Date.now().toString(),
+      name: shareName.trim(),
+      role: shareRole,
+      clinic: 'Verified Practitioner',
+      perm: sharePerm,
+    };
+    setPeople([...people, newPerson]);
+    setShareName('');
+    showToast(`Access granted to ${newPerson.name}`);
+  };
+
+  const handleRevoke = (id) => {
+    setPeople(people.filter(p => p.id !== id));
+    showToast('Permission revoked successfully');
+  };
+
+  const filteredFiles = useMemo(() => {
+    return files.filter(f => {
+      const matchesFolder = !selectedFolder || f.folder === selectedFolder;
+      const matchesSearch = !search.trim() ||
+        f.name.toLowerCase().includes(search.toLowerCase()) ||
+        f.doctor.toLowerCase().includes(search.toLowerCase()) ||
+        f.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
+      return matchesFolder && matchesSearch;
+    });
+  }, [files, selectedFolder, search]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: G.bg }}>
+      <StatusBar barStyle="dark-content" backgroundColor={G.white}/>
+
+      {/* Header */}
+      <View style={pStyles.header}>
+        <View style={[pStyles.headerInner, isDesktop && pStyles.headerInnerDesktop]}>
+          <TouchableOpacity onPress={onSignOut} style={pStyles.logoRow} activeOpacity={0.8}>
+            <View style={s.logoIcon}><IconShield size={18} color="white" strokeWidth={2.5}/></View>
+            <Text style={s.logoText}>
+              <Text style={s.logoMedi}>Medi</Text>
+              <Text style={s.logoVault}>Vault</Text>
+            </Text>
+          </TouchableOpacity>
+
+          <View style={pStyles.headerRight}>
+            <View style={pStyles.userChip}>
+              <View style={pStyles.avatarCircle}>
+                <Text style={pStyles.avatarText}>MA</Text>
+              </View>
+              <View>
+                <Text style={pStyles.userName}>Melroy Almeida</Text>
+                <View style={pStyles.roleBadgeRow}>
+                  <View style={pStyles.greenDot}/>
+                  <Text style={pStyles.userRole}>Patient · Sovereign Vault</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={onSignOut} style={pStyles.btnSignOut} activeOpacity={0.7}>
+              <IconLogOut size={16} color={G.muted}/>
+              <Text style={pStyles.btnSignOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Scrollable Content */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[pStyles.container, isDesktop && pStyles.containerDesktop]}>
+        
+        {/* Hero Card */}
+        <LinearGradient
+          colors={['#ffffff', '#F7F9F6']}
+          style={pStyles.vaultHero}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        >
+          <View style={pStyles.vaultHeroHeader}>
+            <View>
+              <View style={pStyles.badgeEncrypted}>
+                <IconShield size={12} color={G.green} strokeWidth={2.5}/>
+                <Text style={pStyles.badgeEncryptedText}>Zero Third-Party Cloud · Sovereign Vault</Text>
+              </View>
+              <Text style={pStyles.vaultHeroTitle}>Patient Medical History Vault</Text>
+              <Text style={pStyles.vaultHeroSub}>
+                All your records, lab tests, prescriptions, and radiology files are encrypted and owned by you.
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick Stats Grid */}
+          <View style={pStyles.statsGrid}>
+            <View style={pStyles.statCard}>
+              <Text style={pStyles.statNum}>{files.length}</Text>
+              <Text style={pStyles.statLabel}>Total Records</Text>
+            </View>
+            <View style={pStyles.statCard}>
+              <Text style={pStyles.statNum}>{folders.length}</Text>
+              <Text style={pStyles.statLabel}>Organized Folders</Text>
+            </View>
+            <View style={pStyles.statCard}>
+              <Text style={pStyles.statNum}>{people.length}</Text>
+              <Text style={pStyles.statLabel}>Shared Doctors</Text>
+            </View>
+            <View style={pStyles.statCard}>
+              <Text style={[pStyles.statNum, { color: G.green }]}>100%</Text>
+              <Text style={pStyles.statLabel}>Private & Sovereign</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Workspace Navigation Tabs */}
+        <View style={pStyles.tabsRow}>
+          {[
+            { key: 'folders', label: 'My Folders & Files', Icon: IconFolder },
+            { key: 'upload',  label: 'Upload Record',     Icon: IconUpload },
+            { key: 'share',   label: 'Share Access',      Icon: IconShare },
+            { key: 'access',  label: 'Manage Permissions',Icon: IconLock },
+          ].map(t => {
+            const active = activeTab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setActiveTab(t.key)}
+                style={[pStyles.tabBtn, active && pStyles.tabBtnActive]}
+                activeOpacity={0.8}
+              >
+                <t.Icon size={16} color={active ? G.green : G.muted}/>
+                <Text style={[pStyles.tabBtnText, active && pStyles.tabBtnTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ══ VIEW: FOLDERS & FILES ═══════════════════════════════════════════ */}
+        {activeTab === 'folders' && (
+          <View>
+            {/* Search Bar */}
+            <View style={pStyles.searchWrap}>
+              <IconSearch size={18} color={G.muted}/>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search medical records, diagnoses, doctors, or tags..."
+                placeholderTextColor={G.muted}
+                style={pStyles.searchInput}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')}>
+                  <Text style={{ fontSize: 13, color: G.muted, fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Folders Section */}
+            <View style={pStyles.sectionHeaderRow}>
+              <Text style={pStyles.sectionHeading}>Folders</Text>
+              {selectedFolder && (
+                <TouchableOpacity onPress={() => setSelectedFolder(null)}>
+                  <Text style={pStyles.clearFilterText}>Show All Files</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={[pStyles.foldersGrid, isDesktop && pStyles.foldersGridDesktop]}>
+              {folders.map(f => {
+                const isSelected = selectedFolder === f.id;
+                return (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => setSelectedFolder(isSelected ? null : f.id)}
+                    style={[pStyles.folderCard, isSelected && pStyles.folderCardSelected]}
+                    activeOpacity={0.8}
+                  >
+                    <View style={pStyles.folderTopRow}>
+                      <View style={[pStyles.folderIconWrap, isSelected && { backgroundColor: G.green }]}>
+                        <IconFolder size={18} color={isSelected ? 'white' : G.green}/>
+                      </View>
+                      <View style={pStyles.folderCountBadge}>
+                        <Text style={pStyles.folderCountText}>{f.count} files</Text>
+                      </View>
+                    </View>
+                    <Text style={pStyles.folderName}>{f.name}</Text>
+                    <Text style={pStyles.folderDesc} numberOfLines={1}>{f.desc}</Text>
+                    <Text style={pStyles.folderMeta}>Updated {f.date}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Files List */}
+            <View style={[pStyles.sectionHeaderRow, { marginTop: 28 }]}>
+              <Text style={pStyles.sectionHeading}>
+                {selectedFolder ? `${folders.find(x => x.id === selectedFolder)?.name} (${filteredFiles.length})` : `All Medical Records (${filteredFiles.length})`}
+              </Text>
+              <TouchableOpacity onPress={() => setActiveTab('upload')} style={pStyles.linkAddFile}>
+                <Text style={pStyles.linkAddFileText}>+ Upload Record</Text>
+              </TouchableOpacity>
+            </View>
+
+            {filteredFiles.length === 0 ? (
+              <View style={pStyles.emptyState}>
+                <IconFile size={36} color={G.muted}/>
+                <Text style={pStyles.emptyStateTitle}>No records found</Text>
+                <Text style={pStyles.emptyStateSub}>Try clearing your search query or upload a new record.</Text>
+              </View>
+            ) : (
+              <View style={pStyles.filesCard}>
+                {filteredFiles.map((file, idx) => (
+                  <TouchableOpacity
+                    key={file.id}
+                    onPress={() => setSelectedFileModal(file)}
+                    style={[pStyles.fileRow, idx < filteredFiles.length - 1 && pStyles.fileRowBorder]}
+                    activeOpacity={0.7}
+                  >
+                    {/* Badge */}
+                    <View style={[
+                      pStyles.fileTypeBadge,
+                      file.type === 'PDF' && { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+                      file.type === 'IMG' && { backgroundColor: '#f3e8ff', borderColor: '#d8b4fe' },
+                      file.type === 'DOC' && { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
+                    ]}>
+                      <Text style={[
+                        pStyles.fileTypeText,
+                        file.type === 'PDF' && { color: G.red },
+                        file.type === 'IMG' && { color: G.purple },
+                        file.type === 'DOC' && { color: G.blue },
+                      ]}>{file.type}</Text>
+                    </View>
+
+                    {/* Details */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={pStyles.fileName}>{file.name}</Text>
+                      <View style={pStyles.fileMetaRow}>
+                        <Text style={pStyles.fileMetaText}>{file.doctor}</Text>
+                        <Text style={pStyles.fileMetaDot}>•</Text>
+                        <Text style={pStyles.fileMetaText}>{file.size}</Text>
+                        <Text style={pStyles.fileMetaDot}>•</Text>
+                        <Text style={pStyles.fileMetaText}>{file.date}</Text>
+                      </View>
+                      <View style={pStyles.tagsRow}>
+                        {file.tags.map(t => (
+                          <View key={t} style={pStyles.tagPill}>
+                            <Text style={pStyles.tagPillText}>{t}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Action Button */}
+                    <View style={pStyles.btnViewFile}>
+                      <Text style={pStyles.btnViewFileText}>Inspect</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ══ VIEW: UPLOAD RECORD ═════════════════════════════════════════════ */}
+        {activeTab === 'upload' && (
+          <View style={pStyles.formCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <View style={pStyles.formIconWrap}><IconUpload size={20} color={G.green}/></View>
+              <View>
+                <Text style={pStyles.formTitle}>Upload New Medical Record</Text>
+                <Text style={pStyles.formSub}>All uploads are converted to clean, standardized PDFs and encrypted.</Text>
+              </View>
+            </View>
+
+            {/* Drag Drop Mock Area */}
+            <View style={pStyles.dropzone}>
+              <IconUpload size={32} color={G.green}/>
+              <Text style={pStyles.dropzoneTitle}>Ready for files or scans</Text>
+              <Text style={pStyles.dropzoneSub}>PDF, JPG, PNG, DICOM, or DOC up to 50MB</Text>
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Record / Document Title *</Text>
+              <TextInput
+                value={newTitle}
+                onChangeText={setNewTitle}
+                placeholder="e.g. Annual Blood Lipid Panel & Liver Function"
+                placeholderTextColor={G.muted}
+                style={pStyles.textInput}
+              />
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Select Vault Folder</Text>
+              <View style={pStyles.folderSelectRow}>
+                {folders.map(f => (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => setNewFolder(f.id)}
+                    style={[pStyles.folderChip, newFolder === f.id && pStyles.folderChipSelected]}
+                  >
+                    <Text style={[pStyles.folderChipText, newFolder === f.id && pStyles.folderChipTextSelected]}>
+                      {f.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Doctor or Clinic / Lab (Optional)</Text>
+              <TextInput
+                value={newDoctor}
+                onChangeText={setNewDoctor}
+                placeholder="e.g. Dr. Sarah Jenkins (Cardiology)"
+                placeholderTextColor={G.muted}
+                style={pStyles.textInput}
+              />
+            </View>
+
+            {/* Toggle PDF Conversion */}
+            <TouchableOpacity
+              onPress={() => setConvertToPdf(!convertToPdf)}
+              style={pStyles.toggleRow}
+              activeOpacity={0.8}
+            >
+              <View style={[pStyles.checkbox, convertToPdf && pStyles.checkboxChecked]}>
+                {convertToPdf && <IconCheck size={10} color="white"/>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={pStyles.toggleLabel}>Auto-convert to Standardized Medical PDF</Text>
+                <Text style={pStyles.toggleSub}>Ensures universal compatibility across all doctor and hospital EHRs</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleUploadSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
+              <LinearGradient colors={[G.green, G.greenD]} style={s.btnPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={s.btnPrimaryText}>Add Record to Sovereign Vault</Text>
+                <View style={s.arrowCircle}><IconArrow size={11}/></View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ══ VIEW: SHARE ACCESS ══════════════════════════════════════════════ */}
+        {activeTab === 'share' && (
+          <View style={pStyles.formCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <View style={pStyles.formIconWrap}><IconShare size={20} color={G.green}/></View>
+              <View>
+                <Text style={pStyles.formTitle}>Share Controlled Vault Access</Text>
+                <Text style={pStyles.formSub}>Grant sovereign, revocable access to healthcare providers or caretakers.</Text>
+              </View>
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Recipient Name or Email *</Text>
+              <TextInput
+                value={shareName}
+                onChangeText={setShareName}
+                placeholder="e.g. Dr. Robert Chen (Neurology) or family@caretaker.org"
+                placeholderTextColor={G.muted}
+                style={pStyles.textInput}
+              />
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Recipient Role</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {['Doctor', 'Caretaker', 'Hospital Staff'].map(r => (
+                  <TouchableOpacity
+                    key={r}
+                    onPress={() => setShareRole(r)}
+                    style={[pStyles.folderChip, shareRole === r && pStyles.folderChipSelected]}
+                  >
+                    <Text style={[pStyles.folderChipText, shareRole === r && pStyles.folderChipTextSelected]}>{r}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Permission Scope</Text>
+              {[
+                { key: 'Full Access', desc: 'Can view all medical folders and download records' },
+                { key: 'View Only', desc: 'Can inspect records in browser without download' },
+                { key: '30-Day Limited', desc: 'Temporary access automatically expiring in 30 days' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={() => setSharePerm(opt.key)}
+                  style={[pStyles.permOpt, sharePerm === opt.key && pStyles.permOptSelected]}
+                >
+                  <View style={[pStyles.radioCircle, sharePerm === opt.key && pStyles.radioCircleSelected]}>
+                    {sharePerm === opt.key && <View style={pStyles.radioDot}/>}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={pStyles.permOptTitle}>{opt.key}</Text>
+                    <Text style={pStyles.permOptSub}>{opt.desc}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity onPress={handleShareSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
+              <LinearGradient colors={[G.green, G.greenD]} style={s.btnPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={s.btnPrimaryText}>Grant Sovereign Access</Text>
+                <View style={s.arrowCircle}><IconArrow size={11}/></View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ══ VIEW: MANAGE PERMISSIONS ════════════════════════════════════════ */}
+        {activeTab === 'access' && (
+          <View style={pStyles.formCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <View style={pStyles.formIconWrap}><IconLock size={20} color={G.green}/></View>
+              <View>
+                <Text style={pStyles.formTitle}>Active Sovereign Permissions</Text>
+                <Text style={pStyles.formSub}>You can revoke or modify access for any doctor or caretaker at any time.</Text>
+              </View>
+            </View>
+
+            {people.map((person, idx) => (
+              <View key={person.id} style={[pStyles.personRow, idx < people.length - 1 && pStyles.personRowBorder]}>
+                <View style={pStyles.personAvatar}>
+                  <Text style={pStyles.personAvatarText}>{person.name.substring(0, 2).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.personName}>{person.name}</Text>
+                  <Text style={pStyles.personClinic}>{person.clinic} • {person.role}</Text>
+                  <View style={pStyles.permBadge}>
+                    <Text style={pStyles.permBadgeText}>{person.perm}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => handleRevoke(person.id)} style={pStyles.btnRevoke} activeOpacity={0.7}>
+                  <IconTrash size={14} color={G.red}/>
+                  <Text style={pStyles.btnRevokeText}>Revoke</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+      </ScrollView>
+
+      {/* File Details Modal */}
+      {selectedFileModal && (
+        <Modal visible={!!selectedFileModal} transparent animationType="fade" onRequestClose={() => setSelectedFileModal(null)}>
+          <View style={s.overlay}>
+            <View style={s.modal}>
+              <TouchableOpacity style={s.closeBtn} onPress={() => setSelectedFileModal(null)}>
+                <Text style={{ color: G.muted, fontSize: 14, fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <View style={[pStyles.formIconWrap, { width: 36, height: 36 }]}><IconFile size={18} color={G.green}/></View>
+                <Text style={[s.modalTitle, { marginBottom: 0, fontSize: 17 }]}>Medical Record Details</Text>
+              </View>
+
+              <Text style={[pStyles.fileName, { fontSize: 16, marginBottom: 6 }]}>{selectedFileModal.name}</Text>
+              <Text style={{ fontSize: 13, color: G.muted, marginBottom: 16 }}>
+                {selectedFileModal.type} • {selectedFileModal.size} • {selectedFileModal.date}
+              </Text>
+
+              <View style={pStyles.modalDetailBox}>
+                <Text style={pStyles.modalDetailLabel}>Issuer / Physician:</Text>
+                <Text style={pStyles.modalDetailValue}>{selectedFileModal.doctor}</Text>
+
+                <Text style={[pStyles.modalDetailLabel, { marginTop: 8 }]}>Encryption Status:</Text>
+                <Text style={[pStyles.modalDetailValue, { color: G.green }]}>AES-256 GCM Sovereign Encrypted</Text>
+
+                <Text style={[pStyles.modalDetailLabel, { marginTop: 8 }]}>Tags:</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {selectedFileModal.tags.map(t => (
+                    <View key={t} style={pStyles.tagPill}><Text style={pStyles.tagPillText}>{t}</Text></View>
+                  ))}
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFileModal(null);
+                  showToast('Record verified and active');
+                }}
+                activeOpacity={0.8}
+                style={{ marginTop: 20 }}
+              >
+                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={s.signupBtnText}>Close Record</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Floating Toast */}
+      {toast && (
+        <View style={pStyles.toast}>
+          <IconShield size={14} color="white" strokeWidth={2}/>
+          <Text style={pStyles.toastText}>{toast}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── LANDING PAGE COMPONENTS ──────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
   return (
     <View style={s.navbarWrap}>
       <View style={[s.navbar, isDesktop && s.navbarDesktop]}>
@@ -87,6 +729,10 @@ function Navbar({ onLogin, onSignup, isDesktop }) {
 
         {/* Actions */}
         <View style={s.navActions}>
+          <TouchableOpacity onPress={onOpenPatient} style={pStyles.btnQuickPatient} activeOpacity={0.75}>
+            <IconUser size={14} color={G.green}/>
+            <Text style={pStyles.btnQuickPatientText}>Patient Portal</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={onLogin} style={s.loginBtn} activeOpacity={0.7}>
             <Text style={s.loginBtnText}>Login</Text>
           </TouchableOpacity>
@@ -102,8 +748,7 @@ function Navbar({ onLogin, onSignup, isDesktop }) {
   );
 }
 
-// ─── HERO ─────────────────────────────────────────────────────────────────────
-function Hero({ onSignup, onLogin, isDesktop }) {
+function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
   return (
     <View style={[s.heroWrap, isDesktop && s.heroWrapDesktop]}>
       <View style={[s.heroGrid, isDesktop && s.heroGridDesktop]}>
@@ -135,12 +780,15 @@ function Hero({ onSignup, onLogin, isDesktop }) {
             <TouchableOpacity style={s.btnSecondary} onPress={onLogin} activeOpacity={0.75}>
               <Text style={s.btnSecondaryText}>Login</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={pStyles.btnHeroPatient} onPress={onOpenPatient} activeOpacity={0.8}>
+              <IconUser size={15} color={G.green}/>
+              <Text style={pStyles.btnHeroPatientText}>Open Patient Portal →</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Right — Visual */}
         <View style={s.heroVisual}>
-          {/* Main card */}
           <LinearGradient
             colors={['#d8eec8', '#EBF3E6', '#c8e0b8']}
             style={s.heroImgWrap}
@@ -148,38 +796,35 @@ function Hero({ onSignup, onLogin, isDesktop }) {
           >
             {/* SVG Doctor illustration */}
             <Svg viewBox="0 0 280 360" width="100%" height="100%">
-              {/* Coat */}
               <Rect x="60" y="180" width="160" height="180" rx="14" fill="white" opacity="0.95"/>
-              {/* Lapels */}
               <Polygon points="100,180 140,240 140,180" fill="#EBF3E6"/>
               <Polygon points="180,180 140,240 140,180" fill="#EBF3E6"/>
-              {/* Head */}
               <Circle cx="140" cy="110" r="56" fill="#f5d9c8"/>
-              {/* Hair */}
               <Ellipse cx="140" cy="66" rx="56" ry="36" fill="#3d2b1f"/>
               <Ellipse cx="140" cy="78" rx="26" ry="46" fill="#3d2b1f" opacity="0.6"/>
-              {/* Face details */}
               <Circle cx="124" cy="108" r="5" fill="#c0906a"/>
               <Circle cx="156" cy="108" r="5" fill="#c0906a"/>
               <Path d="M128 128 Q140 140 152 128" fill="none" stroke="#b06040" strokeWidth="2.5" strokeLinecap="round"/>
-              {/* Stethoscope */}
               <Circle cx="140" cy="264" r="12" fill="none" stroke="#74A842" strokeWidth="3.5"/>
               <Path d="M128 264 Q106 290 110 308 Q114 326 140 326 Q166 326 170 308 Q174 290 152 264" fill="none" stroke="#74A842" strokeWidth="3.5" strokeLinecap="round"/>
-              {/* Pocket cross */}
               <Rect x="114" y="200" width="28" height="20" rx="4" fill="#EBF3E6" stroke="#c8e0b8" strokeWidth="1.5"/>
               <Line x1="128" y1="205" x2="128" y2="215" stroke="#74A842" strokeWidth="2"/>
               <Line x1="123" y1="210" x2="133" y2="210" stroke="#74A842" strokeWidth="2"/>
             </Svg>
           </LinearGradient>
 
-          {/* Floating card — Patient */}
-          <View style={[s.floatCard, s.fcTopLeft]}>
+          {/* Floating card — Patient (Clickable) */}
+          <TouchableOpacity
+            style={[s.floatCard, s.fcTopLeft]}
+            onPress={onOpenPatient}
+            activeOpacity={0.8}
+          >
             <View style={s.floatIcon}><IconUser size={16}/></View>
             <View>
               <Text style={s.floatLabel}>Patient</Text>
-              <Text style={s.floatSub}>Full Record Control</Text>
+              <Text style={s.floatSub}>Full Record Control (Tap to open)</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Floating card — Doctor */}
           <View style={[s.floatCard, s.fcRight]}>
@@ -204,18 +849,20 @@ function Hero({ onSignup, onLogin, isDesktop }) {
   );
 }
 
-// ─── ROLE CARDS ───────────────────────────────────────────────────────────────
-function RolesSection({ isDesktop }) {
+function RolesSection({ isDesktop, onOpenPatient, onShowNotice }) {
   const cards = [
     {
+      roleKey: 'patient',
       Icon: IconUser, label: 'Patient',
       desc: 'Upload PDFs, images, and documents into organised folders. Automatically convert files to PDF and set precise access rules — deciding exactly who can view or download your records.',
     },
     {
+      roleKey: 'doctor',
       Icon: IconPulse, label: 'Doctor',
       desc: 'Access the medical histories and files patients have explicitly shared with you. Everything is structured, standardised, and immediately available — nothing beyond what was granted.',
     },
     {
+      roleKey: 'caretaker',
       Icon: IconGroup, label: 'Caretaker',
       desc: 'View permitted patient records and easily download or receive medical files as clean, standardised PDFs — within your authorised scope only.',
     },
@@ -228,11 +875,31 @@ function RolesSection({ isDesktop }) {
         <Text style={s.sectionTitle}>One Vault. Three Clear Roles.</Text>
         <View style={[s.rolesGrid, isDesktop && s.rolesGridRow]}>
           {cards.map(c => (
-            <View key={c.label} style={[s.roleCard, isDesktop && s.roleCardFlex]}>
+            <TouchableOpacity
+              key={c.label}
+              style={[s.roleCard, isDesktop && s.roleCardFlex, c.roleKey === 'patient' && pStyles.roleCardPatientActive]}
+              onPress={() => {
+                if (c.roleKey === 'patient') {
+                  onOpenPatient();
+                } else {
+                  onShowNotice(`${c.label} portal coming soon! Currently building Patient experience.`);
+                }
+              }}
+              activeOpacity={0.85}
+            >
               <View style={s.roleIconWrap}><c.Icon size={22}/></View>
               <Text style={s.roleName}>{c.label}</Text>
               <Text style={s.roleDesc}>{c.desc}</Text>
-            </View>
+              {c.roleKey === 'patient' ? (
+                <View style={pStyles.openPortalBadge}>
+                  <Text style={pStyles.openPortalBadgeText}>Open Patient Portal →</Text>
+                </View>
+              ) : (
+                <View style={pStyles.comingSoonBadge}>
+                  <Text style={pStyles.comingSoonBadgeText}>Coming Soon</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           ))}
         </View>
       </View>
@@ -240,7 +907,6 @@ function RolesSection({ isDesktop }) {
   );
 }
 
-// ─── FOOTER ───────────────────────────────────────────────────────────────────
 function Footer() {
   return (
     <View style={s.footer}>
@@ -254,11 +920,24 @@ function Footer() {
   );
 }
 
-// ─── MODAL ────────────────────────────────────────────────────────────────────
-function AppModal({ visible, type, onClose }) {
-  const [selected, setSelected] = useState(null);
+function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
+  const [selected, setSelected] = useState('patient');
   const isSignup = type === 'signup';
-  const close = () => { setSelected(null); onClose(); };
+  const close = () => { onClose(); };
+
+  const handleContinue = () => {
+    onClose();
+    if (selected === 'patient') {
+      onSelectRole('patient');
+    } else {
+      onSelectRole(selected);
+    }
+  };
+
+  const handleSignIn = () => {
+    onClose();
+    onSignIn();
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
@@ -268,7 +947,6 @@ function AppModal({ visible, type, onClose }) {
             <Text style={{ color: G.muted, fontSize: 14, fontWeight: '700' }}>✕</Text>
           </TouchableOpacity>
 
-          {/* Logo row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <View style={[s.logoIcon, { width: 36, height: 36 }]}><IconShield size={18} color="white" strokeWidth={2.5}/></View>
             <Text style={[s.modalTitle, { marginBottom: 0 }]}>{isSignup ? 'Create Account' : 'Welcome Back'}</Text>
@@ -295,29 +973,28 @@ function AppModal({ visible, type, onClose }) {
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
-                disabled={!selected}
-                onPress={close}
-                style={{ opacity: selected ? 1 : 0.35, marginTop: 20 }}
+                onPress={handleContinue}
+                style={{ marginTop: 20 }}
                 activeOpacity={0.8}
               >
                 <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Continue</Text>
+                  <Text style={s.signupBtnText}>Continue as {selected === 'patient' ? 'Patient' : selected}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              {[{ label: 'Email', placeholder: 'you@example.com' }, { label: 'Password', placeholder: '••••••••' }].map(f => (
+              {[{ label: 'Email', placeholder: 'melroy@example.com' }, { label: 'Password', placeholder: '••••••••' }].map(f => (
                 <View key={f.label} style={{ marginBottom: 12 }}>
                   <Text style={s.inputLabel}>{f.label}</Text>
                   <View style={s.inputField}>
-                    <Text style={{ color: G.muted, fontSize: 14 }}>{f.placeholder}</Text>
+                    <Text style={{ color: G.charcoal, fontSize: 14 }}>{f.placeholder}</Text>
                   </View>
                 </View>
               ))}
-              <TouchableOpacity onPress={close} activeOpacity={0.8} style={{ marginTop: 8 }}>
+              <TouchableOpacity onPress={handleSignIn} activeOpacity={0.8} style={{ marginTop: 8 }}>
                 <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Sign In</Text>
+                  <Text style={s.signupBtnText}>Sign In to Patient Portal</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </>
@@ -328,24 +1005,82 @@ function AppModal({ visible, type, onClose }) {
   );
 }
 
-// ─── ROOT ─────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ROOT APP COMPONENT ────────────────═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
+  const [screen, setScreen] = useState('landing'); // 'landing' | 'patient'
   const [modal, setModal] = useState({ open: false, type: 'signup' });
+  const [notice, setNotice] = useState(null);
+
   const open  = (type) => setModal({ open: true, type });
   const close = ()     => setModal(m => ({ ...m, open: false }));
+
+  const handleSelectRole = (role) => {
+    if (role === 'patient') {
+      setScreen('patient');
+    } else {
+      setNotice(`${role.charAt(0).toUpperCase() + role.slice(1)} portal coming soon! Opening Patient experience.`);
+      setTimeout(() => setNotice(null), 3500);
+      setScreen('patient');
+    }
+  };
+
+  const handleSignIn = () => {
+    setScreen('patient');
+  };
+
+  if (screen === 'patient') {
+    return (
+      <PatientPortal
+        isDesktop={isDesktop}
+        onSignOut={() => setScreen('landing')}
+      />
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: G.bg }}>
       <StatusBar barStyle="dark-content" backgroundColor={G.bg}/>
-      <Navbar onLogin={() => open('login')} onSignup={() => open('signup')} isDesktop={isDesktop}/>
+
+      {notice && (
+        <View style={pStyles.noticeBar}>
+          <Text style={pStyles.noticeBarText}>{notice}</Text>
+        </View>
+      )}
+
+      <Navbar
+        onLogin={() => open('login')}
+        onSignup={() => open('signup')}
+        onOpenPatient={() => setScreen('patient')}
+        isDesktop={isDesktop}
+      />
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <Hero onSignup={() => open('signup')} onLogin={() => open('login')} isDesktop={isDesktop}/>
-        <RolesSection isDesktop={isDesktop}/>
+        <Hero
+          onSignup={() => open('signup')}
+          onLogin={() => open('login')}
+          onOpenPatient={() => setScreen('patient')}
+          isDesktop={isDesktop}
+        />
+        <RolesSection
+          isDesktop={isDesktop}
+          onOpenPatient={() => setScreen('patient')}
+          onShowNotice={(msg) => {
+            setNotice(msg);
+            setTimeout(() => setNotice(null), 3500);
+          }}
+        />
         <Footer/>
       </ScrollView>
-      <AppModal visible={modal.open} type={modal.type} onClose={close}/>
+      <AppModal
+        visible={modal.open}
+        type={modal.type}
+        onClose={close}
+        onSelectRole={handleSelectRole}
+        onSignIn={handleSignIn}
+      />
     </View>
   );
 }
@@ -387,7 +1122,7 @@ const s = StyleSheet.create({
   h1:      { fontSize: 38, fontWeight: '900', color: G.charcoal, lineHeight: 48, marginBottom: 18, letterSpacing: -1 },
   h1Accent:{ color: G.green },
   heroSub: { fontSize: 16, color: G.muted, lineHeight: 26, marginBottom: 32 },
-  heroBtns:{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  heroBtns:{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', alignItems: 'center' },
   btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 13, borderRadius: 999 },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   btnSecondary: { paddingHorizontal: 24, paddingVertical: 13, borderRadius: 999, borderWidth: 1.5, borderColor: '#c8dfc0', backgroundColor: G.white },
@@ -426,7 +1161,7 @@ const s = StyleSheet.create({
 
   /* Modal */
   overlay: { flex: 1, backgroundColor: 'rgba(28,43,26,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modal:   { width: '100%', maxWidth: 420, borderRadius: 22, padding: 32, backgroundColor: G.white, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.12, shadowRadius: 48, elevation: 10 },
+  modal:   { width: '100%', maxWidth: 440, borderRadius: 22, padding: 28, backgroundColor: G.white, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.12, shadowRadius: 48, elevation: 10 },
   closeBtn:{ position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: 999, backgroundColor: G.greenL, alignItems: 'center', justifyContent: 'center' },
   modalTitle:{ fontSize: 20, fontWeight: '800', color: G.charcoal, marginBottom: 6 },
   modalSub:  { fontSize: 13, color: G.muted, marginBottom: 20, lineHeight: 20 },
@@ -439,4 +1174,768 @@ const s = StyleSheet.create({
   modalCta: { paddingVertical: 13, borderRadius: 999, alignItems: 'center' },
   inputLabel: { fontSize: 12, fontWeight: '700', color: G.muted, marginBottom: 6 },
   inputField: { padding: 13, borderRadius: 12, borderWidth: 1.5, borderColor: G.border, backgroundColor: G.bg },
+});
+
+// ─── PATIENT PORTAL SPECIFIC STYLES ───────────────────────────────────────────
+const pStyles = StyleSheet.create({
+  header: {
+    backgroundColor: G.white,
+    borderBottomWidth: 1,
+    borderBottomColor: G.border,
+    paddingVertical: 12,
+  },
+  headerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  headerInnerDesktop: {
+    maxWidth: 1100,
+    alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: 24,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  userChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: G.greenL,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  avatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: G.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  userName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  roleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  greenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: G.green,
+  },
+  userRole: {
+    fontSize: 11,
+    color: G.muted,
+  },
+  btnSignOut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+    backgroundColor: G.white,
+  },
+  btnSignOutText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: G.muted,
+  },
+  container: {
+    padding: 20,
+    paddingBottom: 60,
+  },
+  containerDesktop: {
+    maxWidth: 1100,
+    alignSelf: 'center',
+    width: '100%',
+    padding: 28,
+    paddingBottom: 80,
+  },
+  vaultHero: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: G.border,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  vaultHeroHeader: {
+    marginBottom: 20,
+  },
+  badgeEncrypted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: G.greenL,
+    borderColor: G.border,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginBottom: 10,
+  },
+  badgeEncryptedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.green,
+  },
+  vaultHeroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: G.charcoal,
+    marginBottom: 6,
+    letterSpacing: -0.5,
+  },
+  vaultHeroSub: {
+    fontSize: 14,
+    color: G.muted,
+    lineHeight: 22,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 120,
+    backgroundColor: G.white,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  statNum: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: G.charcoal,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: G.muted,
+    fontWeight: '500',
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  tabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: G.white,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+  },
+  tabBtnActive: {
+    backgroundColor: G.greenL,
+    borderColor: G.green,
+  },
+  tabBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: G.muted,
+  },
+  tabBtnTextActive: {
+    color: G.green,
+    fontWeight: '700',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: G.white,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: G.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: G.charcoal,
+    outlineWidth: 0,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: G.charcoal,
+  },
+  clearFilterText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.green,
+  },
+  foldersGrid: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  foldersGridDesktop: {
+    flexDirection: 'row',
+  },
+  folderCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: G.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: G.borderGray,
+  },
+  folderCardSelected: {
+    borderColor: G.green,
+    backgroundColor: '#fbfdfa',
+  },
+  folderTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  folderIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: G.greenL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  folderCountBadge: {
+    backgroundColor: G.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+  },
+  folderCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.muted,
+  },
+  folderName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: G.charcoal,
+    marginBottom: 4,
+  },
+  folderDesc: {
+    fontSize: 12,
+    color: G.muted,
+    marginBottom: 10,
+  },
+  folderMeta: {
+    fontSize: 11,
+    color: G.muted,
+    fontWeight: '500',
+  },
+  linkAddFile: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: G.greenL,
+  },
+  linkAddFileText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.green,
+  },
+  filesCard: {
+    backgroundColor: G.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: G.border,
+    overflow: 'hidden',
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+  },
+  fileRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f0',
+  },
+  fileTypeBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  fileTypeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+    marginBottom: 4,
+  },
+  fileMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  fileMetaText: {
+    fontSize: 12,
+    color: G.muted,
+  },
+  fileMetaDot: {
+    fontSize: 10,
+    color: G.borderGray,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  tagPill: {
+    backgroundColor: G.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+  },
+  tagPillText: {
+    fontSize: 10,
+    color: G.muted,
+    fontWeight: '600',
+  },
+  btnViewFile: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: G.border,
+    backgroundColor: G.greenL,
+  },
+  btnViewFileText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.green,
+  },
+  emptyState: {
+    backgroundColor: G.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: G.border,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: G.charcoal,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptyStateSub: {
+    fontSize: 13,
+    color: G.muted,
+    textAlign: 'center',
+  },
+  formCard: {
+    backgroundColor: G.white,
+    borderRadius: 18,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  formIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: G.greenL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: G.charcoal,
+  },
+  formSub: {
+    fontSize: 13,
+    color: G.muted,
+    marginTop: 2,
+  },
+  dropzone: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: G.border,
+    borderRadius: 14,
+    backgroundColor: G.bg,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  dropzoneTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+    marginTop: 10,
+  },
+  dropzoneSub: {
+    fontSize: 12,
+    color: G.muted,
+    marginTop: 2,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.muted,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textInput: {
+    borderWidth: 1.5,
+    borderColor: G.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: G.charcoal,
+    backgroundColor: G.bg,
+  },
+  folderSelectRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  folderChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+    backgroundColor: G.bg,
+  },
+  folderChipSelected: {
+    borderColor: G.green,
+    backgroundColor: G.greenL,
+  },
+  folderChipText: {
+    fontSize: 12,
+    color: G.charcoal,
+    fontWeight: '600',
+  },
+  folderChipTextSelected: {
+    color: G.green,
+    fontWeight: '700',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: G.greenL,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginTop: 8,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: G.border,
+    backgroundColor: G.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: G.green,
+    borderColor: G.green,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  toggleSub: {
+    fontSize: 11,
+    color: G.muted,
+    marginTop: 2,
+  },
+  permOpt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: G.borderGray,
+    marginBottom: 8,
+    backgroundColor: G.bg,
+  },
+  permOptSelected: {
+    borderColor: G.green,
+    backgroundColor: G.greenL,
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: G.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: G.green,
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: G.green,
+  },
+  permOptTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  permOptSub: {
+    fontSize: 11,
+    color: G.muted,
+  },
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+  },
+  personRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f0',
+  },
+  personAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: G.greenL,
+    borderWidth: 1,
+    borderColor: G.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  personAvatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: G.green,
+  },
+  personName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+    marginBottom: 2,
+  },
+  personClinic: {
+    fontSize: 12,
+    color: G.muted,
+    marginBottom: 4,
+  },
+  permBadge: {
+    backgroundColor: G.greenL,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  permBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: G.green,
+  },
+  btnRevoke: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  btnRevokeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.red,
+  },
+  modalDetailBox: {
+    backgroundColor: G.bg,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  modalDetailLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.muted,
+    textTransform: 'uppercase',
+  },
+  modalDetailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: G.charcoal,
+    marginTop: 2,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    backgroundColor: G.charcoal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  btnQuickPatient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: G.greenL,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  btnQuickPatientText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.green,
+  },
+  btnHeroPatient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+    backgroundColor: G.greenL,
+    borderWidth: 1.5,
+    borderColor: G.border,
+  },
+  btnHeroPatientText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.green,
+  },
+  roleCardPatientActive: {
+    borderColor: G.green,
+    borderWidth: 2,
+  },
+  openPortalBadge: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    backgroundColor: G.greenL,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  openPortalBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.green,
+  },
+  comingSoonBadge: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    backgroundColor: G.bg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  comingSoonBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: G.muted,
+  },
+  noticeBar: {
+    backgroundColor: G.charcoal,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  noticeBarText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
