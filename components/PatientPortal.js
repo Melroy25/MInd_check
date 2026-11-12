@@ -169,6 +169,7 @@ const IconJson = ({ size = 16, color = C.amber }) => (
     <Polyline points="8 6 2 12 8 18" />
   </Svg>
 );
+const IconCode = IconJson;
 
 const IconPlus = ({ size = 18, color = C.blue }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -322,8 +323,38 @@ const INITIAL_BENEFACTORS = [
 ];
 
 const INITIAL_CARETAKERS = [
-  { id: 'c1', name: 'Elena Almeida', role: 'Caretaker (Family)', relation: 'Designated Health Proxy', perm: 'View & Download', code: 'CAR-552', date: 'Active' },
-  { id: 'c2', name: 'Marcus Almeida', role: 'Emergency Contact', relation: 'Brother / Secondary Proxy', perm: 'Emergency Only', code: 'CAR-883', date: 'Active' },
+  {
+    id: 'c1',
+    name: 'Elena Almeida',
+    role: 'Caretaker (Family)',
+    relation: 'Designated Health Proxy',
+    code: 'CAR-552',
+    date: 'Active',
+    permissions: {
+      viewTimeline: true,
+      viewSourceDocs: true,
+      uploadRecords: false,
+      correctExtractedData: false,
+      useQA: true,
+    },
+    expiry: '30 Days',
+  },
+  {
+    id: 'c2',
+    name: 'Marcus Almeida',
+    role: 'Emergency Contact',
+    relation: 'Brother / Secondary Proxy',
+    code: 'CAR-883',
+    date: 'Active',
+    permissions: {
+      viewTimeline: true,
+      viewSourceDocs: true,
+      uploadRecords: false,
+      correctExtractedData: false,
+      useQA: false,
+    },
+    expiry: '90 Days',
+  },
 ];
 
 const INITIAL_CLINICAL = [
@@ -337,11 +368,22 @@ const INITIAL_PENDING_REQUESTS = [
     category: 'benefactor',
     name: 'Horizon Sovereign Trust',
     relation: 'Supplemental Health Endowment',
-    grant: 'Policy & Billing Grant',
+    grant: 'Full Sovereign Master Access',
     code: 'BEN-992',
     time: '5m ago',
   },
 ];
+
+const getCaretakerPermLabels = (perms) => {
+  if (!perms) return ['Timeline', 'Source Docs'];
+  const labels = [];
+  if (perms.viewTimeline) labels.push('Timeline');
+  if (perms.viewSourceDocs) labels.push('Source Docs');
+  if (perms.uploadRecords) labels.push('Upload');
+  if (perms.correctExtractedData) labels.push('Corrections');
+  if (perms.useQA) labels.push('Q&A');
+  return labels.length > 0 ? labels : ['None'];
+};
 
 export default function PatientPortal({ onSignOut, isDesktop }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
@@ -380,6 +422,31 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [inviteRelation, setInviteRelation] = useState('');
   const [inviteCode, setInviteCode] = useState('BEN-8924');
   const [saveResultModalData, setSaveResultModalData] = useState(null);
+
+  // Caretaker Granular Permissions & Expiry State
+  const [caretakerStep, setCaretakerStep] = useState('configure'); // 'configure' | 'code'
+  const [caretakerPerms, setCaretakerPerms] = useState({
+    viewTimeline: true,
+    viewSourceDocs: true,
+    uploadRecords: true,
+    correctExtractedData: false,
+    useQA: true,
+  });
+  const [caretakerExpiry, setCaretakerExpiry] = useState('30 Days');
+  const [editingCaretaker, setEditingCaretaker] = useState(null);
+  const [editPerms, setEditPerms] = useState({
+    viewTimeline: true,
+    viewSourceDocs: true,
+    uploadRecords: true,
+    correctExtractedData: false,
+    useQA: true,
+  });
+  const [editExpiry, setEditExpiry] = useState('30 Days');
+
+  // Manual Date Filter Picker State
+  const [filterMonth, setFilterMonth] = useState('All');
+  const [filterDay, setFilterDay] = useState('All');
+  const [filterYear, setFilterYear] = useState('All');
 
   // Modals
   const [showQrModal, setShowQrModal] = useState(false);
@@ -506,10 +573,19 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       name: req.name,
       role: req.category === 'benefactor' ? 'Approved Sponsor' : (req.category === 'clinical' ? 'Clinical Physician' : 'Approved Caretaker'),
       relation: req.relation || 'Approved Connection',
-      grant: req.grant || 'Standard Sovereign Access',
+      grant: req.grant || 'Full Sovereign Master Access',
       clinic: req.relation || 'Connected Clinic',
       perm: req.grant || 'Full Access',
+      code: req.code || 'CODE-101',
       date: 'Active',
+      permissions: req.permissions || {
+        viewTimeline: true,
+        viewSourceDocs: true,
+        uploadRecords: true,
+        correctExtractedData: false,
+        useQA: true,
+      },
+      expiry: req.expiry || '30 Days',
     };
 
     if (req.category === 'benefactor') {
@@ -546,7 +622,45 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     setInviteCode(`${prefix}-${num}`);
     setInviteName('');
     setInviteRelation('');
+    if (category === 'caretaker') {
+      setCaretakerStep('configure');
+      setCaretakerPerms({
+        viewTimeline: true,
+        viewSourceDocs: true,
+        uploadRecords: true,
+        correctExtractedData: false,
+        useQA: true,
+      });
+      setCaretakerExpiry('30 Days');
+    }
     setShareCodeCategory(category);
+  };
+
+  const handleOpenEditPermissions = (caretaker) => {
+    setEditingCaretaker(caretaker);
+    setEditPerms(
+      caretaker.permissions || {
+        viewTimeline: true,
+        viewSourceDocs: true,
+        uploadRecords: false,
+        correctExtractedData: false,
+        useQA: true,
+      }
+    );
+    setEditExpiry(caretaker.expiry || '30 Days');
+  };
+
+  const handleSaveEditedPermissions = () => {
+    if (!editingCaretaker) return;
+    setCaretakers((prev) =>
+      prev.map((c) =>
+        c.id === editingCaretaker.id
+          ? { ...c, permissions: { ...editPerms }, expiry: editExpiry }
+          : c
+      )
+    );
+    showToastMsg(`Updated permissions for ${editingCaretaker.name}`);
+    setEditingCaretaker(null);
   };
 
   const handleRegenerateInviteCode = () => {
@@ -557,30 +671,34 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     showToastMsg(`Regenerated one-time code: ${newCode}`);
   };
 
-  const handleSimulateRequest = (category, customName, customRelation) => {
+  const handleQueueIncomingRequest = (category, customName, customRelation, permissions, expiry) => {
     const mockNames = {
-      benefactor: ['Aethelgard Life Trust', 'Prudential Sovereign Fund', 'NorthStar Health Endowment'],
-      caretaker: ['David Chen (Nurse)', 'Maria Santos (Caregiver)', 'Jordan Reed (Proxy)'],
-      clinical: ['Dr. Arthur Morgan (Neurology)', 'Dr. Lisa Cuddy (Endocrinology)', 'Dr. Robert Chase (Surgery)'],
+      benefactor: ['Horizon Sovereign Trust', 'Aethelgard Life Trust', 'Prudential Sovereign Fund'],
+      caretaker: ['Sofia Almeida', 'David Chen (Nurse)', 'Maria Santos (Caregiver)'],
+      clinical: ['Dr. Arthur Morgan', 'Dr. Lisa Cuddy', 'Dr. Robert Chase'],
     };
     const pool = mockNames[category] || ['New Connection'];
     const fallbackName = pool[Math.floor(Math.random() * pool.length)];
 
     const finalName = (customName && customName.trim()) || fallbackName;
-    const finalRelation = (customRelation && customRelation.trim()) || (category === 'clinical' ? 'Metro Specialty Clinic' : (category === 'benefactor' ? 'Health Foundation Policy' : 'Designated Family Proxy'));
+    const finalRelation = (customRelation && customRelation.trim()) || (category === 'clinical' ? 'Metro Specialty Clinic' : (category === 'benefactor' ? 'Health Policy Sponsor' : 'Designated Caregiver'));
 
     const newReq = {
       id: `req-${Date.now()}`,
       category,
       name: finalName,
       relation: finalRelation,
-      grant: category === 'benefactor' ? 'Endowment Grant' : (category === 'clinical' ? 'Doctor Access' : 'Caregiver Proxy'),
+      grant: category === 'benefactor' ? 'Full Sovereign Master Access' : (category === 'clinical' ? 'Doctor Access' : 'Caretaker Access'),
       code: inviteCode || `CODE-${Math.floor(1000 + Math.random() * 9000)}`,
+      permissions: permissions || caretakerPerms,
+      expiry: expiry || caretakerExpiry,
       time: 'Just now',
     };
     setPendingRequests((prev) => [newReq, ...prev]);
     showToastMsg(`New connection request from ${finalName}`);
   };
+
+  const handleSimulateRequest = handleQueueIncomingRequest;
 
   const handleSaveUploadedRecord = async () => {
     const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Clinical Note' : 'Medical Record'));
@@ -770,13 +888,17 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
       let matchDate = true;
       if (selectedDateFilter && selectedDateFilter !== 'All Dates') {
-        const filterStr = selectedDateFilter.toLowerCase();
-        if (filterStr.includes('oct') && !filterStr.match(/\d{1,2}/)) {
-          matchDate = Boolean(f.date && f.date.toLowerCase().includes('oct'));
-        } else if (filterStr.includes('sep') && !filterStr.match(/\d{1,2}/)) {
-          matchDate = Boolean(f.date && f.date.toLowerCase().includes('sep'));
+        const filterStr = selectedDateFilter.toLowerCase().trim();
+        const docDate = (f.date || '').toLowerCase();
+
+        if (filterStr.includes('day ')) {
+          const dayNum = filterStr.replace('day ', '').trim();
+          matchDate = Boolean(docDate.match(new RegExp(`\\b${dayNum}\\b`)));
+        } else if (filterStr.includes(' ')) {
+          const parts = filterStr.replace(/,/g, '').split(/\s+/).filter(Boolean);
+          matchDate = parts.every((p) => docDate.includes(p));
         } else {
-          matchDate = Boolean(f.date && f.date.toLowerCase().includes(filterStr));
+          matchDate = docDate.includes(filterStr);
         }
       }
 
@@ -918,18 +1040,20 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               <Text style={[styles.bigCardBtnText, { color: '#2563EB' }]}>View</Text>
             </TouchableOpacity>
 
-            {/* Download Button */}
-            <TouchableOpacity
-              style={[styles.bigCardBtn, styles.bigCardDownloadBtn]}
-              onPress={(e) => {
-                e.stopPropagation && e.stopPropagation();
-                handleDownloadDocument(file);
-              }}
-              activeOpacity={0.75}
-            >
-              <IconDownload size={13} color="#1E293B" />
-              <Text style={[styles.bigCardBtnText, { color: '#1E293B' }]}>Download</Text>
-            </TouchableOpacity>
+            {/* Download Button (Only for non-JSON files) */}
+            {file.type !== 'JSON' && (
+              <TouchableOpacity
+                style={[styles.bigCardBtn, styles.bigCardDownloadBtn]}
+                onPress={(e) => {
+                  e.stopPropagation && e.stopPropagation();
+                  handleDownloadDocument(file);
+                }}
+                activeOpacity={0.75}
+              >
+                <IconDownload size={13} color="#1E293B" />
+                <Text style={[styles.bigCardBtnText, { color: '#1E293B' }]}>Download</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -1114,6 +1238,57 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   numberOfLines={4}
                 />
               </View>
+
+              {/* 5. Extracted Clinical JSON Section (View only, no download) */}
+              <View style={styles.uploadJsonPreviewCard}>
+                <View style={styles.uploadJsonHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={styles.uploadJsonIconBox}>
+                      <IconCode size={15} color={C.amber} />
+                    </View>
+                    <View>
+                      <Text style={styles.uploadJsonTitle}>Extracted Clinical JSON</Text>
+                      <Text style={styles.uploadJsonSub}>
+                        {pickedFile
+                          ? `Structured entities from ${pickedFile.name}`
+                          : enteredText.trim()
+                          ? 'Entities extracted from clinical text'
+                          : 'Gemini AI structured entity payload'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.viewJsonInlineBtn}
+                    onPress={() => {
+                      const payload = {
+                        document_metadata: {
+                          doc_type: pickedFile?.type === 'image' ? 'scan_report' : 'clinical_record',
+                          title: uploadTitle.trim() || (pickedFile ? pickedFile.name : 'Clinical Record'),
+                          uploaded_at: new Date().toISOString(),
+                          patient_name: patientInfo.name,
+                          vault_id: patientInfo.vaultId,
+                          encryption: 'AES-256-GCM Sovereign Vault',
+                        },
+                        clinical_summary: enteredText.trim() || `Verified clinical findings for ${uploadTitle.trim() || 'record'}.`,
+                        extracted_entities: {
+                          conditions: [{ code: 'ICD-10-R73.09', name: 'Clinical Evaluation', status: 'verified' }],
+                          observations: [
+                            { test_name: 'Fasting Plasma Glucose', value: 104, unit: 'mg/dL', interpretation: 'borderline' },
+                            { test_name: 'HbA1c', value: 5.8, unit: '%', interpretation: 'prediabetic' }
+                          ],
+                          audit_hash: 'sha256:d8a2f91e0c4b...'
+                        }
+                      };
+                      setSelectedJsonModal(payload);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <IconEye size={13} color="#2563EB" />
+                    <Text style={styles.viewJsonInlineBtnText}>View</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
 
             {/* Save Button Kept Cleanly at the Bottom */}
@@ -1211,8 +1386,26 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               {filteredFiles.length === 0 ? (
                 <View style={styles.emptyDocState}>
                   <IconFileText size={40} color={C.border} />
-                  <Text style={styles.emptyDocTitle}>No matching documents found</Text>
-                  <Text style={styles.emptyDocSub}>Try adjusting your search query or clearing the date filter</Text>
+                  <Text style={styles.emptyDocTitle}>No documents</Text>
+                  <Text style={styles.emptyDocSub}>
+                    {selectedDateFilter
+                      ? `No documents found for ${selectedDateFilter}`
+                      : 'Try adjusting your search query or clearing the filter'}
+                  </Text>
+                  {selectedDateFilter && (
+                    <TouchableOpacity
+                      style={styles.clearDateFilterBtn}
+                      onPress={() => {
+                        setSelectedDateFilter(null);
+                        setFilterMonth('All');
+                        setFilterDay('All');
+                        setFilterYear('All');
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.clearDateFilterBtnText}>Clear Date Filter</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 filteredFiles.map((file) => renderDocumentCard(file))
@@ -1351,7 +1544,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                           <Text style={styles.pendingReqTime}>{req.time}</Text>
                         </View>
                         <Text style={styles.pendingReqName}>{req.name}</Text>
-                        <Text style={styles.pendingReqDesc}>{req.relation} · {req.grant}</Text>
+                        <Text style={styles.pendingReqDesc}>
+                          {req.relation}
+                          {req.category === 'caretaker' && req.permissions
+                            ? ` · ${getCaretakerPermLabels(req.permissions).join(', ')} · Expires: ${req.expiry || '30 Days'}`
+                            : (req.category === 'benefactor' ? '' : ` · ${req.grant || ''}`)}
+                        </Text>
                       </View>
                     </View>
 
@@ -1386,24 +1584,57 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                         {item.name.substring(0, 2).toUpperCase()}
                       </Text>
                     </View>
-                    <View style={{ flex: 1 }}>
+
+                    <View style={{ flex: 1, marginRight: 8 }}>
                       <Text style={styles.personName}>{item.name}</Text>
                       <Text style={styles.personSub}>{item.clinic || item.relation}</Text>
-                      <View style={[styles.badgePermWrap, { backgroundColor: connectSubView === 'benefactor' ? '#EFF6FF' : (connectSubView === 'clinical' ? '#F5F3FF' : '#F0FDF4') }]}>
-                        <Text style={[styles.badgePermText, { color: connectSubView === 'benefactor' ? C.blue : (connectSubView === 'clinical' ? C.purple : C.green) }]}>
-                          {item.grant || item.perm}
-                        </Text>
-                      </View>
+
+                      {/* Caretaker: Show granular permissions summary & expiration */}
+                      {connectSubView === 'caretaker' && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, alignItems: 'center' }}>
+                          {getCaretakerPermLabels(item.permissions).map((lbl, idx) => (
+                            <View key={idx} style={styles.caretakerMiniBadge}>
+                              <Text style={styles.caretakerMiniBadgeText}>{lbl}</Text>
+                            </View>
+                          ))}
+                          <View style={styles.caretakerExpiryBadge}>
+                            <Text style={styles.caretakerExpiryBadgeText}>⏱ {item.expiry || '30 Days'}</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Clinical: Show clinic specialty badge */}
+                      {connectSubView === 'clinical' && (
+                        <View style={[styles.badgePermWrap, { backgroundColor: '#F5F3FF', marginTop: 4 }]}>
+                          <Text style={[styles.badgePermText, { color: C.purple }]}>
+                            {item.grant || item.perm}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Benefactor: NO BLUE TEXT BADGE! Benefactors have full access only */}
                     </View>
 
-                    {/* Clean Remove User Button */}
-                    <TouchableOpacity
-                      style={styles.removeUserBtn}
-                      onPress={() => handleRemoveEntity(item.id, connectSubView)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.removeUserBtnText}>Remove</Text>
-                    </TouchableOpacity>
+                    {/* Action Buttons */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {connectSubView === 'caretaker' && (
+                        <TouchableOpacity
+                          style={styles.editPermBtn}
+                          onPress={() => handleOpenEditPermissions(item)}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={styles.editPermBtnText}>Edit</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      <TouchableOpacity
+                        style={styles.removeUserBtn}
+                        onPress={() => handleRemoveEntity(item.id, connectSubView)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.removeUserBtnText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </>
@@ -1900,7 +2131,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       {/* ── FILTER BY DATE MODAL ─────────────────────────────────────────── */}
       <Modal visible={showDateModal} transparent animationType="fade" onRequestClose={() => setShowDateModal(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxWidth: 440, maxHeight: '90%' }]}>
             <View style={styles.modalHeaderRow}>
               <View>
                 <Text style={styles.modalTitle}>Filter by Upload Date</Text>
@@ -1911,49 +2142,138 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               </TouchableOpacity>
             </View>
 
-            <View style={{ marginTop: 12 }}>
-              <Text style={styles.cleanFieldLabel}>QUICK DATE OPTIONS</Text>
-              <View style={styles.quickDateChipsGrid}>
-                {['All Dates', 'Oct 24, 2026', 'Oct 12, 2026', 'Sep 28, 2026', 'Sep 15, 2026', 'Sep 10, 2026', 'October 2026', 'September 2026'].map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.quickDateChip,
-                      (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipActive,
-                    ]}
-                    onPress={() => {
-                      if (d === 'All Dates') {
-                        setSelectedDateFilter(null);
-                      } else {
-                        setSelectedDateFilter(d);
-                      }
-                      setShowDateModal(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.quickDateChipText,
-                        (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipTextActive,
-                      ]}
-                    >
-                      {d}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 10 }}>
+              {/* 1. Manual Month, Day, Year Selector */}
+              <View style={styles.manualDateBox}>
+                <Text style={styles.cleanFieldLabel}>MANUAL DATE SELECTOR</Text>
 
-            {selectedDateFilter && (
-              <TouchableOpacity
-                style={[styles.pageSignOutBtn, { marginTop: 16 }]}
-                onPress={() => {
-                  setSelectedDateFilter(null);
-                  setShowDateModal(false);
-                }}
-              >
-                <Text style={styles.pageSignOutBtnText}>Reset Date Filter</Text>
-              </TouchableOpacity>
-            )}
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.pickerSubLabel}>Month</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipsScroll}>
+                    {['All', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
+                      <TouchableOpacity
+                        key={m}
+                        style={[styles.miniDatePill, filterMonth === m && styles.miniDatePillActive]}
+                        onPress={() => setFilterMonth(m)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.miniDatePillText, filterMonth === m && styles.miniDatePillTextActive]}>{m}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.pickerSubLabel}>Day</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipsScroll}>
+                    {['All', '24', '12', '28', '15', '10', '1', '2', '3', '4', '5', '6', '7', '8', '9', '11', '13', '14', '16', '17', '18', '19', '20', '21', '22', '23', '25', '26', '27', '29', '30', '31'].map((d) => (
+                      <TouchableOpacity
+                        key={d}
+                        style={[styles.miniDatePill, filterDay === d && styles.miniDatePillActive]}
+                        onPress={() => setFilterDay(d)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.miniDatePillText, filterDay === d && styles.miniDatePillTextActive]}>{d}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.pickerSubLabel}>Year</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipsScroll}>
+                    {['All', '2026', '2025', '2024'].map((y) => (
+                      <TouchableOpacity
+                        key={y}
+                        style={[styles.miniDatePill, filterYear === y && styles.miniDatePillActive]}
+                        onPress={() => setFilterYear(y)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.miniDatePillText, filterYear === y && styles.miniDatePillTextActive]}>{y}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.applyDateFilterBtn}
+                  onPress={() => {
+                    let filterTag = '';
+                    if (filterMonth !== 'All' && filterDay !== 'All' && filterYear !== 'All') {
+                      filterTag = `${filterMonth} ${filterDay}, ${filterYear}`;
+                    } else if (filterMonth !== 'All' && filterYear !== 'All') {
+                      filterTag = `${filterMonth} ${filterYear}`;
+                    } else if (filterMonth !== 'All' && filterDay !== 'All') {
+                      filterTag = `${filterMonth} ${filterDay}`;
+                    } else if (filterMonth !== 'All') {
+                      filterTag = filterMonth;
+                    } else if (filterYear !== 'All') {
+                      filterTag = filterYear;
+                    } else if (filterDay !== 'All') {
+                      filterTag = `Day ${filterDay}`;
+                    } else {
+                      filterTag = null;
+                    }
+                    setSelectedDateFilter(filterTag);
+                    setShowDateModal(false);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.applyDateFilterBtnText}>Apply Manual Filter</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 2. Quick Date Options */}
+              <View style={{ marginTop: 14 }}>
+                <Text style={styles.cleanFieldLabel}>QUICK DATE OPTIONS</Text>
+                <View style={styles.quickDateChipsGrid}>
+                  {['All Dates', 'Oct 24, 2026', 'Oct 12, 2026', 'Sep 28, 2026', 'Sep 15, 2026', 'Sep 10, 2026', 'October 2026', 'September 2026'].map((d) => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[
+                        styles.quickDateChip,
+                        (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipActive,
+                      ]}
+                      onPress={() => {
+                        if (d === 'All Dates') {
+                          setSelectedDateFilter(null);
+                          setFilterMonth('All');
+                          setFilterDay('All');
+                          setFilterYear('All');
+                        } else {
+                          setSelectedDateFilter(d);
+                        }
+                        setShowDateModal(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.quickDateChipText,
+                          (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipTextActive,
+                        ]}
+                      >
+                        {d}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {selectedDateFilter && (
+                <TouchableOpacity
+                  style={[styles.pageSignOutBtn, { marginTop: 14 }]}
+                  onPress={() => {
+                    setSelectedDateFilter(null);
+                    setFilterMonth('All');
+                    setFilterDay('All');
+                    setFilterYear('All');
+                    setShowDateModal(false);
+                  }}
+                >
+                  <Text style={styles.pageSignOutBtnText}>Reset Date Filter</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -2257,53 +2577,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   </View>
                 )}
               </View>
-
-              {/* 2. Extracted Clinical JSON File (Shown below the RAG check) */}
-              <View style={styles.saveJsonBoxWrap}>
-                <View style={styles.extractedJsonHeaderRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <IconJson size={16} color={C.amber} />
-                    <Text style={styles.cleanFieldLabel}>EXTRACTED CLINICAL JSON</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.copyJsonBtn}
-                    onPress={() => {
-                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                        navigator.clipboard.writeText(JSON.stringify(saveResultModalData?.jsonData, null, 2));
-                        showToastMsg('JSON copied to clipboard!');
-                      }
-                    }}
-                  >
-                    <Text style={styles.copyJsonBtnText}>Copy JSON</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.rawJsonBox} horizontal showsHorizontalScrollIndicator={true}>
-                  <Text style={styles.rawJsonCode}>
-                    {JSON.stringify(saveResultModalData?.jsonData, null, 2)}
-                  </Text>
-                </ScrollView>
-              </View>
             </ScrollView>
 
-            {/* Modal Bottom Actions */}
-            <View style={styles.saveModalActionRow}>
+            {/* Modal Bottom Actions: Done Button Only (Conflict & RAG Results) */}
+            <View style={[styles.saveModalActionRow, { justifyContent: 'flex-end' }]}>
               <TouchableOpacity
-                style={styles.saveModalDownloadBtn}
-                onPress={() => {
-                  const jsonStr = JSON.stringify(saveResultModalData?.jsonData, null, 2);
-                  const blob = new Blob([jsonStr], { type: 'application/json' });
-                  const safeName = (saveResultModalData?.title || 'record').replace(/[^a-zA-Z0-9_-]/g, '_');
-                  downloadBlob(blob, `${safeName}_extracted.json`);
-                  showToastMsg(`Downloaded ${safeName}_extracted.json`);
-                }}
-              >
-                <IconDownload size={15} color={C.blue} />
-                <Text style={styles.saveModalDownloadBtnText}>Download JSON</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.saveModalDoneBtn}
+                style={[styles.saveModalDoneBtn, { flex: 1 }]}
                 onPress={() => {
                   setSaveResultModalData(null);
                   setActiveTab('documents');
@@ -2321,7 +2600,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         visible={!!shareCodeCategory}
         transparent
         animationType="fade"
-        onRequestClose={() => setShareCodeCategory(null)}
+        onRequestClose={() => {
+          if (inviteName.trim() && shareCodeCategory) {
+            handleQueueIncomingRequest(shareCodeCategory, inviteName, inviteRelation, caretakerPerms, caretakerExpiry);
+          }
+          setShareCodeCategory(null);
+        }}
       >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalContainer, { maxWidth: 460, maxHeight: '90%' }]}>
@@ -2329,118 +2613,411 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               <Text style={styles.modalTitle}>
                 Share {shareCodeCategory === 'benefactor' ? 'Benefactor' : (shareCodeCategory === 'clinical' ? 'Clinical' : 'Caretaker')} Invite
               </Text>
-              <TouchableOpacity onPress={() => setShareCodeCategory(null)}>
+              <TouchableOpacity onPress={() => {
+                if (inviteName.trim() && shareCodeCategory) {
+                  handleQueueIncomingRequest(shareCodeCategory, inviteName, inviteRelation, caretakerPerms, caretakerExpiry);
+                }
+                setShareCodeCategory(null);
+              }}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 6 }}>
-              {/* 1. Who the Benefactor is: Name & Relation Details to add */}
-              <View style={styles.inviteFieldWrap}>
-                <Text style={styles.cleanFieldLabel}>
-                  {shareCodeCategory === 'benefactor' ? 'BENEFACTOR / SPONSOR NAME' : (shareCodeCategory === 'clinical' ? 'DOCTOR / CLINIC NAME' : 'CARETAKER NAME')}
-                </Text>
-                <TextInput
-                  style={styles.cleanInputField}
-                  placeholder={shareCodeCategory === 'benefactor' ? 'e.g. Horizon Life Foundation' : (shareCodeCategory === 'clinical' ? 'e.g. Dr. Arthur Morgan' : 'e.g. Sofia Almeida')}
-                  placeholderTextColor="#94A3B8"
-                  value={inviteName}
-                  onChangeText={setInviteName}
-                />
-              </View>
-
-              <View style={[styles.inviteFieldWrap, { marginTop: 10 }]}>
-                <Text style={styles.cleanFieldLabel}>
-                  {shareCodeCategory === 'benefactor' ? 'RELATIONSHIP / ORGANIZATION' : (shareCodeCategory === 'clinical' ? 'SPECIALTY / HOSPITAL' : 'RELATIONSHIP')}
-                </Text>
-                <TextInput
-                  style={styles.cleanInputField}
-                  placeholder={shareCodeCategory === 'benefactor' ? 'e.g. Family Policy Sponsor' : (shareCodeCategory === 'clinical' ? 'e.g. Cardiology, City Hospital' : 'e.g. Sister / Designated Proxy')}
-                  placeholderTextColor="#94A3B8"
-                  value={inviteRelation}
-                  onChangeText={setInviteRelation}
-                />
-              </View>
-
-              {/* 2. One-Time Code & QR Card with Regenerate Button */}
-              <View style={styles.codeDisplayCard}>
-                <View style={styles.codeCardHeader}>
-                  <Text style={styles.codeLabel}>SECURE ONE-TIME ACCESS</Text>
-                  <TouchableOpacity
-                    style={styles.regenerateSmallBtn}
-                    onPress={handleRegenerateInviteCode}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={styles.regenerateSmallBtnText}>↻ Regenerate</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.codeDigits}>{inviteCode}</Text>
-
-                {/* One-Time QR Code SVG */}
-                <View style={styles.oneTimeQrWrap}>
-                  <Svg width={130} height={130} viewBox="0 0 100 100">
-                    <Rect x="0" y="0" width="100" height="100" fill="white" />
-                    <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                    <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
-                    <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                    <Rect x="67" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                    <Rect x="71" y="9" width="20" height="20" fill="white" rx="2" />
-                    <Rect x="75" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                    <Rect x="5" y="67" width="28" height="28" fill="#0F172A" rx="4" />
-                    <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
-                    <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
-
-                    <Rect x="42" y="8" width="6" height="18" fill="#2563EB" />
-                    <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
-                    <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
-                    <Rect x="40" y="40" width="20" height="20" fill="#2563EB" rx="4" />
-                    <Rect x="45" y="45" width="10" height="10" fill="white" rx="2" />
-                    <Rect x="68" y="42" width="14" height="6" fill="#0F172A" />
-                    <Rect x="42" y="68" width="6" height="18" fill="#0F172A" />
-                    <Rect x="54" y="72" width="14" height="8" fill="#2563EB" />
-                    <Rect x="74" y="68" width="18" height="6" fill="#0F172A" />
-                    <Rect x="78" y="78" width="12" height="12" fill="#0F172A" />
-                  </Svg>
-                  <View style={styles.oneTimeQrBadge}>
-                    <Text style={styles.oneTimeQrBadgeText}>One-Time QR · Single Use Only</Text>
+              {/* CARETAKER STEP 1: Ask Permissions & Expiry Before Code */}
+              {shareCodeCategory === 'caretaker' && caretakerStep === 'configure' ? (
+                <>
+                  <View style={styles.inviteFieldWrap}>
+                    <Text style={styles.cleanFieldLabel}>CARETAKER</Text>
+                    <TextInput
+                      style={styles.cleanInputField}
+                      placeholder="enter the name"
+                      placeholderTextColor="#94A3B8"
+                      value={inviteName}
+                      onChangeText={setInviteName}
+                    />
                   </View>
-                </View>
 
-                <Text style={styles.codeSub}>
-                  Share this one-time code or QR with this benefactor. When scanned or submitted, an approval notification will arrive on your phone to approve or reject.
-                </Text>
-              </View>
+                  <View style={[styles.inviteFieldWrap, { marginTop: 10 }]}>
+                    <Text style={styles.cleanFieldLabel}>RELATIONSHIP</Text>
+                    <TextInput
+                      style={styles.cleanInputField}
+                      placeholder="enter your relation"
+                      placeholderTextColor="#94A3B8"
+                      value={inviteRelation}
+                      onChangeText={setInviteRelation}
+                    />
+                  </View>
 
-              {/* Action Buttons */}
-              <View style={{ gap: 10, marginTop: 14 }}>
-                <TouchableOpacity
-                  style={styles.copyCodeBtn}
-                  onPress={() => {
-                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                      navigator.clipboard.writeText(inviteCode);
-                    }
-                    showToastMsg(`Copied ${inviteCode} to clipboard!`);
-                  }}
-                >
-                  <Text style={styles.copyCodeBtnText}>Copy Connection Code</Text>
-                </TouchableOpacity>
+                  {/* 5 Permissions Toggles from ProblemS.pdf */}
+                  <Text style={[styles.cleanFieldLabel, { marginTop: 14, marginBottom: 8 }]}>PERMISSIONS</Text>
+                  <View style={styles.permListCard}>
+                    {/* 1. View Timeline */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>View the Timeline</Text>
+                        <Text style={styles.permSub}>History of conditions, medications, allergies & events</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, caretakerPerms.viewTimeline && { backgroundColor: C.green }]}
+                        onPress={() => setCaretakerPerms({ ...caretakerPerms, viewTimeline: !caretakerPerms.viewTimeline })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, caretakerPerms.viewTimeline && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
 
-                <TouchableOpacity
-                  style={styles.simulateRequestBtn}
-                  onPress={() => {
-                    const cat = shareCodeCategory;
-                    const name = inviteName;
-                    const rel = inviteRelation;
-                    setShareCodeCategory(null);
-                    handleSimulateRequest(cat, name, rel);
-                  }}
-                >
-                  <Text style={styles.simulateRequestBtnText}>Simulate Incoming Request Notification</Text>
-                </TouchableOpacity>
-              </View>
+                    {/* 2. View Source Documents */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>View Source Documents</Text>
+                        <Text style={styles.permSub}>Original uploaded PDFs, prescriptions & reports</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, caretakerPerms.viewSourceDocs && { backgroundColor: C.green }]}
+                        onPress={() => setCaretakerPerms({ ...caretakerPerms, viewSourceDocs: !caretakerPerms.viewSourceDocs })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, caretakerPerms.viewSourceDocs && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 3. Upload New Records */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Upload New Records</Text>
+                        <Text style={styles.permSub}>Add new medical documents to vault</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, caretakerPerms.uploadRecords && { backgroundColor: C.green }]}
+                        onPress={() => setCaretakerPerms({ ...caretakerPerms, uploadRecords: !caretakerPerms.uploadRecords })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, caretakerPerms.uploadRecords && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 4. Correct Extracted Data */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Correct Extracted Data</Text>
+                        <Text style={styles.permSub}>Review and correct extracted data</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, caretakerPerms.correctExtractedData && { backgroundColor: C.green }]}
+                        onPress={() => setCaretakerPerms({ ...caretakerPerms, correctExtractedData: !caretakerPerms.correctExtractedData })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, caretakerPerms.correctExtractedData && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 5. Use Q&A Interface */}
+                    <View style={[styles.permToggleRow, { borderBottomWidth: 0 }]}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Use the Q&A Interface</Text>
+                        <Text style={styles.permSub}>Ask AI factual questions about medical history</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, caretakerPerms.useQA && { backgroundColor: C.green }]}
+                        onPress={() => setCaretakerPerms({ ...caretakerPerms, useQA: !caretakerPerms.useQA })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, caretakerPerms.useQA && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Access Expiration */}
+                  <Text style={[styles.cleanFieldLabel, { marginTop: 14, marginBottom: 8 }]}>ACCESS EXPIRATION</Text>
+                  <View style={styles.expiryChipsRow}>
+                    {['7 Days', '30 Days', '90 Days', 'No Expiry'].map((exp) => (
+                      <TouchableOpacity
+                        key={exp}
+                        style={[styles.expiryChip, caretakerExpiry === exp && styles.expiryChipActive]}
+                        onPress={() => setCaretakerExpiry(exp)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.expiryChipText, caretakerExpiry === exp && styles.expiryChipTextActive]}>
+                          {exp}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Generate Access Code Button */}
+                  <TouchableOpacity
+                    style={[styles.copyCodeBtn, { marginTop: 18, backgroundColor: C.green }]}
+                    onPress={() => setCaretakerStep('code')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.copyCodeBtnText}>Generate Access Code</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                /* CODE & QR DISPLAY (Benefactor, Clinical, or Caretaker Step 2) */
+                <>
+                  {shareCodeCategory !== 'caretaker' && (
+                    <>
+                      <View style={styles.inviteFieldWrap}>
+                        <Text style={styles.cleanFieldLabel}>
+                          {shareCodeCategory === 'benefactor' ? 'BENEFACTOR' : 'DOCTOR / CLINIC NAME'}
+                        </Text>
+                        <TextInput
+                          style={styles.cleanInputField}
+                          placeholder="enter the name"
+                          placeholderTextColor="#94A3B8"
+                          value={inviteName}
+                          onChangeText={setInviteName}
+                        />
+                      </View>
+
+                      <View style={[styles.inviteFieldWrap, { marginTop: 10 }]}>
+                        <Text style={styles.cleanFieldLabel}>
+                          {shareCodeCategory === 'benefactor' ? 'RELATIONSHIP' : 'SPECIALTY / HOSPITAL'}
+                        </Text>
+                        <TextInput
+                          style={styles.cleanInputField}
+                          placeholder="enter your relation"
+                          placeholderTextColor="#94A3B8"
+                          value={inviteRelation}
+                          onChangeText={setInviteRelation}
+                        />
+                      </View>
+                    </>
+                  )}
+
+                  {shareCodeCategory === 'caretaker' && (
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}
+                      onPress={() => setCaretakerStep('configure')}
+                    >
+                      <Text style={{ fontSize: 13, color: C.green, fontWeight: '700' }}>← Edit Permissions</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* One-Time Code & QR Card */}
+                  <View style={styles.codeDisplayCard}>
+                    {/* Header Row: Regenerate Button Right Aligned (No Secure Access text for Benefactor) */}
+                    <View style={[styles.codeCardHeader, { justifyContent: 'flex-end' }]}>
+                      <TouchableOpacity
+                        style={styles.regenerateSmallBtn}
+                        onPress={handleRegenerateInviteCode}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.regenerateSmallBtnText}>↻ Regenerate</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={[styles.codeDigits, shareCodeCategory === 'caretaker' && { color: C.green }, shareCodeCategory === 'clinical' && { color: C.purple }]}>
+                      {inviteCode}
+                    </Text>
+
+                    {/* One-Time QR Code SVG */}
+                    <View style={styles.oneTimeQrWrap}>
+                      <Svg width={130} height={130} viewBox="0 0 100 100">
+                        <Rect x="0" y="0" width="100" height="100" fill="white" />
+                        <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
+                        <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
+                        <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
+
+                        <Rect x="67" y="5" width="28" height="28" fill="#0F172A" rx="4" />
+                        <Rect x="71" y="9" width="20" height="20" fill="white" rx="2" />
+                        <Rect x="75" y="13" width="12" height="12" fill="#0F172A" rx="1" />
+
+                        <Rect x="5" y="67" width="28" height="28" fill="#0F172A" rx="4" />
+                        <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
+                        <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
+
+                        <Rect x="42" y="8" width="6" height="18" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} />
+                        <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
+                        <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
+                        <Rect x="40" y="40" width="20" height="20" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} rx="4" />
+                        <Rect x="45" y="45" width="10" height="10" fill="white" rx="2" />
+                        <Rect x="68" y="42" width="14" height="6" fill="#0F172A" />
+                        <Rect x="42" y="68" width="6" height="18" fill="#0F172A" />
+                        <Rect x="54" y="72" width="14" height="8" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} />
+                        <Rect x="74" y="68" width="18" height="6" fill="#0F172A" />
+                        <Rect x="78" y="78" width="12" height="12" fill="#0F172A" />
+                      </Svg>
+                      <View style={styles.oneTimeQrBadge}>
+                        <Text style={styles.oneTimeQrBadgeText}>One-Time QR · Single Use Only</Text>
+                      </View>
+                    </View>
+
+                    {/* For Caretaker: Show summary badges */}
+                    {shareCodeCategory === 'caretaker' && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginVertical: 8 }}>
+                        {getCaretakerPermLabels(caretakerPerms).map((lbl, idx) => (
+                          <View key={idx} style={styles.caretakerMiniBadge}>
+                            <Text style={styles.caretakerMiniBadgeText}>{lbl}</Text>
+                          </View>
+                        ))}
+                        <View style={styles.caretakerExpiryBadge}>
+                          <Text style={styles.caretakerExpiryBadgeText}>⏱ {caretakerExpiry}</Text>
+                        </View>
+                      </View>
+                    )}
+
+                    <Text style={styles.codeSub}>
+                      Share this one-time code or QR with this {shareCodeCategory}. When scanned or submitted, an approval notification will arrive on your phone to approve or reject.
+                    </Text>
+                  </View>
+
+                  {/* Action Buttons: Copy Connection Code Only (Simulate button removed) */}
+                  <View style={{ marginTop: 14 }}>
+                    <TouchableOpacity
+                      style={[styles.copyCodeBtn, shareCodeCategory === 'caretaker' && { backgroundColor: C.green }, shareCodeCategory === 'clinical' && { backgroundColor: C.purple }]}
+                      onPress={() => {
+                        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                          navigator.clipboard.writeText(inviteCode);
+                        }
+                        showToastMsg(`Copied ${inviteCode} to clipboard!`);
+                        handleQueueIncomingRequest(shareCodeCategory, inviteName, inviteRelation, caretakerPerms, caretakerExpiry);
+                        setShareCodeCategory(null);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.copyCodeBtnText}>Copy Connection Code</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── EDIT CARETAKER PERMISSIONS MODAL ───────────────────────── */}
+      <Modal
+        visible={!!editingCaretaker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingCaretaker(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { maxWidth: 460, maxHeight: '90%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Edit Caretaker Permissions</Text>
+              <TouchableOpacity onPress={() => setEditingCaretaker(null)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 6 }}>
+              {editingCaretaker && (
+                <>
+                  <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: C.textMain }}>{editingCaretaker.name}</Text>
+                    <Text style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>{editingCaretaker.relation}</Text>
+                  </View>
+
+                  <Text style={[styles.cleanFieldLabel, { marginBottom: 8 }]}>PERMISSIONS</Text>
+                  
+                  <View style={styles.permListCard}>
+                    {/* 1. View Timeline */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>View the Timeline</Text>
+                        <Text style={styles.permSub}>History of conditions, medications, allergies & events</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, editPerms.viewTimeline && { backgroundColor: C.green }]}
+                        onPress={() => setEditPerms({ ...editPerms, viewTimeline: !editPerms.viewTimeline })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, editPerms.viewTimeline && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 2. View Source Documents */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>View Source Documents</Text>
+                        <Text style={styles.permSub}>Original uploaded PDFs, prescriptions & reports</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, editPerms.viewSourceDocs && { backgroundColor: C.green }]}
+                        onPress={() => setEditPerms({ ...editPerms, viewSourceDocs: !editPerms.viewSourceDocs })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, editPerms.viewSourceDocs && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 3. Upload New Records */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Upload New Records</Text>
+                        <Text style={styles.permSub}>Add new medical documents to vault</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, editPerms.uploadRecords && { backgroundColor: C.green }]}
+                        onPress={() => setEditPerms({ ...editPerms, uploadRecords: !editPerms.uploadRecords })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, editPerms.uploadRecords && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 4. Correct Extracted Data */}
+                    <View style={styles.permToggleRow}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Correct Extracted Data</Text>
+                        <Text style={styles.permSub}>Review and correct extracted data</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, editPerms.correctExtractedData && { backgroundColor: C.green }]}
+                        onPress={() => setEditPerms({ ...editPerms, correctExtractedData: !editPerms.correctExtractedData })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, editPerms.correctExtractedData && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 5. Use Q&A Interface */}
+                    <View style={[styles.permToggleRow, { borderBottomWidth: 0 }]}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={styles.permTitle}>Use the Q&A Interface</Text>
+                        <Text style={styles.permSub}>Ask AI factual questions about medical history</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cleanToggle, editPerms.useQA && { backgroundColor: C.green }]}
+                        onPress={() => setEditPerms({ ...editPerms, useQA: !editPerms.useQA })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.cleanToggleKnob, editPerms.useQA && styles.cleanToggleKnobActive]} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Access Expiration */}
+                  <Text style={[styles.cleanFieldLabel, { marginTop: 14, marginBottom: 8 }]}>ACCESS EXPIRATION</Text>
+                  <View style={styles.expiryChipsRow}>
+                    {['7 Days', '30 Days', '90 Days', 'No Expiry'].map((exp) => (
+                      <TouchableOpacity
+                        key={exp}
+                        style={[styles.expiryChip, editExpiry === exp && styles.expiryChipActive]}
+                        onPress={() => setEditExpiry(exp)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.expiryChipText, editExpiry === exp && styles.expiryChipTextActive]}>
+                          {exp}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Save Button */}
+                  <TouchableOpacity
+                    style={[styles.copyCodeBtn, { marginTop: 18, backgroundColor: C.green }]}
+                    onPress={handleSaveEditedPermissions}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.copyCodeBtnText}>Save Permissions</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -4317,5 +4894,214 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: 'white',
+  },
+
+  /* Manual Date Filter Styles */
+  manualDateBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 8,
+  },
+  pickerSubLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.textSub,
+    marginBottom: 4,
+  },
+  miniChipsScroll: {
+    flexDirection: 'row',
+  },
+  miniDatePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginRight: 6,
+  },
+  miniDatePillActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  miniDatePillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  miniDatePillTextActive: {
+    color: 'white',
+    fontWeight: '700',
+  },
+  applyDateFilterBtn: {
+    marginTop: 10,
+    backgroundColor: '#2563EB',
+    paddingVertical: 9,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  applyDateFilterBtnText: {
+    color: 'white',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  clearDateFilterBtn: {
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  clearDateFilterBtnText: {
+    color: '#2563EB',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Upload JSON Preview Card */
+  uploadJsonPreviewCard: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 12,
+    marginTop: 10,
+  },
+  uploadJsonHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  uploadJsonIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadJsonTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  uploadJsonSub: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  viewJsonInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  viewJsonInlineBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  /* Caretaker Permissions & Expiry */
+  permListCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+  },
+  permToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  permTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  permSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1.5,
+    lineHeight: 14,
+  },
+  expiryChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  expiryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  expiryChipActive: {
+    backgroundColor: '#16A34A',
+    borderColor: '#16A34A',
+  },
+  expiryChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  expiryChipTextActive: {
+    color: 'white',
+    fontWeight: '700',
+  },
+  caretakerMiniBadge: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  caretakerMiniBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16A34A',
+  },
+  caretakerExpiryBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  caretakerExpiryBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  editPermBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5.5,
+    borderRadius: 7,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  editPermBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#2563EB',
   },
 });
