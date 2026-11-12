@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react-native-svg';
 import { pickMedicalDocument, extractMedicalDocument } from './services/geminiExtractor';
+import { viewMedicalPdf, downloadMedicalPdf } from './services/pdfService';
 
 // ─── TOKENS ──────────────────────────────────────────────────────────────────
 const G = {
@@ -129,6 +130,26 @@ const IconCopy = ({ size = 16, color = G.muted }) => (
     <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
   </Svg>
 );
+const IconEye = ({ size = 18, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <Circle cx="12" cy="12" r="3"/>
+  </Svg>
+);
+const IconDownload = ({ size = 18, color = 'white' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <Polyline points="7 10 12 15 17 10"/>
+    <Line x1="12" y1="15" x2="12" y2="3"/>
+  </Svg>
+);
+const IconExternalLink = ({ size = 16, color = G.muted }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+    <Polyline points="15 3 21 3 21 9"/>
+    <Line x1="10" y1="14" x2="21" y2="3"/>
+  </Svg>
+);
 
 // ─── ROLE DATA ────────────────────────────────────────────────────────────────
 const ROLES = [
@@ -229,6 +250,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
   const [people, setPeople] = useState(INITIAL_PEOPLE);
   const [selectedFileModal, setSelectedFileModal] = useState(null);
   const [selectedJsonModal, setSelectedJsonModal] = useState(null);
+  const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Upload Form State
@@ -287,6 +309,9 @@ function PatientPortal({ onSignOut, isDesktop }) {
       date: 'Just now',
       doctor: doctorName,
       tags: ['Sovereign Vault', convertToPdf ? 'Converted PDF' : 'Original'],
+      fileUri: pickedFile?.uri,
+      fileBlob: pickedFile?.file,
+      base64Data: pickedFile?.base64,
     };
 
     let newFilesToAdd = [originalDoc];
@@ -306,6 +331,10 @@ function PatientPortal({ onSignOut, isDesktop }) {
           rawText: `Document: ${title}. Doctor: ${doctorName}. Folder: ${newFolder}. Verified sovereign medical record.`,
           onProgress: (p) => setExtractionProgress(p),
         });
+
+        // Attach extracted data to original record as well
+        originalDoc.extractedData = extraction.data;
+        originalDoc.rawJson = extraction.raw_json;
 
         // Create the companion structured JSON file
         const jsonDoc = {
@@ -383,6 +412,57 @@ function PatientPortal({ onSignOut, isDesktop }) {
       showToast('Raw JSON copied to clipboard!');
     } else {
       showToast('JSON ready in modal');
+    }
+  };
+
+  const handleViewPdf = async (file) => {
+    try {
+      showToast('Rendering Clinical PDF...');
+      const url = await viewMedicalPdf(file);
+      if (Platform.OS === 'web' && url) {
+        setPdfPreviewModal({ url, title: file.name, record: file });
+      }
+      showToast('PDF ready');
+    } catch (err) {
+      console.warn('View PDF error:', err);
+      showToast('Could not open PDF viewer');
+    }
+  };
+
+  const handleDownloadPdf = async (file) => {
+    try {
+      showToast(`Generating & downloading ${file.name}.pdf...`);
+      await downloadMedicalPdf(file);
+      showToast('Download started');
+    } catch (err) {
+      console.warn('Download PDF error:', err);
+      showToast('Failed to download PDF');
+    }
+  };
+
+  const handleDownloadJson = (file) => {
+    try {
+      const dataStr = file.rawJson || JSON.stringify(file.extractedData || file, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const rawName = file.name || 'medical_record';
+      const cleanName = rawName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+      const filename = `${cleanName}.json`;
+      if (typeof document !== 'undefined') {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 300);
+      }
+      showToast('JSON download started');
+    } catch (err) {
+      console.warn('Download JSON error:', err);
+      showToast('Failed to download JSON');
     }
   };
 
@@ -645,21 +725,64 @@ function PatientPortal({ onSignOut, isDesktop }) {
                       </View>
                     </View>
 
-                    {/* Action Button */}
-                    <View
-                      style={[
-                        pStyles.btnViewFile,
-                        file.type === 'JSON' && { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          pStyles.btnViewFileText,
-                          file.type === 'JSON' && { color: G.amber },
-                        ]}
-                      >
-                        {file.type === 'JSON' ? 'View JSON' : 'Inspect'}
-                      </Text>
+                    {/* Action Buttons */}
+                    <View style={pStyles.fileActionsGroup}>
+                      {file.type === 'JSON' ? (
+                        <>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              setSelectedJsonModal(file);
+                            }}
+                            style={[pStyles.btnQuickAction, { backgroundColor: '#fef3c7', borderColor: '#fcd34d' }]}
+                            activeOpacity={0.8}
+                          >
+                            <IconJson size={14} color={G.amber}/>
+                            <Text style={[pStyles.btnQuickActionText, { color: G.amber }]}>View JSON</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              handleViewPdf(file);
+                            }}
+                            style={pStyles.btnQuickAction}
+                            activeOpacity={0.8}
+                          >
+                            <IconEye size={14} color={G.green}/>
+                            <Text style={pStyles.btnQuickActionText}>PDF</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              handleViewPdf(file);
+                            }}
+                            style={pStyles.btnQuickAction}
+                            activeOpacity={0.8}
+                          >
+                            <IconEye size={14} color={G.green}/>
+                            <Text style={pStyles.btnQuickActionText}>View</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              handleDownloadPdf(file);
+                            }}
+                            style={[pStyles.btnQuickAction, pStyles.btnQuickActionDownload]}
+                            activeOpacity={0.8}
+                          >
+                            <IconDownload size={14} color="#059669"/>
+                            <Text style={[pStyles.btnQuickActionText, pStyles.btnQuickActionDownloadText]}>PDF</Text>
+                          </TouchableOpacity>
+
+                          <View style={pStyles.btnViewFile}>
+                            <Text style={pStyles.btnViewFileText}>Inspect</Text>
+                          </View>
+                        </>
+                      )}
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -1087,13 +1210,22 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 <View style={pStyles.jsonSection}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <Text style={pStyles.jsonSectionHeader}>Raw JSON Payload</Text>
-                    <TouchableOpacity
-                      onPress={() => copyToClipboard(selectedJsonModal.rawJson || JSON.stringify(selectedJsonModal.extractedData, null, 2))}
-                      style={pStyles.btnCopy}
-                    >
-                      <IconCopy size={13} color={G.muted}/>
-                      <Text style={pStyles.btnCopyText}>Copy JSON</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={() => handleDownloadJson(selectedJsonModal)}
+                        style={[pStyles.btnCopy, { backgroundColor: '#fef3c7', borderColor: '#fcd34d' }]}
+                      >
+                        <IconDownload size={13} color={G.amber}/>
+                        <Text style={[pStyles.btnCopyText, { color: G.amber }]}>Download JSON</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => copyToClipboard(selectedJsonModal.rawJson || JSON.stringify(selectedJsonModal.extractedData, null, 2))}
+                        style={pStyles.btnCopy}
+                      >
+                        <IconCopy size={13} color={G.muted}/>
+                        <Text style={pStyles.btnCopyText}>Copy</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <View style={pStyles.codeBlock}>
                     <Text style={pStyles.codeText}>
@@ -1103,14 +1235,39 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 </View>
               </ScrollView>
 
+              <View style={pStyles.btnRowModal}>
+                <TouchableOpacity
+                  onPress={() => handleViewPdf(selectedJsonModal)}
+                  activeOpacity={0.8}
+                  style={pStyles.btnModalViewPdf}
+                >
+                  <IconEye size={17} color={G.green}/>
+                  <Text style={pStyles.btnModalViewPdfText}>View PDF Report</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleDownloadPdf(selectedJsonModal)}
+                  activeOpacity={0.8}
+                  style={pStyles.btnModalDownloadPdf}
+                >
+                  <LinearGradient
+                    colors={[G.green, G.greenD]}
+                    style={pStyles.modalGradientBtn}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <IconDownload size={17} color="white"/>
+                    <Text style={pStyles.modalGradientBtnText}>Download PDF</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
                 onPress={() => setSelectedJsonModal(null)}
-                activeOpacity={0.8}
-                style={{ marginTop: 14 }}
+                activeOpacity={0.7}
+                style={pStyles.btnCloseModalSecondary}
               >
-                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Close JSON Viewer</Text>
-                </LinearGradient>
+                <Text style={pStyles.btnCloseModalSecondaryText}>Close JSON Viewer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1156,15 +1313,142 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 </View>
               </View>
 
+              {/* Action Buttons: View PDF & Download PDF */}
+              <View style={pStyles.btnRowModal}>
+                <TouchableOpacity
+                  onPress={() => handleViewPdf(selectedFileModal)}
+                  activeOpacity={0.8}
+                  style={pStyles.btnModalViewPdf}
+                >
+                  <IconEye size={17} color={G.green}/>
+                  <Text style={pStyles.btnModalViewPdfText}>View PDF</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleDownloadPdf(selectedFileModal)}
+                  activeOpacity={0.8}
+                  style={pStyles.btnModalDownloadPdf}
+                >
+                  <LinearGradient
+                    colors={[G.green, G.greenD]}
+                    style={pStyles.modalGradientBtn}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <IconDownload size={17} color="white"/>
+                    <Text style={pStyles.modalGradientBtnText}>Download PDF</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+
+              {/* If companion structured JSON exists */}
+              {selectedFileModal.extractedData && (
+                <TouchableOpacity
+                  onPress={() => {
+                    const doc = selectedFileModal;
+                    setSelectedFileModal(null);
+                    setSelectedJsonModal(doc);
+                  }}
+                  activeOpacity={0.7}
+                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <IconJson size={14} color={G.amber}/>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: G.amber }}>
+                    View Gemini Extracted JSON
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 onPress={() => setSelectedFileModal(null)}
-                activeOpacity={0.8}
-                style={{ marginTop: 20 }}
+                activeOpacity={0.7}
+                style={pStyles.btnCloseModalSecondary}
               >
-                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Close Record</Text>
-                </LinearGradient>
+                <Text style={pStyles.btnCloseModalSecondaryText}>Close Record</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Interactive PDF Preview Modal */}
+      {pdfPreviewModal && (
+        <Modal
+          visible={!!pdfPreviewModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPdfPreviewModal(null)}
+        >
+          <View style={s.overlay}>
+            <View style={[s.modal, { maxWidth: 840, width: '92%', maxHeight: '90%' }]}>
+              {/* Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: G.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 10 }}>
+                  <View style={[pStyles.formIconWrap, { width: 34, height: 34, backgroundColor: '#fee2e2' }]}>
+                    <IconFile size={18} color={G.red}/>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[pStyles.fileName, { fontSize: 16 }]} numberOfLines={1}>{pdfPreviewModal.title}.pdf</Text>
+                    <Text style={{ fontSize: 12, color: G.muted }}>Clinical Medical Report · MediVault Verified</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => handleDownloadPdf(pdfPreviewModal.record)}
+                    style={[pStyles.btnQuickAction, pStyles.btnQuickActionDownload, { paddingVertical: 8, paddingHorizontal: 12 }]}
+                  >
+                    <IconDownload size={15} color="#059669"/>
+                    <Text style={[pStyles.btnQuickActionText, pStyles.btnQuickActionDownloadText]}>Download PDF</Text>
+                  </TouchableOpacity>
+
+                  {Platform.OS === 'web' && typeof window !== 'undefined' && (
+                    <TouchableOpacity
+                      onPress={() => window.open(pdfPreviewModal.url, '_blank')}
+                      style={[pStyles.btnQuickAction, { paddingVertical: 8, paddingHorizontal: 12 }]}
+                    >
+                      <IconExternalLink size={15} color={G.green}/>
+                      <Text style={pStyles.btnQuickActionText}>New Tab</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() => setPdfPreviewModal(null)}
+                    style={{ padding: 6, marginLeft: 4 }}
+                  >
+                    <Text style={{ color: G.muted, fontSize: 18, fontWeight: '700' }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* PDF Document Preview Viewport */}
+              {Platform.OS === 'web' ? (
+                <View style={{ width: '100%', height: 520, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: G.border, backgroundColor: '#525659' }}>
+                  <iframe
+                    src={pdfPreviewModal.url}
+                    title={pdfPreviewModal.title}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 'none', width: '100%', height: '100%' }}
+                  />
+                </View>
+              ) : (
+                <View style={{ padding: 24, alignItems: 'center', justifyContent: 'center' }}>
+                  <IconFile size={48} color={G.green}/>
+                  <Text style={{ fontSize: 15, fontWeight: '700', marginTop: 12, color: G.charcoal }}>PDF Generated Successfully</Text>
+                  <Text style={{ fontSize: 13, color: G.muted, textAlign: 'center', marginTop: 6, marginBottom: 16 }}>
+                    Your confidential clinical report is compiled and ready for secure download.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleDownloadPdf(pdfPreviewModal.record)}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient colors={[G.green, G.greenD]} style={[s.modalCta, { paddingHorizontal: 24 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                      <Text style={s.signupBtnText}>Download PDF Now</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -2563,5 +2847,87 @@ const pStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: G.green,
+  },
+
+  /* Modal Action Buttons for PDF View & Download */
+  btnRowModal: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  btnModalViewPdf: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: G.white,
+    borderWidth: 1.5,
+    borderColor: G.green,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  btnModalViewPdfText: {
+    color: G.green,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  btnModalDownloadPdf: {
+    flex: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  modalGradientBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  modalGradientBtnText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  btnCloseModalSecondary: {
+    marginTop: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  btnCloseModalSecondaryText: {
+    color: G.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  /* Quick Action Buttons in File List */
+  fileActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  btnQuickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: G.greenL,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  btnQuickActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.green,
+  },
+  btnQuickActionDownload: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
+  btnQuickActionDownloadText: {
+    color: '#059669',
   },
 });

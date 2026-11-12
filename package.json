@@ -10,6 +10,7 @@
     "expo-font": "~58.0.12",
     "expo-linear-gradient": "^58.0.4",
     "expo-status-bar": "~58.0.5",
+    "pdf-lib": "^1.17.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
