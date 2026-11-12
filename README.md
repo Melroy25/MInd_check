@@ -9,8 +9,8 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Keerthana857/MED_CHECK.git
-cd MED_CHECK
+git clone https://github.com/Melroy25/MInd_check.git
+cd MInd_check
 ```
 
 ---
