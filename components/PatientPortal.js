@@ -121,6 +121,33 @@ const IconSearch = ({ size = 18, color = C.textSub }) => (
   </Svg>
 );
 
+const IconCalendar = ({ size = 18, color = C.textSub }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+    <Line x1="16" y1="2" x2="16" y2="6" />
+    <Line x1="8" y1="2" x2="8" y2="6" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const IconFileText = ({ size = 18, color = C.textSub }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <Polyline points="14 2 14 8 20 8" />
+    <Line x1="16" y1="13" x2="8" y2="13" />
+    <Line x1="16" y1="17" x2="8" y2="17" />
+    <Line x1="10" y1="9" x2="8" y2="9" />
+  </Svg>
+);
+
+const IconImage = ({ size = 18, color = C.textSub }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <Circle cx="8.5" cy="8.5" r="1.5" />
+    <Polyline points="21 15 16 10 5 21" />
+  </Svg>
+);
+
 const IconEye = ({ size = 16, color = C.green }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -194,10 +221,10 @@ const IconTrash = ({ size = 16, color = C.red }) => (
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INITIAL_FOLDERS = [
-  { id: 'cardio', name: 'Cardiology Reports', count: 5, date: '2 days ago' },
-  { id: 'labs', name: 'Blood & Lab Tests', count: 9, date: 'Yesterday' },
-  { id: 'rx', name: 'Prescriptions & Rx', count: 4, date: '1 week ago' },
-  { id: 'rad', name: 'Radiology & Scans', count: 2, date: '3 weeks ago' },
+  { id: 'cardio', name: 'Cardiology Reports', count: 2, date: '2 days ago' },
+  { id: 'labs', name: 'Blood & Lab Tests', count: 2, date: 'Yesterday' },
+  { id: 'rx', name: 'Prescriptions & Rx', count: 1, date: '1 week ago' },
+  { id: 'rad', name: 'Radiology & Scans', count: 1, date: '3 weeks ago' },
 ];
 
 const INITIAL_FILES = [
@@ -209,6 +236,7 @@ const INITIAL_FILES = [
     size: '1.4 MB',
     date: 'Oct 24, 2026',
     doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Diagnostics',
     tags: ['Metabolic', 'Routine', 'Verified'],
   },
   {
@@ -219,6 +247,7 @@ const INITIAL_FILES = [
     size: '14.8 KB',
     date: 'Oct 24, 2026',
     doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Diagnostics',
     tags: ['Gemini Extracted', 'Schema v2', '6 Lab Tests'],
     extractedData: {
       document_metadata: { doc_type: 'lab_report', provider_name: 'Dr. Sarah Jenkins', facility_name: 'Metro Diagnostics', patient_name: 'Melroy Almeida' },
@@ -242,6 +271,7 @@ const INITIAL_FILES = [
     size: '3.8 MB',
     date: 'Oct 12, 2026',
     doctor: 'Dr. Mark Vance',
+    hospital: 'City Health Clinic',
     tags: ['Cardio', 'Echo', 'Normal Sinus'],
   },
   {
@@ -251,7 +281,8 @@ const INITIAL_FILES = [
     type: 'IMG',
     size: '14.2 MB',
     date: 'Sep 28, 2026',
-    doctor: 'Metro Diagnostic Center',
+    doctor: 'Dr. David Lee',
+    hospital: 'Metro Diagnostic Center',
     tags: ['Radiology', 'X-Ray'],
   },
   {
@@ -262,7 +293,20 @@ const INITIAL_FILES = [
     size: '420 KB',
     date: 'Sep 15, 2026',
     doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Diagnostics',
     tags: ['Prescription', 'Daily'],
+  },
+  {
+    id: '5',
+    name: 'Cardiology Consultation & Diet Notes',
+    folder: 'cardio',
+    type: 'TEXT',
+    size: '2.4 KB',
+    date: 'Sep 10, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Diagnostics',
+    notes: 'Follow-up clinical consultation notes: Blood pressure stable at 122/78 mmHg. Fasting glucose mildly elevated (104 mg/dL). Prescribed Metformin 500mg daily. Patient advised to adopt low glycemic diet and moderate physical activity. Recheck HbA1c in 90 days.',
+    tags: ['Clinical Note', 'Cardiology'],
   },
 ];
 
@@ -308,6 +352,10 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [selectedFileModal, setSelectedFileModal] = useState(null);
   const [selectedJsonModal, setSelectedJsonModal] = useState(null);
+  const [selectedImageModal, setSelectedImageModal] = useState(null);
+  const [selectedTextModal, setSelectedTextModal] = useState(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [selectedDateFilter, setSelectedDateFilter] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Sub-view Inputs
@@ -560,13 +608,61 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const filteredFiles = useMemo(() => {
     return files.filter((f) => {
       const matchFolder = selectedFolderFilter ? f.folder === selectedFolderFilter : true;
-      const matchSearch = searchQuery.trim()
-        ? f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (f.doctor && f.doctor.toLowerCase().includes(searchQuery.toLowerCase()))
+      const q = searchQuery.trim().toLowerCase();
+      const matchSearch = q
+        ? (f.name && f.name.toLowerCase().includes(q)) ||
+          (f.doctor && f.doctor.toLowerCase().includes(q)) ||
+          (f.hospital && f.hospital.toLowerCase().includes(q))
         : true;
-      return matchFolder && matchSearch;
+
+      let matchDate = true;
+      if (selectedDateFilter && selectedDateFilter !== 'All Dates') {
+        const filterStr = selectedDateFilter.toLowerCase();
+        if (filterStr.includes('oct') && !filterStr.match(/\d{1,2}/)) {
+          matchDate = Boolean(f.date && f.date.toLowerCase().includes('oct'));
+        } else if (filterStr.includes('sep') && !filterStr.match(/\d{1,2}/)) {
+          matchDate = Boolean(f.date && f.date.toLowerCase().includes('sep'));
+        } else {
+          matchDate = Boolean(f.date && f.date.toLowerCase().includes(filterStr));
+        }
+      }
+
+      return matchFolder && matchSearch && matchDate;
     });
-  }, [files, selectedFolderFilter, searchQuery]);
+  }, [files, selectedFolderFilter, searchQuery, selectedDateFilter]);
+
+  const handleViewDocument = (file) => {
+    if (file.type === 'JSON') {
+      setSelectedJsonModal(file.extractedData || file);
+    } else if (file.type === 'IMG' || file.type === 'IMAGE') {
+      setSelectedImageModal(file);
+    } else if (file.type === 'TEXT' || file.type === 'TXT' || file.notes) {
+      setSelectedTextModal(file);
+    } else {
+      // PDF
+      viewMedicalPdf(file);
+    }
+  };
+
+  const getDocFormatLabel = (type) => {
+    if (type === 'IMG' || type === 'IMAGE') return 'IMAGE';
+    if (type === 'TEXT' || type === 'TXT') return 'TEXT';
+    return type || 'DOC';
+  };
+
+  const getDocColor = (type) => {
+    if (type === 'JSON') return C.amber;
+    if (type === 'IMG' || type === 'IMAGE') return C.blue;
+    if (type === 'TEXT' || type === 'TXT') return C.purple;
+    return C.red; // PDF
+  };
+
+  const getDocBgColor = (type) => {
+    if (type === 'JSON') return '#FEF3C7';
+    if (type === 'IMG' || type === 'IMAGE') return '#EFF6FF';
+    if (type === 'TEXT' || type === 'TXT') return '#F5F3FF';
+    return '#FEF2F2'; // PDF
+  };
 
   return (
     <View style={styles.root}>
@@ -800,106 +896,149 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 3: MY DOCUMENTS (FOLDERS & FILES)                             */}
+        {/* VIEW 3: DOCUMENTS (CLEAN, MINIMAL & STRUCTURED)                    */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'documents' && (
           <View style={styles.viewSection}>
+            {/* Top Row: Documents text only */}
             <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
               <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>My Documents</Text>
+              <Text style={styles.subPageTitle}>Documents</Text>
             </TouchableOpacity>
 
-            <View style={styles.titleRow}>
-              <View>
-                <Text style={styles.pageSub}>Organized medical folders & extracted clinical records.</Text>
+            {/* Search Input with Side Date Option */}
+            <View style={styles.searchAndDateRow}>
+              <View style={styles.docSearchBox}>
+                <IconSearch size={17} color={C.textSub} />
+                <TextInput
+                  style={styles.docSearchInput}
+                  placeholder="Search document name..."
+                  placeholderTextColor="#94A3B8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.clearSearchBtnText}>✕</Text>
+                  </TouchableOpacity>
+                )}
               </View>
+
+              {/* Date Option on the side */}
               <TouchableOpacity
-                style={styles.newFolderBtn}
-                onPress={() => setShowNewFolderModal(true)}
+                style={[
+                  styles.dateFilterTrigger,
+                  selectedDateFilter && styles.dateFilterTriggerActive,
+                ]}
+                onPress={() => setShowDateModal(true)}
+                activeOpacity={0.8}
               >
-                <IconPlus size={16} color={C.blue} />
-                <Text style={styles.newFolderBtnText}>+ New Folder</Text>
+                <IconCalendar size={16} color={selectedDateFilter ? C.blue : C.textSub} />
+                <Text
+                  style={[
+                    styles.dateFilterTriggerText,
+                    selectedDateFilter && styles.dateFilterTriggerTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedDateFilter ? selectedDateFilter : 'Date'}
+                </Text>
+                <Text style={{ fontSize: 9, color: selectedDateFilter ? C.blue : C.textSub }}>▾</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <IconSearch size={18} color={C.textSub} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search medical records, doctors, diagnoses..."
-                placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
+            {/* Active Date Tag */}
+            {selectedDateFilter && (
+              <View style={styles.activeDateFilterRow}>
+                <Text style={styles.activeDateFilterLabel}>Filtered by: </Text>
+                <View style={styles.activeDateTag}>
+                  <Text style={styles.activeDateTagText}>{selectedDateFilter}</Text>
+                  <TouchableOpacity onPress={() => setSelectedDateFilter(null)}>
+                    <Text style={styles.activeDateTagClose}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
-            {/* Folder Filters */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.folderScroll}>
+            {/* Below: All Folders */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.folderChipsScroll}>
               <TouchableOpacity
-                style={[styles.filterChip, selectedFolderFilter === null && styles.filterChipActive]}
+                style={[styles.modernFolderChip, selectedFolderFilter === null && styles.modernFolderChipActive]}
                 onPress={() => setSelectedFolderFilter(null)}
               >
-                <Text style={[styles.filterChipText, selectedFolderFilter === null && styles.filterChipTextActive]}>
-                  All Folders ({files.length})
+                <IconFolder size={14} color={selectedFolderFilter === null ? 'white' : C.blue} />
+                <Text style={[styles.modernFolderChipText, selectedFolderFilter === null && styles.modernFolderChipTextActive]}>
+                  All ({files.length})
                 </Text>
               </TouchableOpacity>
-              {folders.map((f) => (
-                <TouchableOpacity
-                  key={f.id}
-                  style={[styles.filterChip, selectedFolderFilter === f.id && styles.filterChipActive]}
-                  onPress={() => setSelectedFolderFilter(selectedFolderFilter === f.id ? null : f.id)}
-                >
-                  <Text style={[styles.filterChipText, selectedFolderFilter === f.id && styles.filterChipTextActive]}>
-                    {f.name} ({files.filter((fl) => fl.folder === f.id).length})
-                  </Text>
-                </TouchableOpacity>
-              ))}
+
+              {folders.map((f) => {
+                const count = files.filter((fl) => fl.folder === f.id).length;
+                const isSelected = selectedFolderFilter === f.id;
+                return (
+                  <TouchableOpacity
+                    key={f.id}
+                    style={[styles.modernFolderChip, isSelected && styles.modernFolderChipActive]}
+                    onPress={() => setSelectedFolderFilter(isSelected ? null : f.id)}
+                  >
+                    <Text style={[styles.modernFolderChipText, isSelected && styles.modernFolderChipTextActive]}>
+                      {f.name} ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
-            {/* Files List */}
-            <View style={styles.filesList}>
-              {filteredFiles.map((file) => (
-                <View key={file.id} style={styles.fileDetailCard}>
-                  <View style={styles.fileTopRow}>
-                    <View style={[styles.typeBadge, file.type === 'JSON' ? styles.typeBadgeJson : styles.typeBadgePdf]}>
-                      <Text style={[styles.typeBadgeText, file.type === 'JSON' ? styles.typeBadgeTextJson : styles.typeBadgeTextPdf]}>
-                        {file.type}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.fileNameText}>{file.name}</Text>
-                      <Text style={styles.fileMetaText}>{file.doctor || 'Self-Uploaded'} · {file.size} · {file.date}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.fileBottomActionRow}>
-                    <TouchableOpacity
-                      style={styles.fileActionBtn}
-                      onPress={() => {
-                        if (file.type === 'JSON') {
-                          setSelectedJsonModal(file.extractedData);
-                        } else {
-                          viewMedicalPdf(file);
-                        }
-                      }}
-                    >
-                      <IconEye size={15} color={file.type === 'JSON' ? C.amber : C.green} />
-                      <Text style={[styles.fileActionBtnText, { color: file.type === 'JSON' ? C.amber : C.green }]}>
-                        {file.type === 'JSON' ? 'Inspect JSON' : 'View PDF'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.fileActionBtn, styles.downloadActionBtn]}
-                      onPress={() => downloadMedicalPdf(file)}
-                    >
-                      <IconDownload size={15} color={C.blue} />
-                      <Text style={[styles.fileActionBtnText, { color: C.blue }]}>Download PDF</Text>
-                    </TouchableOpacity>
-                  </View>
+            {/* Documents List: Clean, Minimal, Non-Boring */}
+            <View style={styles.docCardList}>
+              {filteredFiles.length === 0 ? (
+                <View style={styles.emptyDocState}>
+                  <IconFileText size={36} color={C.border} />
+                  <Text style={styles.emptyDocTitle}>No matching documents found</Text>
+                  <Text style={styles.emptyDocSub}>Try clearing your search query or date filter</Text>
                 </View>
-              ))}
+              ) : (
+                filteredFiles.map((file) => (
+                  <View
+                    key={file.id}
+                    style={[
+                      styles.docRowCard,
+                      { borderLeftColor: getDocColor(file.type), borderLeftWidth: 3.5 },
+                    ]}
+                  >
+                    {/* Top Row: Document Name (left) & Format badge (right: PDF, IMAGE, TEXT, JSON) */}
+                    <View style={styles.docRowTop}>
+                      <Text style={styles.docRowName} numberOfLines={1}>
+                        {file.name}
+                      </Text>
+                      <View style={[styles.docFormatBadge, { backgroundColor: getDocBgColor(file.type) }]}>
+                        <Text style={[styles.docFormatBadgeText, { color: getDocColor(file.type) }]}>
+                          {getDocFormatLabel(file.type)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Bottom Row: Date & Dr/Hospital (left) & View Button (right) */}
+                    <View style={styles.docRowBottom}>
+                      <Text style={styles.docRowMeta} numberOfLines={1}>
+                        {file.date} · {file.doctor}{file.hospital ? ` · ${file.hospital}` : ''}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.docViewButton,
+                          { backgroundColor: getDocBgColor(file.type), borderColor: getDocColor(file.type) },
+                        ]}
+                        onPress={() => handleViewDocument(file)}
+                        activeOpacity={0.75}
+                      >
+                        <IconEye size={13} color={getDocColor(file.type)} />
+                        <Text style={[styles.docViewButtonText, { color: getDocColor(file.type) }]}>View</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
           </View>
         )}
@@ -1487,6 +1626,154 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               >
                 <IconPlus size={18} color="white" />
                 <Text style={styles.cleanSaveBtnText}>Create Folder</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── FILTER BY DATE MODAL ─────────────────────────────────────────── */}
+      <Modal visible={showDateModal} transparent animationType="fade" onRequestClose={() => setShowDateModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>Filter by Upload Date</Text>
+                <Text style={styles.modalSub}>Select date to search documents</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowDateModal(false)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.cleanFieldLabel}>QUICK DATE OPTIONS</Text>
+              <View style={styles.quickDateChipsGrid}>
+                {['All Dates', 'Oct 24, 2026', 'Oct 12, 2026', 'Sep 28, 2026', 'Sep 15, 2026', 'Sep 10, 2026', 'October 2026', 'September 2026'].map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[
+                      styles.quickDateChip,
+                      (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipActive,
+                    ]}
+                    onPress={() => {
+                      if (d === 'All Dates') {
+                        setSelectedDateFilter(null);
+                      } else {
+                        setSelectedDateFilter(d);
+                      }
+                      setShowDateModal(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.quickDateChipText,
+                        (d === 'All Dates' ? !selectedDateFilter : selectedDateFilter === d) && styles.quickDateChipTextActive,
+                      ]}
+                    >
+                      {d}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {selectedDateFilter && (
+              <TouchableOpacity
+                style={[styles.pageSignOutBtn, { marginTop: 16 }]}
+                onPress={() => {
+                  setSelectedDateFilter(null);
+                  setShowDateModal(false);
+                }}
+              >
+                <Text style={styles.pageSignOutBtnText}>Reset Date Filter</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── IMAGE VIEWER MODAL ────────────────────────────────────────────── */}
+      <Modal visible={!!selectedImageModal} transparent animationType="fade" onRequestClose={() => setSelectedImageModal(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <IconImage size={18} color={C.blue} />
+                  <Text style={styles.modalTitle} numberOfLines={1}>{selectedImageModal?.name}</Text>
+                </View>
+                <Text style={styles.modalSub}>{selectedImageModal?.date} · {selectedImageModal?.doctor} · {selectedImageModal?.hospital || 'Radiology'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedImageModal(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: 12 }}>
+              {selectedImageModal?.uri ? (
+                <Image source={{ uri: selectedImageModal.uri }} style={{ width: '100%', height: 280, borderRadius: 12, resizeMode: 'contain' }} />
+              ) : (
+                <View style={styles.xrayMockupContainer}>
+                  <Svg width="100%" height={220} viewBox="0 0 320 220">
+                    <Rect width="320" height="220" fill="#0B132B" rx="12" />
+                    <Circle cx="160" cy="85" r="42" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeOpacity="0.8" />
+                    <Path d="M120 65 Q160 48 200 65" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
+                    <Path d="M110 90 Q160 76 210 90" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
+                    <Path d="M115 115 Q160 100 205 115" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
+                    <Path d="M125 140 Q160 125 195 140" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
+                    <Line x1="160" y1="45" x2="160" y2="170" stroke="#E0F2FE" strokeWidth="4" strokeDasharray="6 4" opacity="0.7" />
+                  </Svg>
+                </View>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.cleanSaveBtn}
+              onPress={() => setSelectedImageModal(null)}
+            >
+              <LinearGradient colors={[C.blue, '#1D4ED8']} style={styles.cleanSaveBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={styles.cleanSaveBtnText}>Close Image</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── CLINICAL TEXT VIEWER MODAL ────────────────────────────────────── */}
+      <Modal visible={!!selectedTextModal} transparent animationType="fade" onRequestClose={() => setSelectedTextModal(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <IconFileText size={18} color={C.purple} />
+                  <Text style={styles.modalTitle} numberOfLines={1}>{selectedTextModal?.name}</Text>
+                </View>
+                <Text style={styles.modalSub}>{selectedTextModal?.date} · {selectedTextModal?.doctor} · {selectedTextModal?.hospital || 'Clinical'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedTextModal(null)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 260, marginVertical: 14 }}>
+              <View style={styles.textDocContentBox}>
+                <Text style={styles.textDocBody}>
+                  {selectedTextModal?.notes || selectedTextModal?.rawText || 'No clinical notes provided for this record.'}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.cleanSaveBtn}
+              onPress={() => {
+                showToastMsg('Clinical text copied!');
+                setSelectedTextModal(null);
+              }}
+            >
+              <LinearGradient colors={[C.purple, '#6D28D9']} style={styles.cleanSaveBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={styles.cleanSaveBtnText}>Close Note</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -2130,27 +2417,100 @@ const styles = StyleSheet.create({
   },
 
   /* Documents & Folders */
-  searchContainer: {
+  searchAndDateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    marginBottom: 12,
+  },
+  docSearchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: C.white,
     borderWidth: 1.5,
     borderColor: C.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 14,
   },
-  searchInput: {
+  docSearchInput: {
     flex: 1,
     fontSize: 13.5,
     color: C.textMain,
   },
-  folderScroll: {
+  clearSearchBtnText: {
+    color: C.textSub,
+    fontSize: 13,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  dateFilterTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  dateFilterTriggerActive: {
+    borderColor: C.blue,
+    backgroundColor: C.blueBg,
+  },
+  dateFilterTriggerText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: C.textSub,
+    maxWidth: 90,
+  },
+  dateFilterTriggerTextActive: {
+    color: C.blue,
+  },
+  activeDateFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  activeDateFilterLabel: {
+    fontSize: 11.5,
+    color: C.textSub,
+    fontWeight: '600',
+  },
+  activeDateTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.blueBg,
+    borderWidth: 1,
+    borderColor: C.blueBorder,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  activeDateTagText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: C.blue,
+  },
+  activeDateTagClose: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.blue,
+  },
+
+  /* Modern Folder Chips */
+  folderChipsScroll: {
     marginBottom: 14,
   },
-  filterChip: {
+  modernFolderChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 13,
     paddingVertical: 7,
     borderRadius: 999,
@@ -2159,87 +2519,154 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     marginRight: 8,
   },
-  filterChipActive: {
+  modernFolderChipActive: {
     backgroundColor: C.blue,
     borderColor: C.blue,
   },
-  filterChipText: {
+  modernFolderChipText: {
     fontSize: 12,
     fontWeight: '600',
     color: C.textSub,
   },
-  filterChipTextActive: {
+  modernFolderChipTextActive: {
     color: 'white',
     fontWeight: '700',
   },
-  newFolderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: C.blueBg,
-    borderWidth: 1,
-    borderColor: C.blueBorder,
-  },
-  newFolderBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.blue,
-  },
-  filesList: {
+
+  /* Modern Document Cards */
+  docCardList: {
     gap: 10,
   },
-  fileDetailCard: {
+  docRowCard: {
     backgroundColor: C.white,
     borderRadius: 14,
-    padding: 14,
+    padding: 13,
     borderWidth: 1,
-    borderColor: C.borderLight,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  fileTopRow: {
+  docRowTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    marginBottom: 8,
   },
-  fileNameText: {
+  docRowName: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '700',
     color: C.textMain,
   },
-  fileMetaText: {
-    fontSize: 11,
-    color: C.textSub,
-    marginTop: 2,
+  docFormatBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  fileBottomActionRow: {
+  docFormatBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  docRowBottom: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
   },
-  fileActionBtn: {
+  docRowMeta: {
     flex: 1,
+    fontSize: 11.5,
+    color: C.textSub,
+  },
+  docViewButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  docViewButtonText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+
+  /* Empty Doc State */
+  emptyDocState: {
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    paddingVertical: 36,
+    paddingHorizontal: 16,
+  },
+  emptyDocTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.textMain,
+    marginTop: 10,
+  },
+  emptyDocSub: {
+    fontSize: 12,
+    color: C.textSub,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+
+  /* Quick Date Chips */
+  quickDateChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  quickDateChip: {
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: C.bg,
     borderWidth: 1,
     borderColor: C.border,
   },
-  downloadActionBtn: {
+  quickDateChipActive: {
     backgroundColor: C.blueBg,
-    borderColor: C.blueBorder,
+    borderColor: C.blue,
   },
-  fileActionBtnText: {
+  quickDateChipText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: C.textSub,
+  },
+  quickDateChipTextActive: {
+    color: C.blue,
     fontWeight: '700',
+  },
+
+  /* X-Ray Mockup */
+  xrayMockupContainer: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0B132B',
+  },
+
+  /* Text Document Content Box */
+  textDocContentBox: {
+    backgroundColor: C.bg,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  textDocBody: {
+    fontSize: 13,
+    color: C.textMain,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 
   /* Connect Section */
