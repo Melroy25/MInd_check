@@ -226,6 +226,15 @@ const IconChevronRight = ({ size = 20, color = C.textSub }) => (
   </Svg>
 );
 
+const IconSwitch = ({ size = 20, color = C.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="17 1 21 5 17 9" />
+    <Path d="M3 11V9a4 4 0 0 1 4-4h14" />
+    <Polyline points="7 23 3 19 7 15" />
+    <Path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </Svg>
+);
+
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INITIAL_FOLDERS = [
   { id: 'cardio', name: 'Cardiology Reports', count: 2, date: '2 days ago' },
@@ -374,6 +383,53 @@ const INITIAL_PENDING_REQUESTS = [
   },
 ];
 
+const SOFIA_BENEFICIARY_FILES = [
+  {
+    id: 's1',
+    name: 'Pediatric Wellness & Immunization Record',
+    folder: 'labs',
+    type: 'PDF',
+    size: '1.2 MB',
+    date: 'Nov 02, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Children Clinic',
+    tags: ['Immunization', 'Pediatric'],
+  },
+  {
+    id: 's2',
+    name: 'Complete Blood Count (CBC) & Metabolic',
+    folder: 'labs',
+    type: 'PDF',
+    size: '840 KB',
+    date: 'Oct 28, 2026',
+    doctor: 'Dr. David Lee',
+    hospital: 'Metro Diagnostics',
+    tags: ['Hematology', 'CBC'],
+  },
+  {
+    id: 's3',
+    name: 'Allergy Screen & Histamine Panel',
+    folder: 'labs',
+    type: 'PDF',
+    size: '520 KB',
+    date: 'Oct 15, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    hospital: 'Metro Diagnostics',
+    tags: ['Allergy', 'IgE'],
+  },
+  {
+    id: 's4',
+    name: 'Sovereign Health Insurance Policy Grant',
+    folder: 'insurance',
+    type: 'PDF',
+    size: '2.4 MB',
+    date: 'Oct 01, 2026',
+    doctor: 'Apex Health Trust',
+    hospital: 'Apex Sovereign Foundation',
+    tags: ['Policy', 'Billing Grant'],
+  },
+];
+
 const getCaretakerPermLabels = (perms) => {
   if (!perms) return ['Timeline', 'Source Docs'];
   const labels = [];
@@ -388,6 +444,12 @@ const getCaretakerPermLabels = (perms) => {
 export default function PatientPortal({ onSignOut, isDesktop }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
+
+  // Account Role Switching: 'patient' | 'benefactor'
+  const [currentAccountRole, setCurrentAccountRole] = useState('patient');
+  const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
+  const [showNoAccountsModal, setShowNoAccountsModal] = useState(false);
+  const [hasOtherAccounts, setHasOtherAccounts] = useState(true);
 
   // Patient Profile Information
   const [patientInfo, setPatientInfo] = useState({
@@ -433,6 +495,8 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     useQA: true,
   });
   const [caretakerExpiry, setCaretakerExpiry] = useState('30 Days');
+  const [showCustomCaretakerExpiry, setShowCustomCaretakerExpiry] = useState(false);
+  const [customCaretakerDays, setCustomCaretakerDays] = useState('');
   const [editingCaretaker, setEditingCaretaker] = useState(null);
   const [editPerms, setEditPerms] = useState({
     viewTimeline: true,
@@ -442,6 +506,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     useQA: true,
   });
   const [editExpiry, setEditExpiry] = useState('30 Days');
+  const [showCustomEditExpiry, setShowCustomEditExpiry] = useState(false);
+  const [customEditDays, setCustomEditDays] = useState('');
+
+  // Scan QR to Connect State
+  const [showScanQrModal, setShowScanQrModal] = useState(false);
+  const [scanJoinCode, setScanJoinCode] = useState('');
+  const [scanJoinRole, setScanJoinRole] = useState('caretaker'); // 'caretaker' | 'benefactor'
 
   // Manual Date Filter Picker State
   const [filterMonth, setFilterMonth] = useState('All');
@@ -831,8 +902,17 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     }, 450);
   };
 
-  // ─── THE 5 AT YOUR FINGERTIP BOXES (CLEAN & NEAT) ───────────────────────────
+  // ─── THE 6 AT YOUR FINGERTIP BOXES (CLEAN, BALANCED 3x2) ───────────────────
   const FINGERTIP_BOXES = [
+    // Top 3:
+    {
+      id: 'scan-qr',
+      name: 'Scan QR',
+      Icon: IconQrCode,
+      iconColor: '#4F46E5',
+      iconBg: '#EEF2FF',
+      onPress: () => setShowScanQrModal(true),
+    },
     {
       id: 'upload',
       name: 'Upload',
@@ -849,6 +929,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       iconBg: C.blueBg,
       onPress: () => setActiveTab('documents'),
     },
+    // Below 3:
     {
       id: 'connect',
       name: 'Connect',
@@ -858,14 +939,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       onPress: () => setActiveTab('connect'),
     },
     {
-      id: 'pdf-report',
-      name: 'PDF Report',
-      Icon: IconPdfDoc,
-      iconColor: C.coral,
-      iconBg: C.coralBg,
-      onPress: () => setActiveTab('pdf-report'),
-    },
-    {
       id: 'chatbot',
       name: 'Chat Bot',
       Icon: IconChatBot,
@@ -873,11 +946,21 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       iconBg: C.tealBg,
       onPress: () => setActiveTab('chatbot'),
     },
+    {
+      id: 'pdf-report',
+      name: 'PDF Report',
+      Icon: IconPdfDoc,
+      iconColor: C.coral,
+      iconBg: C.coralBg,
+      onPress: () => setActiveTab('pdf-report'),
+    },
   ];
 
-  // ─── FILTERED FILES ────────────────────────────────────────────────────────
+  // ─── ACTIVE VAULT FILES & FILTERED FILES ──────────────────────────────────
+  const activeVaultFiles = currentAccountRole === 'benefactor' ? SOFIA_BENEFICIARY_FILES : files;
+
   const filteredFiles = useMemo(() => {
-    return files.filter((f) => {
+    return activeVaultFiles.filter((f) => {
       const matchFolder = selectedFolderFilter ? f.folder === selectedFolderFilter : true;
       const q = searchQuery.trim().toLowerCase();
       const matchSearch = q
@@ -904,7 +987,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
       return matchFolder && matchSearch && matchDate;
     });
-  }, [files, selectedFolderFilter, searchQuery, selectedDateFilter]);
+  }, [activeVaultFiles, selectedFolderFilter, searchQuery, selectedDateFilter]);
 
   const handleViewDocument = (file) => {
     if (file.type === 'JSON') {
@@ -1065,15 +1148,19 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       {/* ── TOP HEADER (ONLY ON HOME DASHBOARD) ─────────────────────────── */}
       {activeTab === 'home' && (
         <LinearGradient
-          colors={['#E8EEF9', '#F4F7FC', '#F8FAFC']}
+          colors={currentAccountRole === 'benefactor' ? ['#ECFDF5', '#F0FDF4', '#F8FAFC'] : ['#E8EEF9', '#F4F7FC', '#F8FAFC']}
           style={styles.topCurveContainer}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
         >
           <View style={styles.topHeaderInner}>
             <View>
-              <Text style={styles.greetingSmall}>Hello,</Text>
-              <Text style={styles.greetingName}>{patientInfo.name}</Text>
+              <Text style={styles.greetingSmall}>
+                {currentAccountRole === 'benefactor' ? 'Benefactor Portal' : 'Hello,'}
+              </Text>
+              <Text style={styles.greetingName}>
+                {currentAccountRole === 'benefactor' ? 'Apex Health Trust' : patientInfo.name}
+              </Text>
             </View>
 
             <View style={styles.topRightActions}>
@@ -1093,7 +1180,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 accessibilityLabel="Notifications"
               >
                 <IconBell size={22} color={C.textMain} />
-                <View style={styles.notificationDot} />
+                {pendingRequests.length > 0 && <View style={styles.notificationDot} />}
               </TouchableOpacity>
             </View>
           </View>
@@ -1107,9 +1194,33 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'home' && (
           <View style={styles.viewSection}>
+            {/* Benefactor Mode Alert Banner */}
+            {currentAccountRole === 'benefactor' && (
+              <View style={styles.benefactorBanner}>
+                <View style={styles.benefactorBannerLeft}>
+                  <View style={styles.benefactorTag}>
+                    <Text style={styles.benefactorTagText}>BENEFACTOR MODE</Text>
+                  </View>
+                  <Text style={styles.benefactorBannerPatient}>
+                    Managing Sofia Almeida's Vault · MV-2026-DEP-304
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.benefactorSwitchBackBtn}
+                  onPress={() => {
+                    setCurrentAccountRole('patient');
+                    showToastMsg('Switched back to Melroy Almeida');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.benefactorSwitchBackBtnText}>Switch to Patient</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <Text style={styles.sectionTitle}>At your Fingertip</Text>
 
-            {/* 3-column Grid of the 5 Boxes (Clean & Neat) */}
+            {/* 3-column Grid of the 6 Boxes (Clean & Balanced 3x2) */}
             <View style={styles.boxesGrid}>
               {FINGERTIP_BOXES.map((box) => (
                 <TouchableOpacity
@@ -1118,24 +1229,27 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   onPress={box.onPress}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.boxIconWrap, { backgroundColor: box.iconBg }]}>
+                  <View style={[styles.boxIconWrap, { backgroundColor: box.iconBg, position: 'relative' }]}>
                     <box.Icon size={34} color={box.iconColor} />
+                    {box.id === 'connect' && pendingRequests.length > 0 && (
+                      <View style={styles.boxBadgeDot} />
+                    )}
                   </View>
                   <Text style={styles.boxName}>{box.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* Recent Medical Records Quick Overview (Recent 5) */}
+            {/* Recent Medical Records Quick Overview (Recent 4) */}
             <View style={styles.recentSectionHeader}>
               <Text style={styles.subHeading}>Recent Medical Records</Text>
               <TouchableOpacity onPress={() => setActiveTab('documents')} activeOpacity={0.7}>
-                <Text style={styles.linkText}>View All ({files.length}) →</Text>
+                <Text style={styles.linkText}>View All ({activeVaultFiles.length}) →</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.modernDocListWrap}>
-              {files.slice(0, 4).map((item) => renderDocumentCard(item))}
+              {activeVaultFiles.slice(0, 4).map((item) => renderDocumentCard(item))}
             </View>
           </View>
         )}
@@ -1662,7 +1776,11 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.reportDocTitle}>Consolidated Sovereign Health Record</Text>
-                  <Text style={styles.reportDocSub}>Melroy Almeida · ID: {patientInfo.vaultId}</Text>
+                  <Text style={styles.reportDocSub}>
+                    {currentAccountRole === 'benefactor'
+                      ? 'Sofia Almeida · Dependent Vault: MV-2026-DEP-304'
+                      : `Melroy Almeida · ID: ${patientInfo.vaultId}`}
+                  </Text>
                 </View>
               </View>
 
@@ -1670,18 +1788,22 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 <View style={styles.reportGridRow}>
                   <View style={styles.reportGridItem}>
                     <Text style={styles.reportGridLabel}>Blood Group</Text>
-                    <Text style={[styles.reportGridVal, { color: C.red }]}>{patientInfo.bloodType}</Text>
+                    <Text style={[styles.reportGridVal, { color: C.red }]}>
+                      {currentAccountRole === 'benefactor' ? 'B+ (Positive)' : patientInfo.bloodType}
+                    </Text>
                   </View>
                   <View style={styles.reportGridItem}>
                     <Text style={styles.reportGridLabel}>Attending Physician</Text>
-                    <Text style={styles.reportGridVal}>{patientInfo.attendingDoctor}</Text>
+                    <Text style={styles.reportGridVal}>
+                      {currentAccountRole === 'benefactor' ? 'Dr. Sarah Jenkins' : patientInfo.attendingDoctor}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={[styles.reportGridRow, { marginTop: 12 }]}>
                   <View style={styles.reportGridItem}>
                     <Text style={styles.reportGridLabel}>Total Records</Text>
-                    <Text style={styles.reportGridVal}>{files.length} Verified Documents</Text>
+                    <Text style={styles.reportGridVal}>{activeVaultFiles.length} Verified Documents</Text>
                   </View>
                   <View style={styles.reportGridItem}>
                     <Text style={styles.reportGridLabel}>Encryption</Text>
@@ -1875,6 +1997,35 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   </View>
                 </View>
               </View>
+
+              {/* 4. Switch Account */}
+              <View style={[styles.uploadFieldWrap, { marginTop: 14 }]}>
+                <Text style={styles.cleanFieldLabel}>ACCOUNT</Text>
+                <TouchableOpacity
+                  style={styles.switchAccountCardBtn}
+                  onPress={() => {
+                    if (!hasOtherAccounts) {
+                      setShowNoAccountsModal(true);
+                    } else {
+                      setShowSwitchAccountModal(true);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.switchAccountIconWrap}>
+                    <IconSwitch size={20} color={C.blue} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.switchAccountCardTitle}>Switch Account</Text>
+                    <Text style={styles.switchAccountCardSub}>
+                      {currentAccountRole === 'benefactor'
+                        ? 'Active: Apex Health Trust (Benefactor)'
+                        : 'Active: Melroy Almeida (Patient)'}
+                    </Text>
+                  </View>
+                  <IconChevronRight size={18} color={C.textSub} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Bottom 3 Action Buttons Pushed Cleanly to Bottom */}
@@ -1941,7 +2092,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
           style={styles.bottomNavItem}
           onPress={() => setActiveTab('connect')}
         >
-          <IconStethoscope size={22} color={activeTab === 'connect' ? C.purple : C.textSub} />
+          <View style={{ position: 'relative' }}>
+            <IconStethoscope size={22} color={activeTab === 'connect' ? C.purple : C.textSub} />
+            {pendingRequests.length > 0 && (
+              <View style={styles.bottomNavBadgeDot} />
+            )}
+          </View>
           <Text style={[styles.bottomNavText, activeTab === 'connect' && { color: C.purple, fontWeight: '700' }]}>Connect</Text>
         </TouchableOpacity>
 
@@ -2734,16 +2890,82 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                     {['7 Days', '30 Days', '90 Days', 'No Expiry'].map((exp) => (
                       <TouchableOpacity
                         key={exp}
-                        style={[styles.expiryChip, caretakerExpiry === exp && styles.expiryChipActive]}
-                        onPress={() => setCaretakerExpiry(exp)}
+                        style={[
+                          styles.expiryChip,
+                          caretakerExpiry === exp && !showCustomCaretakerExpiry && styles.expiryChipActive,
+                        ]}
+                        onPress={() => {
+                          setCaretakerExpiry(exp);
+                          setShowCustomCaretakerExpiry(false);
+                        }}
                         activeOpacity={0.8}
                       >
-                        <Text style={[styles.expiryChipText, caretakerExpiry === exp && styles.expiryChipTextActive]}>
+                        <Text
+                          style={[
+                            styles.expiryChipText,
+                            caretakerExpiry === exp && !showCustomCaretakerExpiry && styles.expiryChipTextActive,
+                          ]}
+                        >
                           {exp}
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    {!['7 Days', '30 Days', '90 Days', 'No Expiry'].includes(caretakerExpiry) && caretakerExpiry ? (
+                      <TouchableOpacity
+                        style={[styles.expiryChip, styles.expiryChipActive]}
+                        onPress={() => setShowCustomCaretakerExpiry(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.expiryChipText, styles.expiryChipTextActive]}>{caretakerExpiry}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      style={[
+                        styles.expiryChip,
+                        styles.expiryPlusChip,
+                        showCustomCaretakerExpiry && styles.expiryChipActive,
+                      ]}
+                      onPress={() => setShowCustomCaretakerExpiry(!showCustomCaretakerExpiry)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.expiryChipText,
+                          styles.expiryPlusText,
+                          showCustomCaretakerExpiry && styles.expiryChipTextActive,
+                        ]}
+                      >
+                        +
+                      </Text>
+                    </TouchableOpacity>
                   </View>
+
+                  {/* Inline Custom Limit Input */}
+                  {showCustomCaretakerExpiry && (
+                    <View style={styles.customExpiryRow}>
+                      <TextInput
+                        style={styles.customExpiryInput}
+                        placeholder="e.g. 14, 60 or Dec 31, 2026"
+                        placeholderTextColor="#94A3B8"
+                        value={customCaretakerDays}
+                        onChangeText={setCustomCaretakerDays}
+                      />
+                      <TouchableOpacity
+                        style={styles.customExpirySetBtn}
+                        onPress={() => {
+                          const val = customCaretakerDays.trim();
+                          if (val) {
+                            const formatted = !isNaN(val) ? `${val} Days` : val;
+                            setCaretakerExpiry(formatted);
+                            setShowCustomCaretakerExpiry(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.customExpirySetBtnText}>Set</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   {/* Generate Access Code Button */}
                   <TouchableOpacity
@@ -2997,16 +3219,82 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                     {['7 Days', '30 Days', '90 Days', 'No Expiry'].map((exp) => (
                       <TouchableOpacity
                         key={exp}
-                        style={[styles.expiryChip, editExpiry === exp && styles.expiryChipActive]}
-                        onPress={() => setEditExpiry(exp)}
+                        style={[
+                          styles.expiryChip,
+                          editExpiry === exp && !showCustomEditExpiry && styles.expiryChipActive,
+                        ]}
+                        onPress={() => {
+                          setEditExpiry(exp);
+                          setShowCustomEditExpiry(false);
+                        }}
                         activeOpacity={0.8}
                       >
-                        <Text style={[styles.expiryChipText, editExpiry === exp && styles.expiryChipTextActive]}>
+                        <Text
+                          style={[
+                            styles.expiryChipText,
+                            editExpiry === exp && !showCustomEditExpiry && styles.expiryChipTextActive,
+                          ]}
+                        >
                           {exp}
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    {!['7 Days', '30 Days', '90 Days', 'No Expiry'].includes(editExpiry) && editExpiry ? (
+                      <TouchableOpacity
+                        style={[styles.expiryChip, styles.expiryChipActive]}
+                        onPress={() => setShowCustomEditExpiry(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.expiryChipText, styles.expiryChipTextActive]}>{editExpiry}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      style={[
+                        styles.expiryChip,
+                        styles.expiryPlusChip,
+                        showCustomEditExpiry && styles.expiryChipActive,
+                      ]}
+                      onPress={() => setShowCustomEditExpiry(!showCustomEditExpiry)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.expiryChipText,
+                          styles.expiryPlusText,
+                          showCustomEditExpiry && styles.expiryChipTextActive,
+                        ]}
+                      >
+                        +
+                      </Text>
+                    </TouchableOpacity>
                   </View>
+
+                  {/* Inline Custom Limit Input */}
+                  {showCustomEditExpiry && (
+                    <View style={styles.customExpiryRow}>
+                      <TextInput
+                        style={styles.customExpiryInput}
+                        placeholder="e.g. 14, 60 or Dec 31, 2026"
+                        placeholderTextColor="#94A3B8"
+                        value={customEditDays}
+                        onChangeText={setCustomEditDays}
+                      />
+                      <TouchableOpacity
+                        style={styles.customExpirySetBtn}
+                        onPress={() => {
+                          const val = customEditDays.trim();
+                          if (val) {
+                            const formatted = !isNaN(val) ? `${val} Days` : val;
+                            setEditExpiry(formatted);
+                            setShowCustomEditExpiry(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.customExpirySetBtnText}>Set</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   {/* Save Button */}
                   <TouchableOpacity
@@ -3019,6 +3307,310 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 </>
               )}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL: SCAN QR TO CONNECT (CARETAKER OR BENEFACTOR) ─────────────── */}
+      <Modal
+        visible={showScanQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowScanQrModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modernModalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modernModalHeader}>
+              <View>
+                <Text style={styles.modernModalTitle}>Scan QR to Connect</Text>
+                <Text style={styles.modernModalSub}>Join as a caretaker or benefactor</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modernModalCloseBtn}
+                onPress={() => setShowScanQrModal(false)}
+              >
+                <Text style={styles.modernModalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }}>
+              {/* Role Selector */}
+              <Text style={[styles.cleanFieldLabel, { marginTop: 12, marginBottom: 8 }]}>JOIN AS</Text>
+              <View style={styles.scanRoleTabsRow}>
+                <TouchableOpacity
+                  style={[styles.scanRoleTab, scanJoinRole === 'caretaker' && styles.scanRoleTabActive]}
+                  onPress={() => setScanJoinRole('caretaker')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.scanRoleTabText, scanJoinRole === 'caretaker' && styles.scanRoleTabTextActive]}>
+                    Caretaker Proxy
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.scanRoleTab, scanJoinRole === 'benefactor' && styles.scanRoleTabActive]}
+                  onPress={() => setScanJoinRole('benefactor')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.scanRoleTabText, scanJoinRole === 'benefactor' && styles.scanRoleTabTextActive]}>
+                    Benefactor Sponsor
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Viewfinder Camera Box */}
+              <View style={styles.scanViewfinderWrap}>
+                <View style={styles.scanViewfinderBox}>
+                  {/* 4 Corner Reticles */}
+                  <View style={[styles.scanReticle, styles.reticleTL]} />
+                  <View style={[styles.scanReticle, styles.reticleTR]} />
+                  <View style={[styles.scanReticle, styles.reticleBL]} />
+                  <View style={[styles.scanReticle, styles.reticleBR]} />
+                  {/* Animated Laser Line */}
+                  <View style={styles.scanLaserLine} />
+                  <IconQrCode size={56} color="#6366F1" />
+                  <Text style={styles.scanViewfinderHint}>Point camera at patient's invite QR code</Text>
+                </View>
+              </View>
+
+              {/* Manual Code Input Option */}
+              <View style={[styles.uploadFieldWrap, { marginTop: 14 }]}>
+                <Text style={styles.cleanFieldLabel}>OR ENTER CONNECTION CODE</Text>
+                <TextInput
+                  style={styles.cleanInputField}
+                  placeholder={scanJoinRole === 'caretaker' ? 'e.g. CAR-4892' : 'e.g. BEN-9199'}
+                  placeholderTextColor="#94A3B8"
+                  value={scanJoinCode}
+                  onChangeText={setScanJoinCode}
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              {/* Action Button: Connect to Vault */}
+              <TouchableOpacity
+                style={[styles.cleanSaveBtn, { marginTop: 14 }]}
+                onPress={() => {
+                  const code = scanJoinCode.trim() || (scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199');
+                  setShowScanQrModal(false);
+                  setScanJoinCode('');
+                  showToastMsg(`Connected as ${scanJoinRole === 'caretaker' ? 'Caretaker' : 'Benefactor'} (${code})!`);
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[C.green, C.greenDark]}
+                  style={styles.cleanSaveBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.cleanSaveBtnText}>Connect to Vault</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Simulate Scan Quick Action */}
+              <TouchableOpacity
+                style={styles.simulateScanBtn}
+                onPress={() => {
+                  const demoCode = scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199';
+                  setScanJoinCode(demoCode);
+                  setTimeout(() => {
+                    setShowScanQrModal(false);
+                    setScanJoinCode('');
+                    showToastMsg(`QR Scanned: Connected as ${scanJoinRole === 'caretaker' ? 'Caretaker' : 'Benefactor'} (${demoCode})!`);
+                  }, 300);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.simulateScanBtnText}>
+                  Simulate QR Scan ({scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199'})
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL: SWITCH ACCOUNT ─────────────────────────────────────────── */}
+      <Modal
+        visible={showSwitchAccountModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSwitchAccountModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modernModalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modernModalHeader}>
+              <View>
+                <Text style={styles.modernModalTitle}>Switch Account</Text>
+                <Text style={styles.modernModalSub}>Select an active role or sovereign vault</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modernModalCloseBtn}
+                onPress={() => setShowSwitchAccountModal(false)}
+              >
+                <Text style={styles.modernModalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 10 }}>
+              {/* Account 1: Melroy Almeida (Patient) */}
+              <TouchableOpacity
+                style={[
+                  styles.switchRoleCard,
+                  currentAccountRole === 'patient' && styles.switchRoleCardActive,
+                ]}
+                onPress={() => {
+                  setCurrentAccountRole('patient');
+                  setShowSwitchAccountModal(false);
+                  showToastMsg('Switched to Melroy Almeida (Patient)');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.switchRoleAvatar, { backgroundColor: '#EFF6FF' }]}>
+                  <Text style={[styles.switchRoleAvatarText, { color: C.blue }]}>ME</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.switchRoleName}>Melroy Almeida</Text>
+                    {currentAccountRole === 'patient' && (
+                      <View style={styles.switchRoleActiveBadge}>
+                        <Text style={styles.switchRoleActiveBadgeText}>Active</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.switchRoleSub}>Patient Sovereign Vault · MV-2026-PAT-892</Text>
+                </View>
+                {currentAccountRole === 'patient' ? (
+                  <View style={styles.switchRoleRadioSelected}>
+                    <View style={styles.switchRoleRadioInner} />
+                  </View>
+                ) : (
+                  <View style={styles.switchRoleRadio} />
+                )}
+              </TouchableOpacity>
+
+              {/* Account 2: Apex Health Trust (Benefactor) */}
+              <TouchableOpacity
+                style={[
+                  styles.switchRoleCard,
+                  currentAccountRole === 'benefactor' && styles.switchRoleCardActive,
+                ]}
+                onPress={() => {
+                  setCurrentAccountRole('benefactor');
+                  setShowSwitchAccountModal(false);
+                  showToastMsg('Switched to Apex Health Trust (Benefactor)');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.switchRoleAvatar, { backgroundColor: '#F0FDF4' }]}>
+                  <Text style={[styles.switchRoleAvatarText, { color: C.green }]}>AP</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.switchRoleName}>Apex Health Trust</Text>
+                    {currentAccountRole === 'benefactor' && (
+                      <View style={[styles.switchRoleActiveBadge, { backgroundColor: C.greenBg }]}>
+                        <Text style={[styles.switchRoleActiveBadgeText, { color: C.green }]}>Active</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.switchRoleSub}>Benefactor Account · Sponsoring Sofia Almeida</Text>
+                </View>
+                {currentAccountRole === 'benefactor' ? (
+                  <View style={[styles.switchRoleRadioSelected, { borderColor: C.green }]}>
+                    <View style={[styles.switchRoleRadioInner, { backgroundColor: C.green }]} />
+                  </View>
+                ) : (
+                  <View style={styles.switchRoleRadio} />
+                )}
+              </TouchableOpacity>
+
+              {/* Account 3: Caretaker Proxy (Coming Soon) */}
+              <TouchableOpacity
+                style={[styles.switchRoleCard, { opacity: 0.65 }]}
+                onPress={() => {
+                  showToastMsg('Caretaker portal is coming soon.');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.switchRoleAvatar, { backgroundColor: '#F5F3FF' }]}>
+                  <Text style={[styles.switchRoleAvatarText, { color: C.purple }]}>CP</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.switchRoleName}>Caretaker Proxy</Text>
+                    <View style={[styles.switchRoleActiveBadge, { backgroundColor: '#F1F5F9' }]}>
+                      <Text style={[styles.switchRoleActiveBadgeText, { color: '#64748B' }]}>Coming Soon</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.switchRoleSub}>Delegated Health Proxy Portal</Text>
+                </View>
+                <View style={styles.switchRoleRadio} />
+              </TouchableOpacity>
+
+              {/* Preview Toggle for "No other accounts" state */}
+              <View style={styles.simulateAccountRow}>
+                <Text style={styles.simulateAccountText}>Simulate no linked accounts:</Text>
+                <TouchableOpacity
+                  style={[styles.cleanToggle, !hasOtherAccounts && styles.cleanToggleActive]}
+                  onPress={() => setHasOtherAccounts(!hasOtherAccounts)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.cleanToggleKnob, !hasOtherAccounts && styles.cleanToggleKnobActive]} />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL: NO OTHER ACCOUNTS ──────────────────────────────────────── */}
+      <Modal
+        visible={showNoAccountsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNoAccountsModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modernModalCard}>
+            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <View style={styles.noAccountsIconWrap}>
+                <IconUser size={28} color={C.blue} />
+              </View>
+              <Text style={[styles.modernModalTitle, { marginTop: 12, textAlign: 'center' }]}>
+                No Other Accounts
+              </Text>
+              <Text style={[styles.modernModalSub, { textAlign: 'center', marginTop: 6, lineHeight: 20 }]}>
+                You don't have any other accounts linked to this identity. Join as a benefactor or caretaker to switch between vaults.
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.cleanSaveBtn, { marginTop: 20, width: '100%' }]}
+                onPress={() => setShowNoAccountsModal(false)}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[C.green, C.greenDark]}
+                  style={styles.cleanSaveBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.cleanSaveBtnText}>OK</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{ marginTop: 14 }}
+                onPress={() => {
+                  setHasOtherAccounts(true);
+                  setShowNoAccountsModal(false);
+                  setShowSwitchAccountModal(true);
+                }}
+              >
+                <Text style={{ fontSize: 13, color: C.blue, fontWeight: '600' }}>
+                  Re-enable Linked Accounts
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -5103,5 +5695,368 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: '#2563EB',
+  },
+
+  /* Badges & Dots */
+  bottomNavBadgeDot: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  boxBadgeDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+
+  /* Custom Expiration (+) */
+  expiryPlusChip: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderColor: '#CBD5E1',
+  },
+  expiryPlusText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2563EB',
+    lineHeight: 14,
+  },
+  customExpiryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  customExpiryInput: {
+    flex: 1,
+    height: 38,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 12.5,
+    color: '#0F172A',
+    backgroundColor: '#FFFFFF',
+  },
+  customExpirySetBtn: {
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customExpirySetBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Benefactor Banner on Home */
+  benefactorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    gap: 10,
+  },
+  benefactorBannerLeft: {
+    flex: 1,
+  },
+  benefactorTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#047857',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginBottom: 4,
+  },
+  benefactorTagText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  benefactorBannerPatient: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#065F46',
+  },
+  benefactorSwitchBackBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+  },
+  benefactorSwitchBackBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* Switch Account Card in Profile */
+  switchAccountCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  switchAccountIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchAccountCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  switchAccountCardSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 2,
+  },
+
+  /* Scan QR to Connect Modal */
+  scanRoleTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  scanRoleTab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanRoleTabActive: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#6366F1',
+  },
+  scanRoleTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  scanRoleTabTextActive: {
+    color: '#4F46E5',
+    fontWeight: '700',
+  },
+  scanViewfinderWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  scanViewfinderBox: {
+    width: 200,
+    height: 180,
+    borderRadius: 18,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  scanReticle: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    borderColor: '#6366F1',
+  },
+  reticleTL: {
+    top: 10,
+    left: 10,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 6,
+  },
+  reticleTR: {
+    top: 10,
+    right: 10,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 6,
+  },
+  reticleBL: {
+    bottom: 10,
+    left: 10,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 6,
+  },
+  reticleBR: {
+    bottom: 10,
+    right: 10,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 6,
+  },
+  scanLaserLine: {
+    position: 'absolute',
+    top: '45%',
+    left: 20,
+    right: 20,
+    height: 2,
+    backgroundColor: '#818CF8',
+    shadowColor: '#818CF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  scanViewfinderHint: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  simulateScanBtn: {
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  simulateScanBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+
+  /* Switch Role Modal */
+  switchRoleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 10,
+  },
+  switchRoleCardActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#2563EB',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  switchRoleAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchRoleAvatarText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  switchRoleName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  switchRoleActiveBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+  },
+  switchRoleActiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  switchRoleSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  switchRoleRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  switchRoleRadioSelected: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  switchRoleRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#2563EB',
+  },
+  simulateAccountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  simulateAccountText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  noAccountsIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
