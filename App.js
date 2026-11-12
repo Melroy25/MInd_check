@@ -150,6 +150,32 @@ const IconExternalLink = ({ size = 16, color = G.muted }) => (
     <Line x1="10" y1="14" x2="21" y2="3"/>
   </Svg>
 );
+const IconMenu = ({ size = 22, color = G.charcoal }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <Line x1="4" y1="6" x2="20" y2="6"/>
+    <Line x1="4" y1="12" x2="20" y2="12"/>
+    <Line x1="4" y1="18" x2="20" y2="18"/>
+  </Svg>
+);
+const IconDashboard = ({ size = 20, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="3" width="7" height="7" rx="1.5"/>
+    <Rect x="14" y="3" width="7" height="7" rx="1.5"/>
+    <Rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    <Rect x="3" y="14" width="7" height="7" rx="1.5"/>
+  </Svg>
+);
+const IconPlus = ({ size = 18, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <Line x1="12" y1="5" x2="12" y2="19"/>
+    <Line x1="5" y1="12" x2="19" y2="12"/>
+  </Svg>
+);
+const IconChevronRight = ({ size = 16, color = G.muted }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="9 18 15 12 9 6"/>
+  </Svg>
+);
 
 // ─── ROLE DATA ────────────────────────────────────────────────────────────────
 const ROLES = [
@@ -242,28 +268,40 @@ const INITIAL_PEOPLE = [
 // ─── PATIENT PORTAL SCREEN ────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 function PatientPortal({ onSignOut, isDesktop }) {
-  const [activeTab, setActiveTab] = useState('folders'); // 'folders' | 'upload' | 'share' | 'access'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'folders' | 'upload' | 'connect'
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState(INITIAL_FILES);
   const [folders, setFolders] = useState(INITIAL_FOLDERS);
   const [people, setPeople] = useState(INITIAL_PEOPLE);
+
+  // Modals
   const [selectedFileModal, setSelectedFileModal] = useState(null);
   const [selectedJsonModal, setSelectedJsonModal] = useState(null);
   const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [newFolderNameInput, setNewFolderNameInput] = useState('');
+  const [newFolderDescInput, setNewFolderDescInput] = useState('');
   const [toast, setToast] = useState(null);
 
   // Upload Form State
-  const [newTitle, setNewTitle] = useState('');
-  const [newFolder, setNewFolder] = useState('cardio');
-  const [newDoctor, setNewDoctor] = useState('');
-  const [convertToPdf, setConvertToPdf] = useState(true);
-  const [geminiExtractionEnabled, setGeminiExtractionEnabled] = useState(true);
-
-  // Picked Document File
   const [pickedFile, setPickedFile] = useState(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDoctor, setNewDoctor] = useState('');
+  const [uploadFolder, setUploadFolder] = useState('cardio');
+  const [customFolderName, setCustomFolderName] = useState('');
+  const [isCustomFolder, setIsCustomFolder] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState('');
+  const [extractedResult, setExtractedResult] = useState(null);
+  const [showRawJsonInUpload, setShowRawJsonInUpload] = useState(false);
+
+  // Connect Form State
+  const [connectName, setConnectName] = useState('');
+  const [connectRole, setConnectRole] = useState('Doctor');
+  const [connectClinic, setConnectClinic] = useState('');
+  const [connectPerm, setConnectPerm] = useState('Full Access');
 
   const showToast = (msg) => {
     setToast(msg);
@@ -276,7 +314,6 @@ function PatientPortal({ onSignOut, isDesktop }) {
       if (doc) {
         setPickedFile(doc);
         if (!newTitle.trim()) {
-          // Pre-fill title from file name
           const cleanName = doc.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
           setNewTitle(cleanName);
         }
@@ -288,121 +325,189 @@ function PatientPortal({ onSignOut, isDesktop }) {
     }
   };
 
-  const handleUploadSubmit = async () => {
-    if (!newTitle.trim() && !pickedFile) {
-      showToast('Please select a file or enter a document title');
+  // Run Gemini Extraction on uploaded document
+  const handleExtractDocument = async () => {
+    if (!pickedFile && !newTitle.trim()) {
+      showToast('Please select a file to extract data');
+      return;
+    }
+    setIsExtracting(true);
+    setExtractionProgress('Connecting to Google Gemini Multimodal Model...');
+    try {
+      const title = newTitle.trim() || (pickedFile ? pickedFile.name : 'Medical Document');
+      const doctorName = newDoctor.trim() || 'Self-Uploaded';
+      const extraction = await extractMedicalDocument({
+        file: pickedFile,
+        fileName: pickedFile ? pickedFile.name : `${title}.pdf`,
+        mimeType: pickedFile ? pickedFile.mimeType : 'application/pdf',
+        base64Data: pickedFile ? pickedFile.base64 : null,
+        rawText: `Document: ${title}. Doctor: ${doctorName}. Folder: ${uploadFolder}. Verified sovereign medical record.`,
+        onProgress: (p) => setExtractionProgress(p),
+      });
+      setExtractedResult(extraction);
+      showToast(`Gemini extracted ${extraction.medications_count} meds & ${extraction.conditions_count} conditions! Review below.`);
+    } catch (err) {
+      console.warn('Extraction error:', err);
+      showToast('Gemini extraction error. Check network or API key.');
+    } finally {
+      setIsExtracting(false);
+      setExtractionProgress('');
+    }
+  };
+
+  // Save document and extracted structured JSON to folder
+  const handleSaveToFolder = () => {
+    if (!pickedFile && !newTitle.trim()) {
+      showToast('Please choose a file or document title to save');
       return;
     }
 
     const title = newTitle.trim() || (pickedFile ? pickedFile.name : 'Medical Document');
     const doctorName = newDoctor.trim() || 'Self-Uploaded';
 
-    // Build the original uploaded file entry
-    const isPdf = pickedFile?.name?.toLowerCase()?.endsWith('.pdf') || convertToPdf;
+    // Determine target folder
+    let targetFolderId = uploadFolder;
+    let targetFolderName = '';
+
+    if (isCustomFolder && customFolderName.trim()) {
+      const cleanName = customFolderName.trim();
+      targetFolderId = 'folder-' + cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      targetFolderName = cleanName;
+
+      // Add to folders list if doesn't exist
+      if (!folders.some((f) => f.id === targetFolderId)) {
+        const newFolderObj = {
+          id: targetFolderId,
+          name: cleanName,
+          count: 0,
+          date: 'Just now',
+          desc: 'Custom medical folder',
+        };
+        setFolders((prev) => [newFolderObj, ...prev]);
+      }
+    } else {
+      const existing = folders.find((f) => f.id === uploadFolder);
+      targetFolderName = existing ? existing.name : 'Medical Records';
+    }
+
+    const isPdf = pickedFile?.name?.toLowerCase()?.endsWith('.pdf') || true;
     const isImg = pickedFile?.name?.toLowerCase()?.match(/\.(png|jpg|jpeg|webp)$/);
+
     const originalDoc = {
       id: Date.now().toString(),
       name: title,
-      folder: newFolder,
+      folder: targetFolderId,
       type: isPdf ? 'PDF' : (isImg ? 'IMG' : 'DOC'),
-      size: pickedFile?.size || '2.1 MB',
+      size: pickedFile?.size || '1.8 MB',
       date: 'Just now',
       doctor: doctorName,
-      tags: ['Sovereign Vault', convertToPdf ? 'Converted PDF' : 'Original'],
+      tags: ['Sovereign Vault', 'Verified'],
       fileUri: pickedFile?.uri,
       fileBlob: pickedFile?.file,
       base64Data: pickedFile?.base64,
+      extractedData: extractedResult?.data || null,
+      rawJson: extractedResult?.raw_json || null,
     };
 
-    let newFilesToAdd = [originalDoc];
-    let folderIncrement = 1;
+    let newFiles = [originalDoc];
+    let increment = 1;
 
-    // Run Gemini Extraction if enabled
-    if (geminiExtractionEnabled) {
-      setIsExtracting(true);
-      setExtractionProgress('Initializing Gemini Medical Extractor...');
-
-      try {
-        const extraction = await extractMedicalDocument({
-          file: pickedFile,
-          fileName: pickedFile ? pickedFile.name : `${title}.pdf`,
-          mimeType: pickedFile ? pickedFile.mimeType : 'application/pdf',
-          base64Data: pickedFile ? pickedFile.base64 : null,
-          rawText: `Document: ${title}. Doctor: ${doctorName}. Folder: ${newFolder}. Verified sovereign medical record.`,
-          onProgress: (p) => setExtractionProgress(p),
-        });
-
-        // Attach extracted data to original record as well
-        originalDoc.extractedData = extraction.data;
-        originalDoc.rawJson = extraction.raw_json;
-
-        // Create the companion structured JSON file
-        const jsonDoc = {
-          id: (Date.now() + 1).toString(),
-          name: `${title} (Structured JSON)`,
-          folder: newFolder,
-          type: 'JSON',
-          size: '12.4 KB',
-          date: 'Just now',
-          doctor: extraction.doctor || doctorName,
-          tags: [
-            'Gemini Extracted',
-            'Verified JSON',
-            `${extraction.medications_count} Meds`,
-            `${extraction.conditions_count} Conditions`,
-          ],
-          extractedData: extraction.data,
-          rawJson: extraction.raw_json,
-        };
-
-        newFilesToAdd = [originalDoc, jsonDoc];
-        folderIncrement = 2;
-        showToast(`Gemini extracted ${extraction.medications_count} meds & ${extraction.conditions_count} conditions into JSON!`);
-      } catch (err) {
-        console.warn('[handleUploadSubmit] Gemini extraction failed:', err);
-        showToast('Document saved. Gemini extraction error (see details).');
-      } finally {
-        setIsExtracting(false);
-        setExtractionProgress('');
-      }
-    } else {
-      showToast('Document added to your vault');
+    // If Gemini extracted structured data, save companion JSON document too
+    if (extractedResult) {
+      const jsonDoc = {
+        id: (Date.now() + 1).toString(),
+        name: `${title} (Structured JSON)`,
+        folder: targetFolderId,
+        type: 'JSON',
+        size: '12.4 KB',
+        date: 'Just now',
+        doctor: extractedResult.doctor || doctorName,
+        tags: [
+          'Gemini Extracted',
+          'Verified JSON',
+          `${extractedResult.medications_count} Meds`,
+          `${extractedResult.conditions_count} Conditions`,
+        ],
+        extractedData: extractedResult.data,
+        rawJson: extractedResult.raw_json,
+        linkedOriginalId: originalDoc.id,
+      };
+      newFiles.push(jsonDoc);
+      increment = 2;
     }
 
-    // Save to state
-    setFiles((prev) => [...newFilesToAdd, ...prev]);
+    // Update files state
+    setFiles((prev) => [...newFiles, ...prev]);
+
+    // Update folder count
     setFolders((prev) =>
       prev.map((f) =>
-        f.id === newFolder ? { ...f, count: f.count + folderIncrement, date: 'Just now' } : f
+        f.id === targetFolderId ? { ...f, count: f.count + increment, date: 'Just now' } : f
       )
     );
 
+    showToast(`Saved to "${targetFolderName}" folder!`);
+
     // Reset upload form
+    setPickedFile(null);
     setNewTitle('');
     setNewDoctor('');
-    setPickedFile(null);
+    setExtractedResult(null);
+    setCustomFolderName('');
+    setIsCustomFolder(false);
+
+    // Switch to Folders page and select the saved folder
+    setSelectedFolder(targetFolderId);
     setActiveTab('folders');
   };
 
-  const handleShareSubmit = () => {
-    if (!shareName.trim()) {
+  // Create New Folder
+  const handleCreateFolder = () => {
+    if (!newFolderNameInput.trim()) {
+      showToast('Please enter a folder name');
+      return;
+    }
+    const cleanName = newFolderNameInput.trim();
+    const newId = 'folder-' + cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    if (folders.some((f) => f.id === newId)) {
+      showToast('A folder with this name already exists');
+      return;
+    }
+    const newFolderObj = {
+      id: newId,
+      name: cleanName,
+      count: 0,
+      date: 'Just now',
+      desc: newFolderDescInput.trim() || 'Custom patient medical folder',
+    };
+    setFolders((prev) => [...prev, newFolderObj]);
+    setNewFolderNameInput('');
+    setNewFolderDescInput('');
+    setShowCreateFolderModal(false);
+    showToast(`Created folder "${cleanName}"`);
+  };
+
+  // Connect Practitioner
+  const handleConnectSubmit = () => {
+    if (!connectName.trim()) {
       showToast('Please enter doctor or caretaker name');
       return;
     }
     const newPerson = {
       id: Date.now().toString(),
-      name: shareName.trim(),
-      role: shareRole,
-      clinic: 'Verified Practitioner',
-      perm: sharePerm,
+      name: connectName.trim(),
+      role: connectRole,
+      clinic: connectClinic.trim() || 'Verified Clinic / Hospital',
+      perm: connectPerm,
     };
-    setPeople([...people, newPerson]);
-    setShareName('');
+    setPeople((prev) => [...prev, newPerson]);
+    setConnectName('');
+    setConnectClinic('');
     showToast(`Access granted to ${newPerson.name}`);
   };
 
   const handleRevoke = (id) => {
-    setPeople(people.filter((p) => p.id !== id));
+    setPeople((prev) => prev.filter((p) => p.id !== id));
     showToast('Permission revoked successfully');
   };
 
@@ -411,7 +516,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
       navigator.clipboard.writeText(text);
       showToast('Raw JSON copied to clipboard!');
     } else {
-      showToast('JSON ready in modal');
+      showToast('JSON ready in viewer');
     }
   };
 
@@ -482,10 +587,11 @@ function PatientPortal({ onSignOut, isDesktop }) {
     <View style={{ flex: 1, backgroundColor: G.bg }}>
       <StatusBar barStyle="dark-content" backgroundColor={G.white}/>
 
-      {/* Header */}
+      {/* ─── MOBILE-FIRST TOP APP BAR ─────────────────────────────────────── */}
       <View style={pStyles.header}>
-        <View style={[pStyles.headerInner, isDesktop && pStyles.headerInnerDesktop]}>
-          <TouchableOpacity onPress={onSignOut} style={pStyles.logoRow} activeOpacity={0.8}>
+        <View style={pStyles.headerInner}>
+          {/* Logo on Left */}
+          <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={pStyles.logoRow} activeOpacity={0.8}>
             <View style={s.logoIcon}><IconShield size={18} color="white" strokeWidth={2.5}/></View>
             <Text style={s.logoText}>
               <Text style={s.logoMedi}>Medi</Text>
@@ -493,95 +599,384 @@ function PatientPortal({ onSignOut, isDesktop }) {
             </Text>
           </TouchableOpacity>
 
+          {/* Right Header Navigation & 3-Bars Button */}
           <View style={pStyles.headerRight}>
-            <View style={pStyles.userChip}>
+            {/* Desktop Navigation Tabs */}
+            {isDesktop && (
+              <View style={pStyles.desktopNavRow}>
+                {[
+                  { key: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
+                  { key: 'folders', label: 'Folders', Icon: IconFolder },
+                  { key: 'upload', label: 'Upload', Icon: IconUpload },
+                  { key: 'connect', label: 'Connect', Icon: IconShare },
+                ].map((item) => {
+                  const active = activeTab === item.key;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      onPress={() => setActiveTab(item.key)}
+                      style={[pStyles.desktopNavBtn, active && pStyles.desktopNavBtnActive]}
+                      activeOpacity={0.8}
+                    >
+                      <item.Icon size={16} color={active ? G.green : G.muted} />
+                      <Text style={[pStyles.desktopNavBtnText, active && pStyles.desktopNavBtnTextActive]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Compact Patient Avatar Badge */}
+            <TouchableOpacity onPress={() => setNavDrawerOpen(true)} style={pStyles.userChipCompact} activeOpacity={0.8}>
               <View style={pStyles.avatarCircle}>
                 <Text style={pStyles.avatarText}>MA</Text>
               </View>
-              <View>
-                <Text style={pStyles.userName}>Melroy Almeida</Text>
-                <View style={pStyles.roleBadgeRow}>
-                  <View style={pStyles.greenDot}/>
-                  <Text style={pStyles.userRole}>Patient · Sovereign Vault</Text>
+              {isDesktop && (
+                <View>
+                  <Text style={pStyles.userName}>Melroy Almeida</Text>
+                  <Text style={pStyles.userRole}>Patient · Sovereign</Text>
                 </View>
-              </View>
-            </View>
+              )}
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={onSignOut} style={pStyles.btnSignOut} activeOpacity={0.7}>
-              <IconLogOut size={16} color={G.muted}/>
-              <Text style={pStyles.btnSignOutText}>Sign Out</Text>
+            {/* 3-BARS HAMBURGER MENU BUTTON */}
+            <TouchableOpacity
+              onPress={() => setNavDrawerOpen(true)}
+              style={pStyles.btnHamburger}
+              activeOpacity={0.7}
+              accessibilityLabel="Open Navigation Menu"
+            >
+              <IconMenu size={22} color={G.charcoal} />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* Scrollable Content */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={[pStyles.container, isDesktop && pStyles.containerDesktop]}>
-        
-        {/* Hero Card */}
-        <LinearGradient
-          colors={['#ffffff', '#F7F9F6']}
-          style={pStyles.vaultHero}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        >
-          <View style={pStyles.vaultHeroHeader}>
-            <View>
-              <View style={pStyles.badgeEncrypted}>
-                <IconSparkles size={13} color={G.green}/>
-                <Text style={pStyles.badgeEncryptedText}>Gemini AI Extraction Enabled · Zero Cloud Tie-In</Text>
+      {/* ─── SLIDE-OVER NAVIGATION DRAWER (3-BARS MENU) ────────────────────── */}
+      <Modal
+        visible={navDrawerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNavDrawerOpen(false)}
+      >
+        <View style={pStyles.drawerOverlay}>
+          <TouchableOpacity
+            style={pStyles.drawerBackdrop}
+            activeOpacity={1}
+            onPress={() => setNavDrawerOpen(false)}
+          />
+
+          <View style={[pStyles.drawerContent, isDesktop && { maxWidth: 360 }]}>
+            {/* Drawer Header */}
+            <View style={pStyles.drawerHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[pStyles.avatarCircle, { width: 42, height: 42, borderRadius: 21 }]}>
+                  <Text style={[pStyles.avatarText, { fontSize: 16 }]}>MA</Text>
+                </View>
+                <View>
+                  <Text style={[pStyles.userName, { fontSize: 15 }]}>Melroy Almeida</Text>
+                  <View style={pStyles.roleBadgeRow}>
+                    <View style={pStyles.greenDot} />
+                    <Text style={pStyles.userRole}>Patient · Sovereign Vault</Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: G.muted, marginTop: 2 }}>ID: MV-2026-PAT-892</Text>
+                </View>
               </View>
-              <Text style={pStyles.vaultHeroTitle}>Patient Medical History Vault</Text>
-              <Text style={pStyles.vaultHeroSub}>
-                Upload prescriptions, lab tests, or scan reports. MediVault and Google Gemini extract structured clinical JSON with verbatim evidence linking.
-              </Text>
-            </View>
-          </View>
 
-          {/* Quick Stats Grid */}
-          <View style={pStyles.statsGrid}>
-            <View style={pStyles.statCard}>
-              <Text style={pStyles.statNum}>{files.length}</Text>
-              <Text style={pStyles.statLabel}>Total Records</Text>
-            </View>
-            <View style={pStyles.statCard}>
-              <Text style={pStyles.statNum}>{files.filter(f => f.type === 'JSON').length}</Text>
-              <Text style={[pStyles.statLabel, { color: G.amber, fontWeight: '700' }]}>Structured JSON</Text>
-            </View>
-            <View style={pStyles.statCard}>
-              <Text style={pStyles.statNum}>{folders.length}</Text>
-              <Text style={pStyles.statLabel}>Organized Folders</Text>
-            </View>
-            <View style={pStyles.statCard}>
-              <Text style={[pStyles.statNum, { color: G.green }]}>100%</Text>
-              <Text style={pStyles.statLabel}>Private & Sovereign</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* Workspace Navigation Tabs */}
-        <View style={pStyles.tabsRow}>
-          {[
-            { key: 'folders', label: 'My Folders & Files', Icon: IconFolder },
-            { key: 'upload',  label: 'Upload Record & Extract', Icon: IconUpload },
-            { key: 'share',   label: 'Share Access',      Icon: IconShare },
-            { key: 'access',  label: 'Manage Permissions',Icon: IconLock },
-          ].map((t) => {
-            const active = activeTab === t.key;
-            return (
               <TouchableOpacity
-                key={t.key}
-                onPress={() => setActiveTab(t.key)}
-                style={[pStyles.tabBtn, active && pStyles.tabBtnActive]}
+                onPress={() => setNavDrawerOpen(false)}
+                style={pStyles.drawerCloseBtn}
+              >
+                <Text style={{ fontSize: 18, color: G.muted, fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Navigation Bars Title */}
+            <Text style={pStyles.drawerSectionTitle}>PATIENT PORTAL PAGES</Text>
+
+            {/* The 4 Navigation Bars */}
+            <View style={pStyles.drawerMenu}>
+              {[
+                {
+                  key: 'dashboard',
+                  label: 'Dashboard',
+                  desc: 'Patient overview & basic details',
+                  Icon: IconDashboard,
+                  badge: null,
+                },
+                {
+                  key: 'folders',
+                  label: 'Folders',
+                  desc: `${folders.length} folders · ${files.length} records`,
+                  Icon: IconFolder,
+                  badge: files.length.toString(),
+                },
+                {
+                  key: 'upload',
+                  label: 'Upload',
+                  desc: 'Upload records & extract JSON',
+                  Icon: IconUpload,
+                  badge: 'Gemini',
+                },
+                {
+                  key: 'connect',
+                  label: 'Connect',
+                  desc: 'Doctors & Caretakers access',
+                  Icon: IconShare,
+                  badge: people.length.toString(),
+                },
+              ].map((item) => {
+                const active = activeTab === item.key;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    onPress={() => {
+                      setActiveTab(item.key);
+                      setNavDrawerOpen(false);
+                    }}
+                    style={[pStyles.drawerMenuItem, active && pStyles.drawerMenuItemActive]}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[pStyles.drawerMenuIconWrap, active && pStyles.drawerMenuIconWrapActive]}>
+                      <item.Icon size={20} color={active ? G.green : G.muted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[pStyles.drawerMenuLabel, active && pStyles.drawerMenuLabelActive]}>
+                        {item.label}
+                      </Text>
+                      <Text style={pStyles.drawerMenuDesc} numberOfLines={1}>
+                        {item.desc}
+                      </Text>
+                    </View>
+                    {item.badge && (
+                      <View style={[pStyles.drawerBadge, active && pStyles.drawerBadgeActive]}>
+                        <Text style={[pStyles.drawerBadgeText, active && pStyles.drawerBadgeTextActive]}>
+                          {item.badge}
+                        </Text>
+                      </View>
+                    )}
+                    <IconChevronRight size={16} color={active ? G.green : G.muted} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Drawer Footer */}
+            <View style={pStyles.drawerFooter}>
+              <View style={pStyles.securityNoticeCard}>
+                <IconShield size={16} color={G.green} />
+                <Text style={pStyles.securityNoticeText}>AES-256 GCM Sovereign Encryption Active</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setNavDrawerOpen(false);
+                  onSignOut();
+                }}
+                style={pStyles.drawerSignOutBtn}
                 activeOpacity={0.8}
               >
-                <t.Icon size={16} color={active ? G.green : G.muted}/>
-                <Text style={[pStyles.tabBtnText, active && pStyles.tabBtnTextActive]}>{t.label}</Text>
+                <IconLogOut size={16} color={G.red} />
+                <Text style={pStyles.drawerSignOutText}>Sign Out</Text>
               </TouchableOpacity>
-            );
-          })}
+            </View>
+          </View>
         </View>
+      </Modal>
 
-        {/* ══ VIEW: FOLDERS & FILES ═══════════════════════════════════════════ */}
+      {/* ─── SCROLLABLE PAGE CONTENT ─────────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[pStyles.container, isDesktop && pStyles.containerDesktop]}
+        showsVerticalScrollIndicator={false}
+      >
+
+        {/* ═════════════════════════════════════════════════════════════════════
+            PAGE 1: DASHBOARD (Basic Details & Health Overview)
+        ═════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'dashboard' && (
+          <View>
+            {/* Patient Basic Details Card */}
+            <View style={pStyles.patientDetailCard}>
+              <View style={pStyles.patientDetailHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={[pStyles.avatarCircle, { width: 48, height: 48, borderRadius: 24 }]}>
+                    <Text style={[pStyles.avatarText, { fontSize: 18 }]}>MA</Text>
+                  </View>
+                  <View>
+                    <Text style={pStyles.patientDetailName}>Melroy Almeida</Text>
+                    <Text style={pStyles.patientDetailId}>Sovereign Vault ID: MV-2026-PAT-892</Text>
+                  </View>
+                </View>
+                <View style={pStyles.activeStatusPill}>
+                  <View style={pStyles.greenDot} />
+                  <Text style={pStyles.activeStatusPillText}>Sovereign Encrypted</Text>
+                </View>
+              </View>
+
+              <View style={pStyles.patientDetailGrid}>
+                <View style={pStyles.patientDetailCol}>
+                  <Text style={pStyles.patientDetailLabel}>Age / Gender</Text>
+                  <Text style={pStyles.patientDetailValue}>34 yrs · Male</Text>
+                </View>
+                <View style={pStyles.patientDetailCol}>
+                  <Text style={pStyles.patientDetailLabel}>Blood Type</Text>
+                  <Text style={[pStyles.patientDetailValue, { color: G.red }]}>O+ (Positive)</Text>
+                </View>
+                <View style={pStyles.patientDetailCol}>
+                  <Text style={pStyles.patientDetailLabel}>Attending Doctor</Text>
+                  <Text style={pStyles.patientDetailValue}>Dr. Sarah Jenkins</Text>
+                </View>
+                <View style={pStyles.patientDetailCol}>
+                  <Text style={pStyles.patientDetailLabel}>Primary Hospital</Text>
+                  <Text style={pStyles.patientDetailValue}>Metro Diagnostics</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Quick Metrics Grid */}
+            <View style={pStyles.statsGrid}>
+              <TouchableOpacity onPress={() => setActiveTab('folders')} style={pStyles.statCard} activeOpacity={0.8}>
+                <Text style={pStyles.statNum}>{files.length}</Text>
+                <Text style={pStyles.statLabel}>Total Records</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('folders')} style={pStyles.statCard} activeOpacity={0.8}>
+                <Text style={pStyles.statNum}>{folders.length}</Text>
+                <Text style={pStyles.statLabel}>Organized Folders</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('folders')} style={pStyles.statCard} activeOpacity={0.8}>
+                <Text style={[pStyles.statNum, { color: G.amber }]}>
+                  {files.filter(f => f.type === 'JSON').length}
+                </Text>
+                <Text style={[pStyles.statLabel, { color: G.amber }]}>Structured JSON</Text>
+              </TouchableOpacity>
+              <View style={pStyles.statCard}>
+                <Text style={[pStyles.statNum, { color: G.green }]}>100%</Text>
+                <Text style={pStyles.statLabel}>Private & Sovereign</Text>
+              </View>
+            </View>
+
+            {/* Quick Navigation Action Cards */}
+            <Text style={[pStyles.sectionHeading, { marginTop: 24, marginBottom: 12 }]}>
+              Quick Actions
+            </Text>
+            <View style={pStyles.quickNavGrid}>
+              <TouchableOpacity
+                onPress={() => setActiveTab('upload')}
+                style={pStyles.quickNavCard}
+                activeOpacity={0.8}
+              >
+                <View style={[pStyles.quickNavIconWrap, { backgroundColor: G.greenL }]}>
+                  <IconUpload size={22} color={G.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.quickNavTitle}>Upload Record & Extract Data</Text>
+                  <Text style={pStyles.quickNavSub}>Gemini AI extracts verified clinical JSON</Text>
+                </View>
+                <IconChevronRight size={18} color={G.green} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setActiveTab('folders')}
+                style={pStyles.quickNavCard}
+                activeOpacity={0.8}
+              >
+                <View style={[pStyles.quickNavIconWrap, { backgroundColor: '#f0fdf4' }]}>
+                  <IconFolder size={22} color={G.greenD} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.quickNavTitle}>Explore My Medical Folders</Text>
+                  <Text style={pStyles.quickNavSub}>Cardiology, Labs, Prescriptions, Scans</Text>
+                </View>
+                <IconChevronRight size={18} color={G.greenD} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setActiveTab('connect')}
+                style={pStyles.quickNavCard}
+                activeOpacity={0.8}
+              >
+                <View style={[pStyles.quickNavIconWrap, { backgroundColor: '#eff6ff' }]}>
+                  <IconShare size={22} color={G.blue} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.quickNavTitle}>Connect Doctors & Caretakers</Text>
+                  <Text style={pStyles.quickNavSub}>Manage shared access and permissions</Text>
+                </View>
+                <IconChevronRight size={18} color={G.blue} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Recent Medical Records Preview */}
+            <View style={[pStyles.sectionHeaderRow, { marginTop: 24 }]}>
+              <Text style={pStyles.sectionHeading}>Recent Medical Records</Text>
+              <TouchableOpacity onPress={() => setActiveTab('folders')}>
+                <Text style={pStyles.clearFilterText}>View All ({files.length}) →</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={pStyles.filesCard}>
+              {files.slice(0, 3).map((file, idx) => (
+                <View
+                  key={file.id}
+                  style={[pStyles.fileRow, idx < 2 && pStyles.fileRowBorder]}
+                >
+                  <View
+                    style={[
+                      pStyles.fileTypeBadge,
+                      file.type === 'PDF' && { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+                      file.type === 'IMG' && { backgroundColor: '#f3e8ff', borderColor: '#d8b4fe' },
+                      file.type === 'DOC' && { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
+                      file.type === 'JSON' && { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        pStyles.fileTypeText,
+                        file.type === 'PDF' && { color: G.red },
+                        file.type === 'IMG' && { color: G.purple },
+                        file.type === 'DOC' && { color: G.blue },
+                        file.type === 'JSON' && { color: G.amber },
+                      ]}
+                    >
+                      {file.type}
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={pStyles.fileName} numberOfLines={1}>{file.name}</Text>
+                    <Text style={pStyles.fileMetaText}>{file.doctor} · {file.date}</Text>
+                  </View>
+
+                  <View style={pStyles.fileActionsGroup}>
+                    <TouchableOpacity
+                      onPress={() => handleViewPdf(file)}
+                      style={pStyles.btnQuickAction}
+                      activeOpacity={0.8}
+                    >
+                      <IconEye size={14} color={G.green}/>
+                      <Text style={pStyles.btnQuickActionText}>View</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDownloadPdf(file)}
+                      style={[pStyles.btnQuickAction, pStyles.btnQuickActionDownload]}
+                      activeOpacity={0.8}
+                    >
+                      <IconDownload size={14} color="#059669"/>
+                      <Text style={[pStyles.btnQuickActionText, pStyles.btnQuickActionDownloadText]}>PDF</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════════════
+            PAGE 2: FOLDERS & RECORDS (Custom Folder Management & Viewing)
+        ═════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'folders' && (
           <View>
             {/* Search Bar */}
@@ -601,16 +996,28 @@ function PatientPortal({ onSignOut, isDesktop }) {
               )}
             </View>
 
-            {/* Folders Section */}
+            {/* Folders Section Header */}
             <View style={pStyles.sectionHeaderRow}>
-              <Text style={pStyles.sectionHeading}>Folders</Text>
-              {selectedFolder && (
-                <TouchableOpacity onPress={() => setSelectedFolder(null)}>
-                  <Text style={pStyles.clearFilterText}>Show All Files</Text>
-                </TouchableOpacity>
-              )}
+              <View>
+                <Text style={pStyles.sectionHeading}>Medical Folders ({folders.length})</Text>
+                {selectedFolder && (
+                  <TouchableOpacity onPress={() => setSelectedFolder(null)} style={{ marginTop: 2 }}>
+                    <Text style={pStyles.clearFilterText}>← Show All Records</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowCreateFolderModal(true)}
+                style={pStyles.btnNewFolder}
+                activeOpacity={0.8}
+              >
+                <IconPlus size={15} color="white" />
+                <Text style={pStyles.btnNewFolderText}>New Folder</Text>
+              </TouchableOpacity>
             </View>
 
+            {/* Folders Grid */}
             <View style={[pStyles.foldersGrid, isDesktop && pStyles.foldersGridDesktop]}>
               {folders.map((f) => {
                 const isSelected = selectedFolder === f.id;
@@ -637,11 +1044,11 @@ function PatientPortal({ onSignOut, isDesktop }) {
               })}
             </View>
 
-            {/* Files List */}
+            {/* Files List in Selected Folder */}
             <View style={[pStyles.sectionHeaderRow, { marginTop: 28 }]}>
               <Text style={pStyles.sectionHeading}>
                 {selectedFolder
-                  ? `${folders.find((x) => x.id === selectedFolder)?.name} (${filteredFiles.length})`
+                  ? `${folders.find((x) => x.id === selectedFolder)?.name || 'Folder'} (${filteredFiles.length})`
                   : `All Medical Records (${filteredFiles.length})`}
               </Text>
               <TouchableOpacity onPress={() => setActiveTab('upload')} style={pStyles.linkAddFile}>
@@ -652,23 +1059,18 @@ function PatientPortal({ onSignOut, isDesktop }) {
             {filteredFiles.length === 0 ? (
               <View style={pStyles.emptyState}>
                 <IconFile size={36} color={G.muted}/>
-                <Text style={pStyles.emptyStateTitle}>No records found</Text>
-                <Text style={pStyles.emptyStateSub}>Try clearing your search query or upload a new record.</Text>
+                <Text style={pStyles.emptyStateTitle}>No records in this folder</Text>
+                <Text style={pStyles.emptyStateSub}>Upload a document to extract data and save it here.</Text>
+                <TouchableOpacity onPress={() => setActiveTab('upload')} style={[pStyles.btnChangeFile, { marginTop: 12 }]}>
+                  <Text style={pStyles.btnChangeFileText}>Go to Upload</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <View style={pStyles.filesCard}>
                 {filteredFiles.map((file, idx) => (
-                  <TouchableOpacity
+                  <View
                     key={file.id}
-                    onPress={() => {
-                      if (file.type === 'JSON' && file.extractedData) {
-                        setSelectedJsonModal(file);
-                      } else {
-                        setSelectedFileModal(file);
-                      }
-                    }}
                     style={[pStyles.fileRow, idx < filteredFiles.length - 1 && pStyles.fileRowBorder]}
-                    activeOpacity={0.7}
                   >
                     {/* Badge */}
                     <View
@@ -730,10 +1132,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
                       {file.type === 'JSON' ? (
                         <>
                           <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              setSelectedJsonModal(file);
-                            }}
+                            onPress={() => setSelectedJsonModal(file)}
                             style={[pStyles.btnQuickAction, { backgroundColor: '#fef3c7', borderColor: '#fcd34d' }]}
                             activeOpacity={0.8}
                           >
@@ -741,10 +1140,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
                             <Text style={[pStyles.btnQuickActionText, { color: G.amber }]}>View JSON</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              handleViewPdf(file);
-                            }}
+                            onPress={() => handleViewPdf(file)}
                             style={pStyles.btnQuickAction}
                             activeOpacity={0.8}
                           >
@@ -755,10 +1151,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
                       ) : (
                         <>
                           <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              handleViewPdf(file);
-                            }}
+                            onPress={() => handleViewPdf(file)}
                             style={pStyles.btnQuickAction}
                             activeOpacity={0.8}
                           >
@@ -767,10 +1160,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
                           </TouchableOpacity>
 
                           <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              handleDownloadPdf(file);
-                            }}
+                            onPress={() => handleDownloadPdf(file)}
                             style={[pStyles.btnQuickAction, pStyles.btnQuickActionDownload]}
                             activeOpacity={0.8}
                           >
@@ -778,20 +1168,26 @@ function PatientPortal({ onSignOut, isDesktop }) {
                             <Text style={[pStyles.btnQuickActionText, pStyles.btnQuickActionDownloadText]}>PDF</Text>
                           </TouchableOpacity>
 
-                          <View style={pStyles.btnViewFile}>
+                          <TouchableOpacity
+                            onPress={() => setSelectedFileModal(file)}
+                            style={pStyles.btnViewFile}
+                            activeOpacity={0.8}
+                          >
                             <Text style={pStyles.btnViewFileText}>Inspect</Text>
-                          </View>
+                          </TouchableOpacity>
                         </>
                       )}
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             )}
           </View>
         )}
 
-        {/* ══ VIEW: UPLOAD RECORD & EXTRACT ═══════════════════════════════════ */}
+        {/* ═════════════════════════════════════════════════════════════════════
+            PAGE 3: UPLOAD & EXTRACT (File Upload, Gemini JSON Parsing, Save to Folder)
+        ═════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'upload' && (
           <View style={pStyles.formCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -799,12 +1195,12 @@ function PatientPortal({ onSignOut, isDesktop }) {
               <View style={{ flex: 1 }}>
                 <Text style={pStyles.formTitle}>Upload Medical Record &amp; Extract Data</Text>
                 <Text style={pStyles.formSub}>
-                  Uploads are converted to standardized PDFs, and Gemini extracts validated clinical JSON.
+                  Upload medical documents, extract structured JSON with Gemini AI, and save directly into your folders.
                 </Text>
               </View>
             </View>
 
-            {/* File Picker / Dropzone */}
+            {/* Step 1: File Picker / Dropzone */}
             <TouchableOpacity
               onPress={handlePickDocument}
               style={[pStyles.dropzone, pickedFile && pStyles.dropzoneSelected]}
@@ -833,36 +1229,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
               )}
             </TouchableOpacity>
 
-            {/* Gemini AI Extraction Toggle */}
-            <TouchableOpacity
-              onPress={() => setGeminiExtractionEnabled(!geminiExtractionEnabled)}
-              style={[
-                pStyles.toggleRow,
-                geminiExtractionEnabled ? { backgroundColor: '#fef9ee', borderColor: '#fcd34d' } : {},
-              ]}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[
-                  pStyles.checkbox,
-                  geminiExtractionEnabled && { backgroundColor: G.amber, borderColor: G.amber },
-                ]}
-              >
-                {geminiExtractionEnabled && <IconCheck size={10} color="white"/>}
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <IconSparkles size={14} color={G.amber}/>
-                  <Text style={[pStyles.toggleLabel, { color: G.charcoal }]}>
-                    Google Gemini Multimodal AI Extraction
-                  </Text>
-                </View>
-                <Text style={pStyles.toggleSub}>
-                  Extracts structured medications, dosages, lab tests, diagnoses, and allergies into verifiable JSON with verbatim quotes.
-                </Text>
-              </View>
-            </TouchableOpacity>
-
+            {/* Step 2: Record Title & Doctor */}
             <View style={[pStyles.inputGroup, { marginTop: 16 }]}>
               <Text style={pStyles.inputLabel}>Record / Document Title *</Text>
               <TextInput
@@ -872,28 +1239,6 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 placeholderTextColor={G.muted}
                 style={pStyles.textInput}
               />
-            </View>
-
-            <View style={pStyles.inputGroup}>
-              <Text style={pStyles.inputLabel}>Select Vault Folder</Text>
-              <View style={pStyles.folderSelectRow}>
-                {folders.map((f) => (
-                  <TouchableOpacity
-                    key={f.id}
-                    onPress={() => setNewFolder(f.id)}
-                    style={[pStyles.folderChip, newFolder === f.id && pStyles.folderChipSelected]}
-                  >
-                    <Text
-                      style={[
-                        pStyles.folderChipText,
-                        newFolder === f.id && pStyles.folderChipTextSelected,
-                      ]}
-                    >
-                      {f.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             <View style={pStyles.inputGroup}>
@@ -907,155 +1252,378 @@ function PatientPortal({ onSignOut, isDesktop }) {
               />
             </View>
 
-            {/* Toggle PDF Conversion */}
-            <TouchableOpacity
-              onPress={() => setConvertToPdf(!convertToPdf)}
-              style={pStyles.toggleRow}
-              activeOpacity={0.8}
-            >
-              <View style={[pStyles.checkbox, convertToPdf && pStyles.checkboxChecked]}>
-                {convertToPdf && <IconCheck size={10} color="white"/>}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={pStyles.toggleLabel}>Auto-convert to Standardized Medical PDF</Text>
-                <Text style={pStyles.toggleSub}>
-                  Ensures universal compatibility across all doctor and hospital EHRs
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Loading Indicator during extraction */}
-            {isExtracting ? (
-              <View style={pStyles.extractingCard}>
-                <ActivityIndicator size="small" color={G.green}/>
-                <View style={{ flex: 1 }}>
-                  <Text style={pStyles.extractingTitle}>Extracting Medical Facts with Gemini...</Text>
-                  <Text style={pStyles.extractingSub}>{extractionProgress || 'Analyzing document...'}</Text>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={handleUploadSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
-                <LinearGradient
-                  colors={[G.green, G.greenD]}
-                  style={s.btnPrimary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+            {/* Step 3: Save As Folder Selection */}
+            <View style={pStyles.inputGroup}>
+              <Text style={pStyles.inputLabel}>Save to Folder / Category *</Text>
+              <View style={pStyles.folderSelectRow}>
+                {folders.map((f) => {
+                  const isSel = !isCustomFolder && uploadFolder === f.id;
+                  return (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => {
+                        setIsCustomFolder(false);
+                        setUploadFolder(f.id);
+                      }}
+                      style={[pStyles.folderChip, isSel && pStyles.folderChipSelected]}
+                    >
+                      <Text style={[pStyles.folderChipText, isSel && pStyles.folderChipTextSelected]}>
+                        {f.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  onPress={() => setIsCustomFolder(true)}
+                  style={[pStyles.folderChip, isCustomFolder && pStyles.folderChipSelected]}
                 >
-                  <IconSparkles size={16} color="white"/>
-                  <Text style={s.btnPrimaryText}>
-                    {geminiExtractionEnabled ? 'Add Record & Extract with Gemini' : 'Add to Vault'}
+                  <Text style={[pStyles.folderChipText, isCustomFolder && pStyles.folderChipTextSelected]}>
+                    + Create New Folder...
                   </Text>
-                  <View style={s.arrowCircle}><IconArrow size={11}/></View>
-                </LinearGradient>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
+
+              {/* Inline Custom Folder Name input */}
+              {isCustomFolder && (
+                <View style={{ marginTop: 10 }}>
+                  <TextInput
+                    value={customFolderName}
+                    onChangeText={setCustomFolderName}
+                    placeholder="Enter new folder name (e.g. Dental Care, Dermatology)"
+                    placeholderTextColor={G.muted}
+                    style={[pStyles.textInput, { borderColor: G.green }]}
+                  />
+                  <Text style={{ fontSize: 11, color: G.muted, marginTop: 4 }}>
+                    A new folder will be automatically created in your Folders page!
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Step 4: Extract with Gemini AI Button */}
+            {!extractedResult && (
+              <View style={{ marginTop: 10 }}>
+                {isExtracting ? (
+                  <View style={pStyles.extractingCard}>
+                    <ActivityIndicator size="small" color={G.green}/>
+                    <View style={{ flex: 1 }}>
+                      <Text style={pStyles.extractingTitle}>Extracting Medical Data with Gemini...</Text>
+                      <Text style={pStyles.extractingSub}>{extractionProgress || 'Analyzing document...'}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={handleExtractDocument}
+                      activeOpacity={0.8}
+                      style={{ width: '100%' }}
+                    >
+                      <LinearGradient
+                        colors={[G.green, G.greenD]}
+                        style={s.btnPrimary}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        <IconSparkles size={16} color="white"/>
+                        <Text style={s.btnPrimaryText}>Extract with Google Gemini AI</Text>
+                        <View style={s.arrowCircle}><IconArrow size={11}/></View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={handleSaveToFolder}
+                      activeOpacity={0.8}
+                      style={pStyles.btnDirectSave}
+                    >
+                      <Text style={pStyles.btnDirectSaveText}>Save Directly Without Extraction</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Step 5: Extracted JSON Review & Save Section */}
+            {extractedResult && (
+              <View style={pStyles.uploadReviewCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <IconSparkles size={18} color={G.amber}/>
+                  <Text style={pStyles.uploadReviewTitle}>Gemini Extracted Clinical JSON</Text>
+                  <View style={pStyles.verifiedBadge}>
+                    <Text style={pStyles.verifiedBadgeText}>Verified</Text>
+                  </View>
+                </View>
+
+                {extractedResult.summary ? (
+                  <Text style={pStyles.extractedSummaryText}>
+                    {extractedResult.summary}
+                  </Text>
+                ) : null}
+
+                {/* Conditions breakdown */}
+                {extractedResult.conditions_count > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={pStyles.subSectionHeading}>
+                      Conditions Identified ({extractedResult.conditions_count})
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                      {extractedResult.data?.conditions?.map((c, i) => (
+                        <View key={i} style={pStyles.conditionPill}>
+                          <Text style={pStyles.conditionPillText}>{c.name}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Medications breakdown */}
+                {extractedResult.medications_count > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={pStyles.subSectionHeading}>
+                      Medications Prescribed ({extractedResult.medications_count})
+                    </Text>
+                    <View style={{ gap: 4, marginTop: 4 }}>
+                      {extractedResult.data?.medications?.map((m, i) => (
+                        <Text key={i} style={pStyles.medicationRowText}>
+                          • <Text style={{ fontWeight: '700' }}>{m.name}</Text> ({m.dose_raw || 'Standard'}) {m.frequency_raw ? `· ${m.frequency_raw}` : ''}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Lab Measurements breakdown */}
+                {extractedResult.lab_results_count > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={pStyles.subSectionHeading}>
+                      Lab Measurements ({extractedResult.lab_results_count})
+                    </Text>
+                    <View style={{ gap: 4, marginTop: 4 }}>
+                      {extractedResult.data?.lab_results?.slice(0, 4).map((l, i) => (
+                        <Text key={i} style={pStyles.labRowText}>
+                          • {l.test_name}: <Text style={{ fontWeight: '700' }}>{l.value} {l.unit || ''}</Text> [{l.flag || 'Normal'}]
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Toggle Raw JSON Viewer */}
+                <TouchableOpacity
+                  onPress={() => setShowRawJsonInUpload(!showRawJsonInUpload)}
+                  style={{ marginTop: 14, alignSelf: 'flex-start' }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: G.amber }}>
+                    {showRawJsonInUpload ? '▲ Hide Raw JSON' : '▼ Inspect Raw Extracted JSON'}
+                  </Text>
+                </TouchableOpacity>
+
+                {showRawJsonInUpload && (
+                  <View style={[pStyles.codeBlock, { marginTop: 8 }]}>
+                    <Text style={pStyles.codeText}>
+                      {extractedResult.raw_json || JSON.stringify(extractedResult.data, null, 2)}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Save To Folder CTA Button */}
+                <TouchableOpacity
+                  onPress={handleSaveToFolder}
+                  activeOpacity={0.8}
+                  style={{ marginTop: 18 }}
+                >
+                  <LinearGradient
+                    colors={[G.green, G.greenD]}
+                    style={s.btnPrimary}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <IconFolder size={18} color="white"/>
+                    <Text style={s.btnPrimaryText}>
+                      Save Document &amp; JSON to {isCustomFolder && customFolderName.trim() ? customFolderName : (folders.find(f => f.id === uploadFolder)?.name || 'Folder')}
+                    </Text>
+                    <View style={s.arrowCircle}><IconArrow size={11}/></View>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setExtractedResult(null)}
+                  style={{ alignSelf: 'center', marginTop: 10, padding: 6 }}
+                >
+                  <Text style={{ fontSize: 12, color: G.muted }}>Reset &amp; Upload Another Document</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
 
-        {/* ══ VIEW: SHARE ACCESS ══════════════════════════════════════════════ */}
-        {activeTab === 'share' && (
-          <View style={pStyles.formCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <View style={pStyles.formIconWrap}><IconShare size={20} color={G.green}/></View>
-              <View>
-                <Text style={pStyles.formTitle}>Share Controlled Vault Access</Text>
-                <Text style={pStyles.formSub}>Grant sovereign, revocable access to healthcare providers or caretakers.</Text>
+        {/* ═════════════════════════════════════════════════════════════════════
+            PAGE 4: CONNECT (Doctors, Caretakers, Access Permissions)
+        ═════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'connect' && (
+          <View>
+            <View style={pStyles.formCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <View style={pStyles.formIconWrap}><IconShare size={20} color={G.green}/></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.formTitle}>Connect Doctors &amp; Caretakers</Text>
+                  <Text style={pStyles.formSub}>
+                    Grant sovereign, verifiable access to your records without storing passwords on third-party servers.
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            <View style={pStyles.inputGroup}>
-              <Text style={pStyles.inputLabel}>Recipient Name or Email *</Text>
-              <TextInput
-                value={shareName}
-                onChangeText={setShareName}
-                placeholder="e.g. Dr. Robert Chen (Neurology) or family@caretaker.org"
-                placeholderTextColor={G.muted}
-                style={pStyles.textInput}
-              />
-            </View>
-
-            <View style={pStyles.inputGroup}>
-              <Text style={pStyles.inputLabel}>Recipient Role</Text>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {['Doctor', 'Caretaker', 'Hospital Staff'].map((r) => (
-                  <TouchableOpacity
-                    key={r}
-                    onPress={() => setShareRole(r)}
-                    style={[pStyles.folderChip, shareRole === r && pStyles.folderChipSelected]}
-                  >
-                    <Text style={[pStyles.folderChipText, shareRole === r && pStyles.folderChipTextSelected]}>{r}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Practitioner or Caretaker Name *</Text>
+                <TextInput
+                  value={connectName}
+                  onChangeText={setConnectName}
+                  placeholder="e.g. Dr. Robert Chen (Neurology) or Elena Almeida"
+                  placeholderTextColor={G.muted}
+                  style={pStyles.textInput}
+                />
               </View>
+
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Clinic, Hospital, or Affiliation</Text>
+                <TextInput
+                  value={connectClinic}
+                  onChangeText={setConnectClinic}
+                  placeholder="e.g. City General Hospital or Family Health Proxy"
+                  placeholderTextColor={G.muted}
+                  style={pStyles.textInput}
+                />
+              </View>
+
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Relationship Role</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {['Doctor', 'Specialist', 'Caretaker', 'Family'].map((r) => (
+                    <TouchableOpacity
+                      key={r}
+                      onPress={() => setConnectRole(r)}
+                      style={[pStyles.folderChip, connectRole === r && pStyles.folderChipSelected]}
+                    >
+                      <Text style={[pStyles.folderChipText, connectRole === r && pStyles.folderChipTextSelected]}>{r}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Permission Level</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {['Full Access', 'View Only', 'Emergency Only'].map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      onPress={() => setConnectPerm(p)}
+                      style={[pStyles.folderChip, connectPerm === p && pStyles.folderChipSelected]}
+                    >
+                      <Text style={[pStyles.folderChipText, connectPerm === p && pStyles.folderChipTextSelected]}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={handleConnectSubmit} activeOpacity={0.8} style={{ marginTop: 12 }}>
+                <LinearGradient colors={[G.green, G.greenD]} style={s.btnPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={s.btnPrimaryText}>Grant Sovereign Access</Text>
+                  <View style={s.arrowCircle}><IconArrow size={11}/></View>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
 
-            <View style={pStyles.inputGroup}>
-              <Text style={pStyles.inputLabel}>Permission Scope</Text>
-              {[
-                { key: 'Full Access', desc: 'Can view all medical folders and download records' },
-                { key: 'View Only', desc: 'Can inspect records in browser without download' },
-                { key: '30-Day Limited', desc: 'Temporary access automatically expiring in 30 days' },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.key}
-                  onPress={() => setSharePerm(opt.key)}
-                  style={[pStyles.permOpt, sharePerm === opt.key && pStyles.permOptSelected]}
-                >
-                  <View style={[pStyles.radioCircle, sharePerm === opt.key && pStyles.radioCircleSelected]}>
-                    {sharePerm === opt.key && <View style={pStyles.radioDot}/>}
+            {/* Active Connections List */}
+            <View style={[pStyles.formCard, { marginTop: 20 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <View style={[pStyles.formIconWrap, { backgroundColor: G.greenL }]}><IconLock size={18} color={G.green}/></View>
+                <View>
+                  <Text style={pStyles.formTitle}>Active Connections ({people.length})</Text>
+                  <Text style={pStyles.formSub}>You can revoke permissions at any moment with immediate effect.</Text>
+                </View>
+              </View>
+
+              {people.map((person, idx) => (
+                <View key={person.id} style={[pStyles.personRow, idx < people.length - 1 && pStyles.personRowBorder]}>
+                  <View style={pStyles.personAvatar}>
+                    <Text style={pStyles.personAvatarText}>{person.name.substring(0, 2).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={pStyles.permOptTitle}>{opt.key}</Text>
-                    <Text style={pStyles.permOptSub}>{opt.desc}</Text>
+                    <Text style={pStyles.personName}>{person.name}</Text>
+                    <Text style={pStyles.personClinic}>{person.clinic} • {person.role}</Text>
+                    <View style={pStyles.permBadge}>
+                      <Text style={pStyles.permBadgeText}>{person.perm}</Text>
+                    </View>
                   </View>
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleRevoke(person.id)} style={pStyles.btnRevoke} activeOpacity={0.7}>
+                    <IconTrash size={14} color={G.red}/>
+                    <Text style={pStyles.btnRevokeText}>Revoke</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
-
-            <TouchableOpacity onPress={handleShareSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
-              <LinearGradient colors={[G.green, G.greenD]} style={s.btnPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <Text style={s.btnPrimaryText}>Grant Sovereign Access</Text>
-                <View style={s.arrowCircle}><IconArrow size={11}/></View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ══ VIEW: MANAGE PERMISSIONS ════════════════════════════════════════ */}
-        {activeTab === 'access' && (
-          <View style={pStyles.formCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <View style={pStyles.formIconWrap}><IconLock size={20} color={G.green}/></View>
-              <View>
-                <Text style={pStyles.formTitle}>Active Sovereign Permissions</Text>
-                <Text style={pStyles.formSub}>You can revoke or modify access for any doctor or caretaker at any time.</Text>
-              </View>
-            </View>
-
-            {people.map((person, idx) => (
-              <View key={person.id} style={[pStyles.personRow, idx < people.length - 1 && pStyles.personRowBorder]}>
-                <View style={pStyles.personAvatar}>
-                  <Text style={pStyles.personAvatarText}>{person.name.substring(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={pStyles.personName}>{person.name}</Text>
-                  <Text style={pStyles.personClinic}>{person.clinic} • {person.role}</Text>
-                  <View style={pStyles.permBadge}>
-                    <Text style={pStyles.permBadgeText}>{person.perm}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity onPress={() => handleRevoke(person.id)} style={pStyles.btnRevoke} activeOpacity={0.7}>
-                  <IconTrash size={14} color={G.red}/>
-                  <Text style={pStyles.btnRevokeText}>Revoke</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
           </View>
         )}
 
       </ScrollView>
 
-      {/* ══ STRUCTURED MEDICAL JSON VIEWER MODAL ══════════════════════════════ */}
+      {/* ─── CREATE NEW FOLDER MODAL ───────────────────────────────────────── */}
+      {showCreateFolderModal && (
+        <Modal
+          visible={showCreateFolderModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCreateFolderModal(false)}
+        >
+          <View style={s.overlay}>
+            <View style={s.modal}>
+              <TouchableOpacity style={s.closeBtn} onPress={() => setShowCreateFolderModal(false)}>
+                <Text style={{ color: G.muted, fontSize: 14, fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <View style={[pStyles.formIconWrap, { width: 36, height: 36 }]}>
+                  <IconFolder size={18} color={G.green}/>
+                </View>
+                <Text style={[s.modalTitle, { marginBottom: 0, fontSize: 17 }]}>Create New Folder</Text>
+              </View>
+
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Folder Name *</Text>
+                <TextInput
+                  value={newFolderNameInput}
+                  onChangeText={setNewFolderNameInput}
+                  placeholder="e.g. Dental Records, Ophthalmology, Insurance"
+                  placeholderTextColor={G.muted}
+                  style={pStyles.textInput}
+                />
+              </View>
+
+              <View style={pStyles.inputGroup}>
+                <Text style={pStyles.inputLabel}>Description (Optional)</Text>
+                <TextInput
+                  value={newFolderDescInput}
+                  onChangeText={setNewFolderDescInput}
+                  placeholder="e.g. Routine dental cleanings and X-rays"
+                  placeholderTextColor={G.muted}
+                  style={pStyles.textInput}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={handleCreateFolder}
+                activeOpacity={0.8}
+                style={{ marginTop: 10 }}
+              >
+                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={s.signupBtnText}>Create Folder</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ─── STRUCTURED MEDICAL JSON VIEWER MODAL ─────────────────────────── */}
       {selectedJsonModal && (
         <Modal
           visible={!!selectedJsonModal}
@@ -1124,11 +1692,10 @@ function PatientPortal({ onSignOut, isDesktop }) {
                           </View>
                         </View>
                         <Text style={pStyles.jsonEntityDetail}>
-                          Dose: {m.dose_raw || 'Not specified'} · Freq: {m.frequency_raw || 'Standard'} · Route: {m.route || 'Oral'}
+                          Dose: {m.dose_raw || 'Standard'} · Route: {m.route || 'Oral'} · Freq: {m.frequency_raw || 'Daily'}
                         </Text>
                         {m.evidence?.quote && (
                           <View style={pStyles.evidenceBox}>
-                            <Text style={pStyles.evidenceLabel}>Verbatim Evidence:</Text>
                             <Text style={pStyles.evidenceQuote}>"{m.evidence.quote}"</Text>
                           </View>
                         )}
@@ -1274,7 +1841,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
         </Modal>
       )}
 
-      {/* Regular File Details Modal */}
+      {/* ─── REGULAR FILE DETAILS MODAL ────────────────────────────────────── */}
       {selectedFileModal && (
         <Modal
           visible={!!selectedFileModal}
@@ -1371,7 +1938,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
         </Modal>
       )}
 
-      {/* Interactive PDF Preview Modal */}
+      {/* ─── INTERACTIVE PDF PREVIEW MODAL ─────────────────────────────────── */}
       {pdfPreviewModal && (
         <Modal
           visible={!!pdfPreviewModal}
@@ -1381,7 +1948,6 @@ function PatientPortal({ onSignOut, isDesktop }) {
         >
           <View style={s.overlay}>
             <View style={[s.modal, { maxWidth: 840, width: '92%', maxHeight: '90%' }]}>
-              {/* Header */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: G.border }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 10 }}>
                   <View style={[pStyles.formIconWrap, { width: 34, height: 34, backgroundColor: '#fee2e2' }]}>
@@ -1421,7 +1987,6 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 </View>
               </View>
 
-              {/* PDF Document Preview Viewport */}
               {Platform.OS === 'web' ? (
                 <View style={{ width: '100%', height: 520, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: G.border, backgroundColor: '#525659' }}>
                   <iframe
@@ -1465,9 +2030,6 @@ function PatientPortal({ onSignOut, isDesktop }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── LANDING PAGE COMPONENTS ──────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
 function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
   return (
     <View style={s.navbarWrap}>
@@ -1930,23 +2492,25 @@ const s = StyleSheet.create({
 });
 
 // ─── PATIENT PORTAL SPECIFIC STYLES ───────────────────────────────────────────
+// ─── PATIENT PORTAL SPECIFIC STYLES ───────────────────────────────────────────
 const pStyles = StyleSheet.create({
   header: {
     backgroundColor: G.white,
     borderBottomWidth: 1,
     borderBottomColor: G.border,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    width: '100%',
   },
   headerInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
   },
   headerInnerDesktop: {
-    maxWidth: 1100,
-    alignSelf: 'center',
-    width: '100%',
     paddingHorizontal: 24,
   },
   logoRow: {
@@ -1957,18 +2521,45 @@ const pStyles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 8,
   },
-  userChip: {
+  desktopNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: G.greenL,
+    gap: 6,
+    marginRight: 10,
+  },
+  desktopNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: G.bg,
+  },
+  desktopNavBtnActive: {
+    backgroundColor: G.greenL,
     borderWidth: 1,
     borderColor: G.border,
+  },
+  desktopNavBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: G.muted,
+  },
+  desktopNavBtnTextActive: {
+    color: G.green,
+    fontWeight: '700',
+  },
+  userChipCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: G.bg,
   },
   avatarCircle: {
     width: 32,
@@ -1988,6 +2579,10 @@ const pStyles = StyleSheet.create({
     fontWeight: '700',
     color: G.charcoal,
   },
+  userRole: {
+    fontSize: 11,
+    color: G.muted,
+  },
   roleBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1999,90 +2594,276 @@ const pStyles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: G.green,
   },
-  userRole: {
-    fontSize: 11,
-    color: G.muted,
-  },
-  btnSignOut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  btnHamburger: {
+    padding: 8,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: G.borderGray,
-    backgroundColor: G.white,
-  },
-  btnSignOutText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: G.muted,
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 60,
-  },
-  containerDesktop: {
-    maxWidth: 1100,
-    alignSelf: 'center',
-    width: '100%',
-    padding: 28,
-    paddingBottom: 80,
-  },
-  vaultHero: {
-    borderRadius: 20,
+    backgroundColor: G.bg,
     borderWidth: 1,
     borderColor: G.border,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
   },
-  vaultHeroHeader: {
-    marginBottom: 20,
-  },
-  badgeEncrypted: {
+
+  /* 3-Bars Navigation Drawer Styles */
+  drawerOverlay: {
+    flex: 1,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  drawerBackdrop: {
+    flex: 1,
+  },
+  drawerContent: {
+    width: '82%',
+    maxWidth: 340,
+    height: '100%',
+    backgroundColor: G.white,
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 44 : 20,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: G.greenL,
-    borderColor: G.border,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: G.border,
+  },
+  drawerCloseBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  drawerSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: G.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 20,
     marginBottom: 10,
   },
-  badgeEncryptedText: {
+  drawerMenu: {
+    gap: 8,
+  },
+  drawerMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: G.bg,
+  },
+  drawerMenuItemActive: {
+    backgroundColor: G.greenL,
+    borderWidth: 1.5,
+    borderColor: G.green,
+  },
+  drawerMenuIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: G.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerMenuIconWrapActive: {
+    backgroundColor: G.greenL,
+  },
+  drawerMenuLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  drawerMenuLabelActive: {
+    color: G.green,
+  },
+  drawerMenuDesc: {
+    fontSize: 11,
+    color: G.muted,
+    marginTop: 2,
+  },
+  drawerBadge: {
+    backgroundColor: G.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: G.borderGray,
+  },
+  drawerBadgeActive: {
+    backgroundColor: G.green,
+    borderColor: G.green,
+  },
+  drawerBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.muted,
+  },
+  drawerBadgeTextActive: {
+    color: 'white',
+  },
+  drawerFooter: {
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: G.border,
+    gap: 12,
+  },
+  securityNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: G.greenL,
+    padding: 10,
+    borderRadius: 8,
+  },
+  securityNoticeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: G.green,
+    flex: 1,
+  },
+  drawerSignOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  drawerSignOutText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.red,
+  },
+
+  /* Page Container */
+  container: {
+    padding: 14,
+    paddingBottom: 60,
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
+  },
+  containerDesktop: {
+    padding: 24,
+    paddingBottom: 80,
+  },
+
+  /* Dashboard Styles */
+  patientDetailCard: {
+    backgroundColor: G.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginBottom: 16,
+  },
+  patientDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f4ee',
+    marginBottom: 14,
+  },
+  patientDetailName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: G.charcoal,
+  },
+  patientDetailId: {
+    fontSize: 12,
+    color: G.muted,
+    marginTop: 2,
+  },
+  activeStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: G.greenL,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  activeStatusPillText: {
     fontSize: 11,
     fontWeight: '700',
     color: G.green,
   },
-  vaultHeroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: G.charcoal,
-    marginBottom: 6,
-    letterSpacing: -0.5,
+  patientDetailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  vaultHeroSub: {
-    fontSize: 14,
+  patientDetailCol: {
+    flex: 1,
+    minWidth: 130,
+  },
+  patientDetailLabel: {
+    fontSize: 11,
+    fontWeight: '700',
     color: G.muted,
-    lineHeight: 22,
+    textTransform: 'uppercase',
   },
+  patientDetailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: G.charcoal,
+    marginTop: 2,
+  },
+
+  /* Quick Actions Grid */
+  quickNavGrid: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  quickNavCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: G.white,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  quickNavIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickNavTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  quickNavSub: {
+    fontSize: 12,
+    color: G.muted,
+    marginTop: 2,
+  },
+
+  /* Stats Grid (Mobile 2x2) */
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     flexWrap: 'wrap',
   },
   statCard: {
-    flex: 1,
-    minWidth: 120,
+    flexBasis: '47%',
+    flexGrow: 1,
+    minWidth: 130,
     backgroundColor: G.white,
     borderRadius: 14,
     padding: 14,
@@ -2100,47 +2881,19 @@ const pStyles = StyleSheet.create({
     color: G.muted,
     fontWeight: '500',
   },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: G.white,
-    borderWidth: 1,
-    borderColor: G.borderGray,
-  },
-  tabBtnActive: {
-    backgroundColor: G.greenL,
-    borderColor: G.green,
-  },
-  tabBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: G.muted,
-  },
-  tabBtnTextActive: {
-    color: G.green,
-    fontWeight: '700',
-  },
+
+  /* Folders Styles */
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     backgroundColor: G.white,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: G.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
@@ -2164,19 +2917,34 @@ const pStyles = StyleSheet.create({
     fontWeight: '700',
     color: G.green,
   },
+  btnNewFolder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: G.green,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  btnNewFolderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'white',
+  },
   foldersGrid: {
     flexDirection: 'column',
-    gap: 12,
+    gap: 10,
   },
   foldersGridDesktop: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   folderCard: {
     flex: 1,
-    minWidth: 200,
+    minWidth: 180,
     backgroundColor: G.white,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1.5,
     borderColor: G.borderGray,
   },
@@ -2188,12 +2956,12 @@ const pStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   folderIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 9,
     backgroundColor: G.greenL,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2201,7 +2969,7 @@ const pStyles = StyleSheet.create({
   folderCountBadge: {
     backgroundColor: G.bg,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: G.borderGray,
@@ -2212,7 +2980,7 @@ const pStyles = StyleSheet.create({
     color: G.muted,
   },
   folderName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: G.charcoal,
     marginBottom: 4,
@@ -2220,7 +2988,7 @@ const pStyles = StyleSheet.create({
   folderDesc: {
     fontSize: 12,
     color: G.muted,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   folderMeta: {
     fontSize: 11,
@@ -2240,7 +3008,7 @@ const pStyles = StyleSheet.create({
   },
   filesCard: {
     backgroundColor: G.white,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: G.border,
     overflow: 'hidden',
@@ -2248,16 +3016,17 @@ const pStyles = StyleSheet.create({
   fileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 16,
+    gap: 12,
+    padding: 14,
+    flexWrap: 'wrap',
   },
   fileRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f0',
   },
   fileTypeBadge: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2271,16 +3040,17 @@ const pStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: G.charcoal,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   fileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
+    marginBottom: 4,
+    flexWrap: 'wrap',
   },
   fileMetaText: {
-    fontSize: 12,
+    fontSize: 11,
     color: G.muted,
   },
   fileMetaDot: {
@@ -2289,14 +3059,14 @@ const pStyles = StyleSheet.create({
   },
   tagsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
     flexWrap: 'wrap',
   },
   tagPill: {
     backgroundColor: G.bg,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: G.borderGray,
   },
@@ -2305,76 +3075,106 @@ const pStyles = StyleSheet.create({
     color: G.muted,
     fontWeight: '600',
   },
+  fileActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  btnQuickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: G.greenL,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  btnQuickActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.green,
+  },
+  btnQuickActionDownload: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
+  btnQuickActionDownloadText: {
+    color: '#059669',
+  },
   btnViewFile: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: G.border,
     backgroundColor: G.greenL,
   },
   btnViewFileText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: G.green,
   },
   emptyState: {
     backgroundColor: G.white,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: G.border,
-    padding: 40,
+    padding: 24,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyStateTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: G.charcoal,
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 8,
   },
   emptyStateSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: G.muted,
     textAlign: 'center',
+    marginTop: 4,
   },
+
+  /* Upload & Extract Styles */
   formCard: {
     backgroundColor: G.white,
-    borderRadius: 18,
-    padding: 24,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: G.border,
   },
   formIconWrap: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     backgroundColor: G.greenL,
     alignItems: 'center',
     justifyContent: 'center',
   },
   formTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: G.charcoal,
   },
   formSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: G.muted,
     marginTop: 2,
+    lineHeight: 16,
   },
   dropzone: {
     borderWidth: 2,
-    borderStyle: 'dashed',
     borderColor: G.border,
+    borderStyle: 'dashed',
     borderRadius: 14,
-    backgroundColor: G.bg,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
     marginTop: 10,
+    backgroundColor: '#fafcf9',
   },
   dropzoneSelected: {
     borderColor: G.green,
@@ -2385,11 +3185,13 @@ const pStyles = StyleSheet.create({
     fontWeight: '700',
     color: G.charcoal,
     marginTop: 6,
+    textAlign: 'center',
   },
   dropzoneSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: G.muted,
     marginTop: 2,
+    textAlign: 'center',
   },
   btnChangeFile: {
     marginTop: 8,
@@ -2406,10 +3208,10 @@ const pStyles = StyleSheet.create({
     color: G.green,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: G.muted,
     marginBottom: 6,
@@ -2419,151 +3221,152 @@ const pStyles = StyleSheet.create({
   textInput: {
     borderWidth: 1.5,
     borderColor: G.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
     color: G.charcoal,
     backgroundColor: G.bg,
   },
   folderSelectRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     flexWrap: 'wrap',
   },
   folderChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 8,
+    backgroundColor: G.bg,
     borderWidth: 1,
     borderColor: G.borderGray,
-    backgroundColor: G.bg,
   },
   folderChipSelected: {
-    borderColor: G.green,
     backgroundColor: G.greenL,
+    borderColor: G.green,
   },
   folderChipText: {
     fontSize: 12,
-    color: G.charcoal,
     fontWeight: '600',
+    color: G.muted,
   },
   folderChipTextSelected: {
     color: G.green,
     fontWeight: '700',
   },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: G.greenL,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: G.border,
-    marginTop: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: G.border,
-    backgroundColor: G.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: G.green,
-    borderColor: G.green,
-  },
-  toggleLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: G.charcoal,
-  },
-  toggleSub: {
-    fontSize: 11,
-    color: G.muted,
-    marginTop: 2,
-  },
   extractingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: G.greenL,
+    backgroundColor: '#fefce8',
+    borderColor: '#fef08a',
+    borderWidth: 1,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: G.green,
-    padding: 16,
-    marginTop: 20,
+    padding: 14,
   },
   extractingTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: G.charcoal,
+    color: '#854d0e',
   },
   extractingSub: {
-    fontSize: 12,
-    color: G.muted,
+    fontSize: 11,
+    color: '#a16207',
     marginTop: 2,
   },
-  permOpt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: G.borderGray,
-    marginBottom: 8,
-    backgroundColor: G.bg,
-  },
-  permOptSelected: {
-    borderColor: G.green,
-    backgroundColor: G.greenL,
-  },
-  radioCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: G.muted,
+  btnDirectSave: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: G.bg,
+    borderWidth: 1,
+    borderColor: G.border,
   },
-  radioCircleSelected: {
-    borderColor: G.green,
-  },
-  radioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: G.green,
-  },
-  permOptTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: G.charcoal,
-  },
-  permOptSub: {
-    fontSize: 11,
+  btnDirectSaveText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: G.muted,
   },
+  uploadReviewCard: {
+    backgroundColor: '#fffdfa',
+    borderWidth: 1.5,
+    borderColor: '#fcd34d',
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 14,
+  },
+  uploadReviewTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: G.charcoal,
+  },
+  verifiedBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  verifiedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: G.amber,
+    textTransform: 'uppercase',
+  },
+  extractedSummaryText: {
+    fontSize: 12,
+    color: G.charcoal,
+    lineHeight: 18,
+    backgroundColor: G.white,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fef08a',
+  },
+  subSectionHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  conditionPill: {
+    backgroundColor: G.greenL,
+    borderColor: G.border,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  conditionPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.green,
+  },
+  medicationRowText: {
+    fontSize: 12,
+    color: G.charcoal,
+  },
+  labRowText: {
+    fontSize: 12,
+    color: G.charcoal,
+  },
+
+  /* Connect Styles */
   personRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
+    gap: 12,
+    paddingVertical: 12,
   },
   personRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f0',
   },
   personAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: G.greenL,
     borderWidth: 1,
     borderColor: G.border,
@@ -2579,17 +3382,17 @@ const pStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: G.charcoal,
-    marginBottom: 2,
   },
   personClinic: {
     fontSize: 12,
     color: G.muted,
-    marginBottom: 4,
+    marginTop: 1,
+    marginBottom: 3,
   },
   permBadge: {
     backgroundColor: G.greenL,
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
@@ -2603,23 +3406,25 @@ const pStyles = StyleSheet.create({
   btnRevoke: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
     backgroundColor: '#fef2f2',
     borderWidth: 1,
     borderColor: '#fecaca',
   },
   btnRevokeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: G.red,
   },
+
+  /* Modals */
   modalDetailBox: {
     backgroundColor: G.bg,
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: G.border,
   },
@@ -2635,6 +3440,58 @@ const pStyles = StyleSheet.create({
     color: G.charcoal,
     marginTop: 2,
   },
+  btnRowModal: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  btnModalViewPdf: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: G.white,
+    borderWidth: 1.5,
+    borderColor: G.green,
+    paddingVertical: 11,
+    borderRadius: 999,
+  },
+  btnModalViewPdfText: {
+    color: G.green,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  btnModalDownloadPdf: {
+    flex: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  modalGradientBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  modalGradientBtnText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  btnCloseModalSecondary: {
+    marginTop: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  btnCloseModalSecondaryText: {
+    color: G.muted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* Toast */
   toast: {
     position: 'absolute',
     bottom: 24,
@@ -2643,50 +3500,128 @@ const pStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 999,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
-    zIndex: 99,
+    zIndex: 999,
   },
   toastText: {
     color: 'white',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
-  btnQuickPatient: {
+
+  /* JSON Viewer Styles */
+  jsonMetaBox: {
+    backgroundColor: G.bg,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginBottom: 14,
+  },
+  jsonMetaTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: G.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  jsonMetaGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  jsonMetaItem: {
+    fontSize: 12,
+    color: G.charcoal,
+  },
+  jsonSection: {
+    marginBottom: 14,
+  },
+  jsonSectionHeader: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: G.charcoal,
+    marginBottom: 6,
+  },
+  jsonEntityCard: {
+    backgroundColor: G.bg,
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginBottom: 6,
+  },
+  jsonEntityTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  jsonEntityDetail: {
+    fontSize: 11,
+    color: G.muted,
+    marginTop: 2,
+  },
+  jsonStatusBadge: {
     backgroundColor: G.greenL,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: G.border,
   },
-  btnQuickPatientText: {
-    fontSize: 13,
+  jsonStatusBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
     color: G.green,
+    textTransform: 'uppercase',
   },
-  btnHeroPatient: {
+  evidenceBox: {
+    backgroundColor: G.white,
+    borderRadius: 6,
+    padding: 6,
+    marginTop: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: G.green,
+  },
+  evidenceQuote: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: G.charcoal,
+  },
+  codeBlock: {
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    padding: 12,
+    maxHeight: 220,
+    overflow: 'hidden',
+  },
+  codeText: {
+    color: '#38BDF8',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  btnCopy: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderRadius: 999,
+    gap: 4,
     backgroundColor: G.greenL,
-    borderWidth: 1.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
     borderColor: G.border,
   },
-  btnHeroPatientText: {
-    fontSize: 14,
+  btnCopyText: {
+    fontSize: 11,
     fontWeight: '700',
     color: G.green,
   },
@@ -2720,6 +3655,38 @@ const pStyles = StyleSheet.create({
     fontWeight: '600',
     color: G.muted,
   },
+  btnHeroPatient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+    backgroundColor: G.greenL,
+    borderWidth: 1.5,
+    borderColor: G.border,
+  },
+  btnHeroPatientText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.green,
+  },
+  btnQuickPatient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: G.greenL,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  btnQuickPatientText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.green,
+  },
   noticeBar: {
     backgroundColor: G.charcoal,
     paddingVertical: 10,
@@ -2730,204 +3697,5 @@ const pStyles = StyleSheet.create({
     color: 'white',
     fontSize: 13,
     fontWeight: '600',
-  },
-
-  /* JSON Viewer Styles */
-  jsonMetaBox: {
-    backgroundColor: G.bg,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: G.border,
-    marginBottom: 16,
-  },
-  jsonMetaTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: G.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  jsonMetaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  jsonMetaItem: {
-    fontSize: 13,
-    color: G.charcoal,
-  },
-  jsonSection: {
-    marginBottom: 18,
-  },
-  jsonSectionHeader: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: G.charcoal,
-    marginBottom: 8,
-  },
-  jsonEntityCard: {
-    backgroundColor: G.bg,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: G.border,
-    marginBottom: 8,
-  },
-  jsonEntityTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: G.charcoal,
-  },
-  jsonEntityDetail: {
-    fontSize: 12,
-    color: G.muted,
-    marginTop: 4,
-  },
-  jsonStatusBadge: {
-    backgroundColor: G.greenL,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: G.border,
-  },
-  jsonStatusBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: G.green,
-    textTransform: 'uppercase',
-  },
-  evidenceBox: {
-    backgroundColor: G.white,
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: G.green,
-  },
-  evidenceLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: G.muted,
-    textTransform: 'uppercase',
-  },
-  evidenceQuote: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: G.charcoal,
-    marginTop: 2,
-  },
-  codeBlock: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    maxHeight: 220,
-    overflow: 'hidden',
-  },
-  codeText: {
-    color: '#38BDF8',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  btnCopy: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: G.greenL,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: G.border,
-  },
-  btnCopyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: G.green,
-  },
-
-  /* Modal Action Buttons for PDF View & Download */
-  btnRowModal: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  btnModalViewPdf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: G.white,
-    borderWidth: 1.5,
-    borderColor: G.green,
-    paddingVertical: 12,
-    borderRadius: 999,
-  },
-  btnModalViewPdfText: {
-    color: G.green,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  btnModalDownloadPdf: {
-    flex: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  modalGradientBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-  },
-  modalGradientBtnText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  btnCloseModalSecondary: {
-    marginTop: 12,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  btnCloseModalSecondaryText: {
-    color: G.muted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  /* Quick Action Buttons in File List */
-  fileActionsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  btnQuickAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: G.greenL,
-    borderWidth: 1,
-    borderColor: G.border,
-  },
-  btnQuickActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: G.green,
-  },
-  btnQuickActionDownload: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
-  },
-  btnQuickActionDownloadText: {
-    color: '#059669',
   },
 });
