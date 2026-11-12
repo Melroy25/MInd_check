@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediVault — Patient-Owned Medical Records</title>
+  
+  <style>
+    :root {
+      --green:   #74A842;
+      --green-d: #5d8a32;
+      --green-l: #EBF3E6;
+      --bg:      #F7F9F6;
+      --charcoal:#1C2B1A;
+      --text:    #2d3a2e;
+      --muted:   #6b7f6c;
+      --border:  #d4e8c8;
+      --white:   #ffffff;
+      --shadow:  rgba(116,168,66,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+
+    /* ── Navbar ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(247,249,246,0.95); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1280px; margin: 0 auto; padding: 0 32px;
+      height: 68px; display: flex; align-items: center;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--green); display: flex; align-items: center; justify-content: center;
+    }
+    .logo-text { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    .logo-medi { color: var(--charcoal); }
+    .logo-vault { color: var(--green); }
+    .nav-links {
+      display: flex; gap: 36px; margin: 0 auto;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 14px; font-weight: 500; color: var(--muted);
+      text-decoration: none; transition: color .18s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--green); }
+    .nav-links a.active { font-weight: 700; border-bottom: 2px solid var(--green); padding-bottom: 2px; }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-login {
+      font-size: 14px; font-weight: 600; color: var(--charcoal);
+      background: none; border: none; cursor: pointer; padding: 8px 14px;
+      border-radius: 999px; transition: background .18s;
+    }
+    .btn-login:hover { background: var(--green-l); }
+    .btn-signup {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 999px;
+      background: var(--green); color: white;
+      font-size: 14px; font-weight: 700; border: none; cursor: pointer;
+      box-shadow: 0 4px 16px var(--shadow); transition: all .18s;
+    }
+    .btn-signup:hover { background: var(--green-d); transform: translateY(-1px); }
+    .arrow-icon { width: 18px; height: 18px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1280px; margin: 0 auto; padding: 72px 32px 80px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    @media (max-width: 1024px) { .hero { grid-template-columns: 1fr; padding: 48px 24px 60px; } }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 16px; border-radius: 999px;
+      border: 1.5px solid var(--green); color: var(--green);
+      font-size: 13px; font-weight: 600; margin-bottom: 24px;
+      background: var(--green-l);
+    }
+    h1 {
+      font-size: clamp(2.2rem, 4vw, 3.4rem); font-weight: 900;
+      color: var(--charcoal); line-height: 1.18; margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+    h1 .accent { color: var(--green); }
+    .hero-sub {
+      font-size: 17px; color: var(--muted); line-height: 1.72;
+      margin-bottom: 36px; max-width: 500px;
+    }
+    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+    .btn-primary {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 26px; border-radius: 999px;
+      background: var(--green); color: white;
+      font-size: 15px; font-weight: 700; border: none; cursor: pointer;
+      box-shadow: 0 6px 24px var(--shadow); transition: all .2s;
+    }
+    .btn-primary:hover { background: var(--green-d); transform: translateY(-1px); }
+    .btn-secondary {
+      padding: 13px 26px; border-radius: 999px;
+      background: white; color: var(--charcoal);
+      border: 1.5px solid #c8dfc0; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-secondary:hover { border-color: var(--green); background: var(--green-l); }
+
+    /* ── Hero Visual ── */
+    .hero-visual { position: relative; }
+    .hero-img-wrap {
+      border-radius: 32px; overflow: hidden; position: relative;
+      background: linear-gradient(145deg, #d8eec8 0%, #EBF3E6 60%, #c8e0b8 100%);
+      min-height: 480px; display: flex; align-items: flex-end; justify-content: center;
+    }
+    /* Dot grid pattern */
+    .hero-img-wrap::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: 32px;
+      background-image: radial-gradient(circle, rgba(116,168,66,0.2) 1.5px, transparent 1.5px);
+      background-size: 22px 22px;
+    }
+    /* Illustrated doctor silhouette */
+    .doctor-figure {
+      position: relative; z-index: 1;
+      width: 72%; max-width: 340px;
+    }
+    .doctor-svg-wrap {
+      width: 100%; aspect-ratio: 3/4;
+      background: linear-gradient(180deg, transparent 0%, rgba(235,243,230,0.5) 100%);
+      border-radius: 24px 24px 0 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Floating cards */
+    .float-card {
+      position: absolute; background: white; border-radius: 16px;
+      border: 1px solid #e8f0e2; padding: 12px 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      display: flex; align-items: center; gap: 10px;
+      min-width: 180px; z-index: 10;
+    }
+    .float-card-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--green-l); display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .float-card-label { font-size: 13px; font-weight: 700; color: var(--charcoal); }
+    .float-card-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .fc-left  { left: -28px; top: 72px; }
+    .fc-right { right: -24px; bottom: 120px; }
+    .fc-bottom { left: 50%; transform: translateX(-50%); bottom: -20px; }
+
+    /* ── Roles Section ── */
+    .roles-section {
+      max-width: 1280px; margin: 0 auto; padding: 80px 32px 100px;
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 13px; font-weight: 700; color: var(--green);
+      text-transform: uppercase; letter-spacing: .1em;
+      margin-bottom: 6px;
+    }
+    .section-label-underline {
+      width: 36px; height: 3px; background: var(--green);
+      border-radius: 2px; margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800;
+      color: var(--charcoal); margin-bottom: 48px; letter-spacing: -0.5px;
+    }
+    .roles-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+    @media (max-width: 768px) { .roles-grid { grid-template-columns: 1fr; } }
+
+    .role-card {
+      background: white; border-radius: 20px;
+      border: 1.5px solid #d4e8c8; padding: 36px 28px;
+      transition: all .22s; position: relative; overflow: hidden;
+    }
+    .role-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--green); transform: scaleX(0); transform-origin: left;
+      transition: transform .25s;
+    }
+    .role-card:hover::before { transform: scaleX(1); }
+    .role-card:hover {
+      border-color: var(--green); transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(116,168,66,0.14);
+    }
+    .role-icon-wrap {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--green-l); display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .role-name { font-size: 20px; font-weight: 800; color: var(--charcoal); margin-bottom: 8px; }
+    .role-desc { font-size: 14px; color: var(--muted); line-height: 1.72; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 32px;
+      max-width: 1280px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .footer-copy { font-size: 13px; color: var(--muted); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .18s; }
+    .footer-links a:hover { color: var(--green); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(28,43,26,0.45); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity .22s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: white; border-radius: 24px; padding: 40px 36px;
+      max-width: 440px; width: 100%; position: relative;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.12);
+      transform: translateY(16px); transition: transform .26s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--green-l); border: none; cursor: pointer;
+      font-size: 15px; color: var(--muted); display: flex; align-items: center; justify-content: center;
+      transition: background .18s;
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-title { font-size: 22px; font-weight: 800; color: var(--charcoal); margin-bottom: 6px; }
+    .modal-sub   { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+    .role-opt {
+      display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+      border-radius: 14px; border: 1.5px solid #e0edd8;
+      background: var(--bg); cursor: pointer; margin-bottom: 10px; transition: all .18s;
+    }
+    .role-opt:hover { border-color: var(--green); background: var(--green-l); }
+    .role-opt.selected { border-color: var(--green); background: var(--green-l); }
+    .role-opt-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: white;
+      border: 1px solid #d4e8c8; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .role-opt-name { font-weight: 700; font-size: 14px; color: var(--charcoal); margin-bottom: 2px; }
+    .role-opt-sub  { font-size: 12px; color: var(--muted); }
+    .radio {
+      width: 20px; height: 20px; border-radius: 50%; border: 2px solid #c8d8c0;
+      margin-left: auto; display: flex; align-items: center; justify-content: center; transition: all .18s;
+    }
+    .role-opt.selected .radio { background: var(--green); border-color: var(--green); }
+    .modal-btn {
+      width: 100%; padding: 14px; border-radius: 999px; border: none; cursor: pointer; margin-top: 20px;
+      background: var(--green); color: white; font-weight: 700; font-size: 15px;
+      opacity: .35; pointer-events: none; transition: opacity .18s;
+    }
+    .modal-btn.enabled { opacity: 1; pointer-events: all; }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .hero { gap: 40px; }
+      .fc-left { left: -10px; }
+      .fc-right { right: -10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ══════════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <!-- Logo -->
+    <a href="#" class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/>
+          <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      <span class="logo-text"><span class="logo-medi">Medi</span><span class="logo-vault">Vault</span></span>
+    </a>
+
+    <!-- Center links -->
+    <ul class="nav-links">
+      <li><a href="#" class="active">Home</a></li>
+      <li><a href="#roles">Roles</a></li>
+      <li><a href="#">Security</a></li>
+    </ul>
+
+    <!-- Actions -->
+    <div class="nav-actions">
+      <button class="btn-login" onclick="openModal('login')">Login</button>
+      <button class="btn-signup" onclick="openModal('signup')">
+        Sign Up
+        <div class="arrow-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="hero">
+    <!-- Left -->
+    <div>
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/>
+        </svg>
+        Patient-Owned Medical Records
+      </div>
+
+      <h1>Your Health Records,<br>Owned by <span class="accent">You.</span></h1>
+
+      <p class="hero-sub">
+        Organise your complete medical history in one secure vault and share
+        controlled access with your doctors and caretakers.
+      </p>
+
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="openModal('signup')">
+          Sign Up Free
+          <div class="arrow-icon">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+        <button class="btn-secondary" onclick="openModal('login')">Login</button>
+      </div>
+    </div>
+
+    <!-- Right visual -->
+    <div class="hero-visual">
+      <!-- Floating card — Patient -->
+      <div class="float-card fc-left">
+        <div class="float-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="float-card-label">Patient</div>
+          <div class="float-card-sub">Full Record Control</div>
+        </div>
+      </div>
+
+      <!-- Main image block -->
+      <div class="hero-img-wrap">
+        <!-- Decorative SVG illustration (doctor / medical) -->
+        <div class="doctor-svg-wrap">
+          <svg viewBox="0 0 320 420" width="320" height="420" xmlns="http://www.w3.org/2000/svg">
+            <!-- Coat body -->
+            <rect x="80" y="210" width="160" height="210" rx="16" fill="white" opacity=".95"/>
+            <!-- Lapels -->
+            <polygon points="120,210 160,270 160,210" fill="#EBF3E6"/>
+            <polygon points="200,210 160,270 160,210" fill="#EBF3E6"/>
+            <!-- Stethoscope -->
+            <circle cx="160" cy="300" r="14" fill="none" stroke="#74A842" stroke-width="4"/>
+            <path d="M146 300 Q120 330 125 350 Q130 370 160 370 Q190 370 195 350 Q200 330 174 300" fill="none" stroke="#74A842" stroke-width="4" stroke-linecap="round"/>
+            <!-- Head -->
+            <circle cx="160" cy="130" r="62" fill="#f5d9c8"/>
+            <!-- Hair -->
+            <ellipse cx="160" cy="82" rx="62" ry="40" fill="#3d2b1f"/>
+            <ellipse cx="160" cy="90" rx="30" ry="52" fill="#3d2b1f" opacity=".6"/>
+            <!-- Face features -->
+            <circle cx="143" cy="128" r="6" fill="#c0906a"/>
+            <circle cx="177" cy="128" r="6" fill="#c0906a"/>
+            <path d="M148 150 Q160 162 172 150" fill="none" stroke="#b06040" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- Arms folded -->
+            <rect x="62" y="240" width="40" height="20" rx="10" fill="#f5d9c8"/>
+            <rect x="218" y="240" width="40" height="20" rx="10" fill="#f5d9c8"/>
+            <!-- Pocket + cross icon -->
+            <rect x="130" y="230" width="30" height="22" rx="4" fill="#EBF3E6" stroke="#c8e0b8" stroke-width="1.5"/>
+            <line x1="145" y1="235" x2="145" y2="246" stroke="#74A842" stroke-width="2"/>
+            <line x1="140" y1="240" x2="150" y2="240" stroke="#74A842" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Floating card — Doctor -->
+      <div class="float-card fc-right">
+        <div class="float-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="float-card-label">Doctor</div>
+          <div class="float-card-sub">Shared Clinical View</div>
+        </div>
+      </div>
+
+      <!-- Floating card — Caretaker -->
+      <div class="float-card fc-bottom">
+        <div class="float-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div>
+          <div class="float-card-label">Caretaker</div>
+          <div class="float-card-sub">PDF Access &amp; Support</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ROLES SECTION ═══════════════════════════════════════════════════════ -->
+<section id="roles" style="background:var(--white); padding: 1px 0;">
+  <div class="roles-section">
+    <div class="section-label">Built for Everyone Involved</div>
+    <div class="section-label-underline"></div>
+    <h2 class="section-title">One Vault. Three Clear Roles.</h2>
+
+    <div class="roles-grid">
+      <!-- Patient -->
+      <div class="role-card">
+        <div class="role-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="role-name">Patient</div>
+        <p class="role-desc">
+          Upload PDFs, images, and documents into organised folders. Automatically
+          convert files to PDF and set precise access rules — deciding exactly who
+          can view or download your records.
+        </p>
+      </div>
+
+      <!-- Doctor -->
+      <div class="role-card">
+        <div class="role-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <div class="role-name">Doctor</div>
+        <p class="role-desc">
+          Access the medical histories and files that patients have explicitly shared
+          with you. Everything is structured, standardised, and immediately
+          available — nothing more than what was granted.
+        </p>
+      </div>
+
+      <!-- Caretaker -->
+      <div class="role-card">
+        <div class="role-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="role-name">Caretaker</div>
+        <p class="role-desc">
+          View the permitted patient records shared with you and easily download
+          or receive medical files as clean, standardised PDFs — within your
+          authorised scope only.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══════════════════════════════════════════════════════════════ -->
+<footer style="border-top: 1px solid var(--border); padding: 28px 32px; max-width:100%;">
+  <div style="max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <span class="footer-copy">© 2026 MediVault. All rights reserved.</span>
+    <div class="footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms</a>
+      <a href="#">Security</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ══ SIGNUP MODAL ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="signupModal" onclick="if(event.target===this)closeModal('signup')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('signup')">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <div style="width:38px;height:38px;border-radius:10px;background:var(--green);display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/>
+          <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="modal-title" style="margin-bottom:0;">Create Account</div>
+      </div>
+    </div>
+    <p class="modal-sub">Choose your role to personalise your experience.</p>
+
+    <!-- Patient -->
+    <div class="role-opt" onclick="selectRole(this,'Patient')">
+      <div class="role-opt-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="role-opt-name">Patient</div>
+        <div class="role-opt-sub">Own and control your medical records</div>
+      </div>
+      <div class="radio"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="radio-check" style="display:none"><polyline points="1,6 4,10 11,2"/></svg></div>
+    </div>
+
+    <!-- Doctor -->
+    <div class="role-opt" onclick="selectRole(this,'Patient')">
+      <div class="role-opt-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="role-opt-name">Doctor</div>
+        <div class="role-opt-sub">View records shared by patients</div>
+      </div>
+      <div class="radio"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="radio-check" style="display:none"><polyline points="1,6 4,10 11,2"/></svg></div>
+    </div>
+
+    <!-- Caretaker -->
+    <div class="role-opt" onclick="selectRole(this,'Patient')">
+      <div class="role-opt-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div>
+        <div class="role-opt-name">Caretaker</div>
+        <div class="role-opt-sub">Support a patient with shared access</div>
+      </div>
+      <div class="radio"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="radio-check" style="display:none"><polyline points="1,6 4,10 11,2"/></svg></div>
+    </div>
+
+    <button class="modal-btn" id="signupCta" onclick="goToDashboard()">Continue</button>
+  </div>
+</div>
+
+<!-- ══ LOGIN MODAL ═════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="loginModal" onclick="if(event.target===this)closeModal('login')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('login')">✕</button>
+    <div class="modal-title">Welcome Back</div>
+    <p class="modal-sub">Sign in to your MediVault account.</p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;">Email</label>
+      <input type="email" placeholder="you@example.com" style="width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid #d4e8c8;background:var(--bg);font-size:14px;color:var(--charcoal);outline:none;" onfocus="this.style.borderColor='#74A842'" onblur="this.style.borderColor='#d4e8c8'"/>
+    </div>
+    <div style="margin-bottom:4px;">
+      <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;">Password</label>
+      <input type="password" placeholder="••••••••" style="width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid #d4e8c8;background:var(--bg);font-size:14px;color:var(--charcoal);outline:none;" onfocus="this.style.borderColor='#74A842'" onblur="this.style.borderColor='#d4e8c8'"/>
+    </div>
+    <div style="text-align:right;margin-bottom:4px;">
+      <a href="#" style="font-size:12px;color:var(--green);text-decoration:none;font-weight:600;">Forgot password?</a>
+    </div>
+    <button class="modal-btn enabled" onclick="goToDashboard()">Sign In</button>
+    <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:16px;">
+      No account? <a href="#" style="color:var(--green);font-weight:700;text-decoration:none;" onclick="closeModal('login');openModal('signup')">Sign up free</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  let selectedRole = null;
+
+  function goToDashboard() {
+    if (selectedRole === 'Patient') {
+      window.location.href = 'patient-dashboard.html';
+    } else if (selectedRole) {
+      closeModal('signup');
+      showComingSoon(selectedRole);
+    } else {
+      window.location.href = 'patient-dashboard.html'; // login flow
+    }
+  }
+
+  function showComingSoon(role) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1C2B1A;color:white;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.2)';
+    banner.textContent = role + ' portal coming soon! Currently building Patient experience.';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 3500);
+  }
+
+  function openModal(type) {
+    document.getElementById(type + 'Modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(type) {
+    document.getElementById(type + 'Modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function selectRole(el, role) {
+    selectedRole = role || el.querySelector('.role-opt-name').textContent.trim();
+    document.querySelectorAll('.role-opt').forEach(opt => {
+      opt.classList.remove('selected');
+      opt.querySelector('.radio-check').style.display = 'none';
+    });
+    el.classList.add('selected');
+    el.querySelector('.radio-check').style.display = 'block';
+    document.getElementById('signupCta').classList.add('enabled');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal('signup'); closeModal('login'); }
+  });
+</script>
+</body>
+</html>
