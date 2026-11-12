@@ -548,18 +548,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               <IconBell size={22} color={C.textMain} />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
-
-            {/* 3. Profile Picture (Click opens Profile & Settings) */}
-            <TouchableOpacity
-              style={styles.profileAvatarBtn}
-              onPress={() => setShowProfileModal(true)}
-              activeOpacity={0.8}
-              accessibilityLabel="Profile and Settings"
-            >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitials}>MA</Text>
-              </View>
-            </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
