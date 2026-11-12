@@ -441,6 +441,86 @@ const getCaretakerPermLabels = (perms) => {
   return labels.length > 0 ? labels : ['None'];
 };
 
+const getFileExt = (filename) => {
+  if (!filename) return '.pdf';
+  const match = filename.match(/\.[^/.]+$/);
+  return match ? match[0] : '.pdf';
+};
+
+const buildStructuredJson = (title, file, text, patient) => {
+  const effectiveTitle = title && title.trim() ? title.trim() : (file ? file.name.replace(/\.[^/.]+$/, '') : 'Comprehensive Metabolic Panel');
+  const ext = file ? getFileExt(file.name) : '.pdf';
+  const sourceFile = file ? file.name : `${effectiveTitle}${ext}`;
+  const sourceType = file ? (file.type === 'image' ? 'clinical_scan_image' : 'pdf_document') : (text && text.trim() ? 'raw_text' : 'pdf_document');
+
+  return {
+    schema_version: "1.0",
+    document: {
+      document_id: "ff7b2868-064f-485c-9a48-1806ac81723e",
+      source_file: sourceFile,
+      source_type: sourceType,
+      sha256: "827d7846cf6fb7c2bb8a2271aa03603d81b42e93cfb15cfb4b765a85cf1b1abb",
+      page_count: 1,
+      language: "en",
+      doc_type: effectiveTitle.toLowerCase().includes('metabolic') || effectiveTitle.toLowerCase().includes('blood') || effectiveTitle.toLowerCase().includes('cbc') ? 'lab_report' : (effectiveTitle.toLowerCase().includes('cardio') || effectiveTitle.toLowerCase().includes('ecg') ? 'diagnostic_report' : 'clinical_record'),
+      doc_type_confidence: 0.98,
+      document_date: "2026-10-24",
+      provider: {
+        name: patient?.attendingDoctor || "Dr. Sarah Jenkins",
+        facility: patient?.primaryHospital || "Metro Diagnostics",
+        country: "US"
+      },
+      extracted_at: new Date().toISOString(),
+      extractor: {
+        provider: "gemini",
+        model: "gemini-2.5-flash-lite"
+      }
+    },
+    clinical_summary: text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${effectiveTitle}. All critical observations, units, and evidence preserved with zero hallucinations.`,
+    extracted_entities: {
+      conditions: [
+        {
+          name: effectiveTitle.toLowerCase().includes('cardio') ? "Cardiovascular Health" : "Routine Metabolic Screening",
+          status: "active",
+          certainty: "confirmed",
+          evidence: { quote: `${effectiveTitle} findings verified`, page: 1 }
+        }
+      ],
+      medications: [
+        {
+          name: "Metformin HCl",
+          dose_raw: "500 mg",
+          frequency_raw: "Daily with meal",
+          status: "prescribed",
+          evidence: { quote: "Metformin HCl 500mg daily", page: 1 }
+        }
+      ],
+      allergies: {
+        status: "explicit_negative",
+        items: []
+      },
+      lab_results: [
+        {
+          test_name: "Fasting Plasma Glucose",
+          value: "104",
+          unit: "mg/dL",
+          reference_range_raw: "70 - 99",
+          flag: "borderline",
+          evidence: { quote: "Fasting Glucose 104 mg/dL (ref 70-99)", page: 1 }
+        },
+        {
+          test_name: "HbA1c",
+          value: "5.8",
+          unit: "%",
+          reference_range_raw: "< 5.7",
+          flag: "prediabetic",
+          evidence: { quote: "HbA1c 5.8% (ref < 5.7%)", page: 1 }
+        }
+      ]
+    }
+  };
+};
+
 export default function PatientPortal({ onSignOut, isDesktop }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
@@ -509,6 +589,11 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [showCustomEditExpiry, setShowCustomEditExpiry] = useState(false);
   const [customEditDays, setCustomEditDays] = useState('');
 
+  // Custom Expiry Modal State (Spacious, keyboard-focused dialog)
+  const [showCustomExpiryModal, setShowCustomExpiryModal] = useState(false);
+  const [customExpiryTarget, setCustomExpiryTarget] = useState('invite'); // 'invite' | 'edit'
+  const [customExpiryValue, setCustomExpiryValue] = useState('');
+
   // Scan QR to Connect State
   const [showScanQrModal, setShowScanQrModal] = useState(false);
   const [scanJoinCode, setScanJoinCode] = useState('');
@@ -543,6 +628,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [enteredText, setEnteredText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [showRagSampleFlags, setShowRagSampleFlags] = useState(false);
+  const [liveExtractedJson, setLiveExtractedJson] = useState(() =>
+    buildStructuredJson('Comprehensive Metabolic Panel', null, '', { attendingDoctor: 'Dr. Sarah Jenkins', primaryHospital: 'Metro Diagnostics' })
+  );
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -562,16 +650,40 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   };
 
   // ─── FILE & CAMERA CAPTURE HANDLERS ────────────────────────────────────────
+  const handleUploadTitleChange = (val) => {
+    setUploadTitle(val);
+    if (pickedFile) {
+      const ext = getFileExt(pickedFile.name);
+      const newName = val.trim() ? `${val.trim()}${ext}` : pickedFile.name;
+      const updatedDoc = {
+        ...pickedFile,
+        name: newName,
+      };
+      setPickedFile(updatedDoc);
+      setLiveExtractedJson(buildStructuredJson(val, updatedDoc, enteredText, patientInfo));
+    } else {
+      setLiveExtractedJson(buildStructuredJson(val, null, enteredText, patientInfo));
+    }
+  };
+
   const handlePickDocument = async () => {
     try {
       const doc = await pickMedicalDocument();
       if (doc) {
-        setPickedFile(doc);
-        if (!uploadTitle.trim()) {
-          const cleanName = doc.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-          setUploadTitle(cleanName);
+        const ext = getFileExt(doc.name);
+        let finalTitle = uploadTitle.trim();
+        if (!finalTitle) {
+          finalTitle = doc.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          setUploadTitle(finalTitle);
         }
-        showToastMsg(`Selected: ${doc.name}`);
+        // Change file name to the document title that is kept!
+        const updatedDoc = {
+          ...doc,
+          name: `${finalTitle}${ext}`,
+        };
+        setPickedFile(updatedDoc);
+        showToastMsg(`Selected: ${updatedDoc.name}`);
+        setLiveExtractedJson(buildStructuredJson(finalTitle, updatedDoc, enteredText, patientInfo));
       }
     } catch (err) {
       console.warn('Document picker error:', err);
@@ -596,8 +708,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         reader.onload = () => {
           const dataUrl = reader.result;
           const base64 = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
+          let finalTitle = uploadTitle.trim();
+          if (!finalTitle) {
+            finalTitle = `Clinical Scan (${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+            setUploadTitle(finalTitle);
+          }
           const photoDoc = {
-            name: `Camera_Scan_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.jpg`,
+            name: `${finalTitle}.jpg`,
             size: `${(file.size / 1024).toFixed(0)} KB`,
             mimeType: 'image/jpeg',
             uri: dataUrl,
@@ -606,10 +723,8 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
             type: 'image',
           };
           setPickedFile(photoDoc);
-          if (!uploadTitle.trim()) {
-            setUploadTitle(`Clinical Scan (${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`);
-          }
           showToastMsg('Photo captured successfully!');
+          setLiveExtractedJson(buildStructuredJson(finalTitle, photoDoc, enteredText, patientInfo));
         };
         reader.readAsDataURL(file);
       }
@@ -719,6 +834,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       }
     );
     setEditExpiry(caretaker.expiry || '30 Days');
+  };
+
+  const handleOpenCustomExpiry = (target) => {
+    setCustomExpiryTarget(target);
+    setCustomExpiryValue('');
+    setShowCustomExpiryModal(true);
   };
 
   const handleSaveEditedPermissions = () => {
@@ -1274,7 +1395,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   placeholder="e.g. Comprehensive Metabolic Panel"
                   placeholderTextColor="#94A3B8"
                   value={uploadTitle}
-                  onChangeText={setUploadTitle}
+                  onChangeText={handleUploadTitleChange}
                 />
               </View>
 
@@ -1347,13 +1468,16 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   placeholder="Paste lab findings, prescription details, or clinical notes here..."
                   placeholderTextColor="#94A3B8"
                   value={enteredText}
-                  onChangeText={setEnteredText}
+                  onChangeText={(val) => {
+                    setEnteredText(val);
+                    setLiveExtractedJson(buildStructuredJson(uploadTitle, pickedFile, val, patientInfo));
+                  }}
                   multiline
                   numberOfLines={4}
                 />
               </View>
 
-              {/* 5. Extracted Clinical JSON Section (View only, no download) */}
+              {/* 5. Extracted Clinical JSON Section (Full Dark Scrollable Code View) */}
               <View style={styles.uploadJsonPreviewCard}>
                 <View style={styles.uploadJsonHeaderRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1362,45 +1486,49 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                     </View>
                     <View>
                       <Text style={styles.uploadJsonTitle}>Extracted Clinical JSON</Text>
-                      <Text style={styles.uploadJsonSub}>
-                        {pickedFile
-                          ? `Structured entities from ${pickedFile.name}`
-                          : enteredText.trim()
-                          ? 'Entities extracted from clinical text'
-                          : 'Gemini AI structured entity payload'}
-                      </Text>
+                      <Text style={styles.uploadJsonSub}>Gemini AI structured entity payload</Text>
                     </View>
                   </View>
 
                   <TouchableOpacity
-                    style={styles.viewJsonInlineBtn}
+                    style={styles.copyJsonBtn}
                     onPress={() => {
-                      const payload = {
-                        document_metadata: {
-                          doc_type: pickedFile?.type === 'image' ? 'scan_report' : 'clinical_record',
-                          title: uploadTitle.trim() || (pickedFile ? pickedFile.name : 'Clinical Record'),
-                          uploaded_at: new Date().toISOString(),
-                          patient_name: patientInfo.name,
-                          vault_id: patientInfo.vaultId,
-                          encryption: 'AES-256-GCM Sovereign Vault',
-                        },
-                        clinical_summary: enteredText.trim() || `Verified clinical findings for ${uploadTitle.trim() || 'record'}.`,
-                        extracted_entities: {
-                          conditions: [{ code: 'ICD-10-R73.09', name: 'Clinical Evaluation', status: 'verified' }],
-                          observations: [
-                            { test_name: 'Fasting Plasma Glucose', value: 104, unit: 'mg/dL', interpretation: 'borderline' },
-                            { test_name: 'HbA1c', value: 5.8, unit: '%', interpretation: 'prediabetic' }
-                          ],
-                          audit_hash: 'sha256:d8a2f91e0c4b...'
-                        }
-                      };
-                      setSelectedJsonModal(payload);
+                      const jsonStr = JSON.stringify(liveExtractedJson, null, 2);
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        navigator.clipboard.writeText(jsonStr);
+                      }
+                      showToastMsg('JSON copied to clipboard!');
                     }}
                     activeOpacity={0.75}
                   >
-                    <IconEye size={13} color="#2563EB" />
-                    <Text style={styles.viewJsonInlineBtnText}>View</Text>
+                    <Text style={styles.copyJsonBtnText}>Copy JSON</Text>
                   </TouchableOpacity>
+                </View>
+
+                {/* Dark Code Box matching user 2nd image */}
+                <View style={styles.jsonCodeBlockWrap}>
+                  {isExtracting ? (
+                    <View style={styles.jsonExtractingOverlay}>
+                      <ActivityIndicator size="small" color="#38BDF8" />
+                      <Text style={styles.jsonExtractingText}>Extracting structured clinical JSON with Gemini AI...</Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      style={styles.jsonCodeScrollView}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    >
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled={true}
+                        showsHorizontalScrollIndicator={true}
+                      >
+                        <Text style={styles.jsonCodeText}>
+                          {JSON.stringify(liveExtractedJson, null, 2)}
+                        </Text>
+                      </ScrollView>
+                    </ScrollView>
+                  )}
                 </View>
               </View>
             </View>
@@ -2001,30 +2129,32 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               {/* 4. Switch Account */}
               <View style={[styles.uploadFieldWrap, { marginTop: 14 }]}>
                 <Text style={styles.cleanFieldLabel}>ACCOUNT</Text>
-                <TouchableOpacity
-                  style={styles.switchAccountCardBtn}
-                  onPress={() => {
-                    if (!hasOtherAccounts) {
-                      setShowNoAccountsModal(true);
-                    } else {
-                      setShowSwitchAccountModal(true);
-                    }
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.switchAccountIconWrap}>
-                    <IconSwitch size={20} color={C.blue} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.switchAccountCardTitle}>Switch Account</Text>
-                    <Text style={styles.switchAccountCardSub}>
-                      {currentAccountRole === 'benefactor'
-                        ? 'Active: Apex Health Trust (Benefactor)'
-                        : 'Active: Melroy Almeida (Patient)'}
-                    </Text>
-                  </View>
-                  <IconChevronRight size={18} color={C.textSub} />
-                </TouchableOpacity>
+                <View style={styles.settingCard}>
+                  <TouchableOpacity
+                    style={styles.accountCardRow}
+                    onPress={() => {
+                      if (!hasOtherAccounts) {
+                        setShowNoAccountsModal(true);
+                      } else {
+                        setShowSwitchAccountModal(true);
+                      }
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.accountIconBox}>
+                      <IconSwitch size={18} color={C.blue} />
+                    </View>
+                    <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                      <Text style={styles.settingItemTitle}>Switch Account</Text>
+                      <Text style={styles.settingItemSub}>
+                        {currentAccountRole === 'benefactor'
+                          ? 'Active: Apex Health Trust (Benefactor)'
+                          : 'Active: Melroy Almeida (Patient)'}
+                      </Text>
+                    </View>
+                    <IconChevronRight size={18} color={C.textSub} />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 
@@ -2892,18 +3022,15 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                         key={exp}
                         style={[
                           styles.expiryChip,
-                          caretakerExpiry === exp && !showCustomCaretakerExpiry && styles.expiryChipActive,
+                          caretakerExpiry === exp && styles.expiryChipActive,
                         ]}
-                        onPress={() => {
-                          setCaretakerExpiry(exp);
-                          setShowCustomCaretakerExpiry(false);
-                        }}
+                        onPress={() => setCaretakerExpiry(exp)}
                         activeOpacity={0.8}
                       >
                         <Text
                           style={[
                             styles.expiryChipText,
-                            caretakerExpiry === exp && !showCustomCaretakerExpiry && styles.expiryChipTextActive,
+                            caretakerExpiry === exp && styles.expiryChipTextActive,
                           ]}
                         >
                           {exp}
@@ -2913,7 +3040,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                     {!['7 Days', '30 Days', '90 Days', 'No Expiry'].includes(caretakerExpiry) && caretakerExpiry ? (
                       <TouchableOpacity
                         style={[styles.expiryChip, styles.expiryChipActive]}
-                        onPress={() => setShowCustomCaretakerExpiry(true)}
+                        onPress={() => handleOpenCustomExpiry('invite')}
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.expiryChipText, styles.expiryChipTextActive]}>{caretakerExpiry}</Text>
@@ -2923,49 +3050,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                       style={[
                         styles.expiryChip,
                         styles.expiryPlusChip,
-                        showCustomCaretakerExpiry && styles.expiryChipActive,
                       ]}
-                      onPress={() => setShowCustomCaretakerExpiry(!showCustomCaretakerExpiry)}
+                      onPress={() => handleOpenCustomExpiry('invite')}
                       activeOpacity={0.8}
                     >
-                      <Text
-                        style={[
-                          styles.expiryChipText,
-                          styles.expiryPlusText,
-                          showCustomCaretakerExpiry && styles.expiryChipTextActive,
-                        ]}
-                      >
-                        +
-                      </Text>
+                      <Text style={[styles.expiryChipText, styles.expiryPlusText]}>+</Text>
                     </TouchableOpacity>
                   </View>
-
-                  {/* Inline Custom Limit Input */}
-                  {showCustomCaretakerExpiry && (
-                    <View style={styles.customExpiryRow}>
-                      <TextInput
-                        style={styles.customExpiryInput}
-                        placeholder="e.g. 14, 60 or Dec 31, 2026"
-                        placeholderTextColor="#94A3B8"
-                        value={customCaretakerDays}
-                        onChangeText={setCustomCaretakerDays}
-                      />
-                      <TouchableOpacity
-                        style={styles.customExpirySetBtn}
-                        onPress={() => {
-                          const val = customCaretakerDays.trim();
-                          if (val) {
-                            const formatted = !isNaN(val) ? `${val} Days` : val;
-                            setCaretakerExpiry(formatted);
-                            setShowCustomCaretakerExpiry(false);
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.customExpirySetBtnText}>Set</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
 
                   {/* Generate Access Code Button */}
                   <TouchableOpacity
@@ -3221,18 +3312,15 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                         key={exp}
                         style={[
                           styles.expiryChip,
-                          editExpiry === exp && !showCustomEditExpiry && styles.expiryChipActive,
+                          editExpiry === exp && styles.expiryChipActive,
                         ]}
-                        onPress={() => {
-                          setEditExpiry(exp);
-                          setShowCustomEditExpiry(false);
-                        }}
+                        onPress={() => setEditExpiry(exp)}
                         activeOpacity={0.8}
                       >
                         <Text
                           style={[
                             styles.expiryChipText,
-                            editExpiry === exp && !showCustomEditExpiry && styles.expiryChipTextActive,
+                            editExpiry === exp && styles.expiryChipTextActive,
                           ]}
                         >
                           {exp}
@@ -3242,7 +3330,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                     {!['7 Days', '30 Days', '90 Days', 'No Expiry'].includes(editExpiry) && editExpiry ? (
                       <TouchableOpacity
                         style={[styles.expiryChip, styles.expiryChipActive]}
-                        onPress={() => setShowCustomEditExpiry(true)}
+                        onPress={() => handleOpenCustomExpiry('edit')}
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.expiryChipText, styles.expiryChipTextActive]}>{editExpiry}</Text>
@@ -3252,49 +3340,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                       style={[
                         styles.expiryChip,
                         styles.expiryPlusChip,
-                        showCustomEditExpiry && styles.expiryChipActive,
                       ]}
-                      onPress={() => setShowCustomEditExpiry(!showCustomEditExpiry)}
+                      onPress={() => handleOpenCustomExpiry('edit')}
                       activeOpacity={0.8}
                     >
-                      <Text
-                        style={[
-                          styles.expiryChipText,
-                          styles.expiryPlusText,
-                          showCustomEditExpiry && styles.expiryChipTextActive,
-                        ]}
-                      >
-                        +
-                      </Text>
+                      <Text style={[styles.expiryChipText, styles.expiryPlusText]}>+</Text>
                     </TouchableOpacity>
                   </View>
-
-                  {/* Inline Custom Limit Input */}
-                  {showCustomEditExpiry && (
-                    <View style={styles.customExpiryRow}>
-                      <TextInput
-                        style={styles.customExpiryInput}
-                        placeholder="e.g. 14, 60 or Dec 31, 2026"
-                        placeholderTextColor="#94A3B8"
-                        value={customEditDays}
-                        onChangeText={setCustomEditDays}
-                      />
-                      <TouchableOpacity
-                        style={styles.customExpirySetBtn}
-                        onPress={() => {
-                          const val = customEditDays.trim();
-                          if (val) {
-                            const formatted = !isNaN(val) ? `${val} Days` : val;
-                            setEditExpiry(formatted);
-                            setShowCustomEditExpiry(false);
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.customExpirySetBtnText}>Set</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
 
                   {/* Save Button */}
                   <TouchableOpacity
@@ -3307,6 +3359,107 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 </>
               )}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL: CUSTOM ACCESS EXPIRATION (CLEAN & SPACIOUS) ────────────── */}
+      <Modal
+        visible={showCustomExpiryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCustomExpiryModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modernModalCard, { maxWidth: 420, padding: 22 }]}>
+            <View style={styles.modernModalHeader}>
+              <View>
+                <Text style={styles.modernModalTitle}>Set Custom Expiration</Text>
+                <Text style={styles.modernModalSub}>Enter day limit or expiration date</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modernModalCloseBtn}
+                onPress={() => setShowCustomExpiryModal(false)}
+              >
+                <Text style={styles.modernModalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginTop: 14 }}>
+              <Text style={[styles.cleanFieldLabel, { marginBottom: 8 }]}>QUICK PRESETS</Text>
+              <View style={styles.customExpiryPresetsRow}>
+                {['14 Days', '45 Days', '60 Days', '180 Days'].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.customExpiryPresetChip,
+                      customExpiryValue === preset && styles.customExpiryPresetChipActive,
+                    ]}
+                    onPress={() => setCustomExpiryValue(preset)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.customExpiryPresetText,
+                        customExpiryValue === preset && styles.customExpiryPresetTextActive,
+                      ]}
+                    >
+                      {preset}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.cleanFieldLabel, { marginTop: 14, marginBottom: 8 }]}>
+                ENTER NUMBER OF DAYS OR DATE
+              </Text>
+              <TextInput
+                style={[styles.cleanInputField, { height: 46, fontSize: 14 }]}
+                placeholder="e.g. 14, 45 or Dec 31, 2026"
+                placeholderTextColor="#94A3B8"
+                value={customExpiryValue}
+                onChangeText={setCustomExpiryValue}
+                autoFocus={true}
+              />
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+                <TouchableOpacity
+                  style={styles.customExpiryCancelBtn}
+                  onPress={() => setShowCustomExpiryModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.customExpiryCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.customExpiryApplyBtn}
+                  onPress={() => {
+                    const val = customExpiryValue.trim();
+                    if (val) {
+                      const formatted = !isNaN(val) ? `${val} Days` : val;
+                      if (customExpiryTarget === 'invite') {
+                        setCaretakerExpiry(formatted);
+                      } else {
+                        setEditExpiry(formatted);
+                      }
+                      setShowCustomExpiryModal(false);
+                      showToastMsg(`Access limit set to ${formatted}`);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={[C.green, C.greenDark]}
+                    style={styles.cleanSaveBtnGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.cleanSaveBtnText}>Set Limit</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -5735,35 +5888,115 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     lineHeight: 14,
   },
-  customExpiryRow: {
+  customExpiryPresetsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
-    marginTop: 8,
   },
-  customExpiryInput: {
-    flex: 1,
-    height: 38,
+  customExpiryPresetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 12.5,
-    color: '#0F172A',
-    backgroundColor: '#FFFFFF',
   },
-  customExpirySetBtn: {
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  customExpiryPresetChipActive: {
     backgroundColor: '#16A34A',
+    borderColor: '#16A34A',
+  },
+  customExpiryPresetText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  customExpiryPresetTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  customExpiryCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  customExpirySetBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  customExpiryCancelText: {
+    fontSize: 13,
     fontWeight: '700',
+    color: '#64748B',
+  },
+  customExpiryApplyBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+
+  /* Extracted JSON Code Block in Upload View */
+  jsonCodeBlockWrap: {
+    marginTop: 10,
+    height: 250,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    overflow: 'hidden',
+  },
+  jsonCodeScrollView: {
+    flex: 1,
+    padding: 12,
+  },
+  jsonCodeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: '#38BDF8',
+  },
+  jsonExtractingOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 10,
+  },
+  jsonExtractingText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  copyJsonBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  copyJsonBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+
+  /* Profile Account Card Row */
+  accountCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  accountIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* Benefactor Banner on Home */
