@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
-  StyleSheet, TextInput, ActivityIndicator, Platform,
+  StyleSheet, TextInput, ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
@@ -38,7 +38,7 @@ const C = {
   amber: '#D97706',
 };
 
-// ─── CLEAN LINE ICONS (NO EMOJIS) ─────────────────────────────────────────────
+// ─── CLEAN LINE ICONS ─────────────────────────────────────────────────────────
 const IconQrCode = ({ size = 22, color = C.textMain }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -48,7 +48,7 @@ const IconQrCode = ({ size = 22, color = C.textMain }) => (
     <Line x1="7" y1="7" x2="7.01" y2="7" strokeWidth="2.5" />
     <Line x1="17" y1="7" x2="17.01" y2="7" strokeWidth="2.5" />
     <Line x1="17" y1="17" x2="17.01" y2="7" strokeWidth="2.5" />
-    <Line x1="7" y1="17" x2="7.01" y2="17" strokeWidth="2.5" />
+    <Line x1="7" y1="17" x2="7.01" y2="7" strokeWidth="2.5" />
   </Svg>
 );
 
@@ -97,6 +97,13 @@ const IconChatBot = ({ size = 28, color = C.teal }) => (
     <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     <Line x1="9" y1="10" x2="9.01" y2="10" strokeWidth="2.5" />
     <Line x1="15" y1="10" x2="15.01" y2="10" strokeWidth="2.5" />
+  </Svg>
+);
+
+const IconCamera = ({ size = 20, color = C.textMain }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <Circle cx="12" cy="13" r="4" />
   </Svg>
 );
 
@@ -266,7 +273,7 @@ const INITIAL_PEOPLE = [
 ];
 
 export default function PatientPortal({ onSignOut, isDesktop }) {
-  // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot'
+  // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
 
   // Patient Profile Information
@@ -279,7 +286,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     attendingDoctor: 'Dr. Sarah Jenkins',
   });
 
-  // Basic Settings Toggles
+  const [avatarUri, setAvatarUri] = useState(null);
+
+  // Settings Toggles
   const [settings, setSettings] = useState({
     biometrics: true,
     sovereignEncryption: true,
@@ -293,7 +302,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [people, setPeople] = useState(INITIAL_PEOPLE);
 
   // Modals
-  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -311,12 +319,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [pickedFile, setPickedFile] = useState(null);
   const [uploadTitle, setUploadTitle] = useState('');
   const [enteredText, setEnteredText] = useState('');
-  const [uploadDoctor, setUploadDoctor] = useState('');
-  const [targetFolder, setTargetFolder] = useState('cardio');
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionProgress, setExtractionProgress] = useState('');
-  const [extractedResult, setExtractedResult] = useState(null);
-  const [showRawJson, setShowRawJson] = useState(false);
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -335,7 +338,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ─── UPLOAD & EXTRACTION HANDLERS ──────────────────────────────────────────
+  // ─── FILE & CAMERA CAPTURE HANDLERS ────────────────────────────────────────
   const handlePickDocument = async () => {
     try {
       const doc = await pickMedicalDocument();
@@ -353,37 +356,66 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     }
   };
 
-  const handleExtractWithGemini = async () => {
-    if (!pickedFile && !uploadTitle.trim()) {
-      showToastMsg('Please select a document first');
+  // Direct Camera Capture
+  const handleCaptureCamera = () => {
+    if (typeof document === 'undefined') {
+      showToastMsg('Camera only available on devices');
       return;
     }
-    setIsExtracting(true);
-    setExtractionProgress('Connecting to Google Gemini Multimodal Model...');
-    try {
-      const title = uploadTitle.trim() || (pickedFile ? pickedFile.name : 'Medical Document');
-      const doctor = uploadDoctor.trim() || 'Self-Uploaded';
-      const extraction = await extractMedicalDocument({
-        file: pickedFile,
-        fileName: pickedFile ? pickedFile.name : `${title}.pdf`,
-        mimeType: pickedFile ? pickedFile.mimeType : 'application/pdf',
-        base64Data: pickedFile ? pickedFile.base64 : null,
-        rawText: `Document: ${title}. Doctor: ${doctor}. Folder: ${targetFolder}. Verified sovereign record.`,
-        onProgress: (p) => setExtractionProgress(p),
-      });
-      setExtractedResult(extraction);
-      showToastMsg(`Gemini extracted ${extraction.medications_count} meds & ${extraction.conditions_count} conditions!`);
-    } catch (err) {
-      console.warn('Extraction error:', err);
-      showToastMsg(`Extraction error: ${err.message || 'Check Gemini API Key'}`);
-    } finally {
-      setIsExtracting(false);
-      setExtractionProgress('');
-    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          const base64 = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
+          const photoDoc = {
+            name: `Camera_Scan_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.jpg`,
+            size: `${(file.size / 1024).toFixed(0)} KB`,
+            mimeType: 'image/jpeg',
+            uri: dataUrl,
+            base64: base64,
+            fileBlob: file,
+            type: 'image',
+          };
+          setPickedFile(photoDoc);
+          if (!uploadTitle.trim()) {
+            setUploadTitle(`Clinical Scan (${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`);
+          }
+          showToastMsg('Photo captured successfully!');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  // Avatar Picker (Gallery / Camera)
+  const handlePickAvatar = () => {
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setAvatarUri(reader.result);
+          showToastMsg('Profile photo updated!');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
   };
 
   const handleSaveUploadedRecord = async () => {
-    const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Medical Note' : 'Medical Record'));
+    const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Clinical Note' : 'Medical Record'));
     const now = 'Just now';
 
     if (!pickedFile && !enteredText.trim() && !uploadTitle.trim()) {
@@ -418,7 +450,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       name: title,
       folder: 'labs',
       type: pickedFile?.type === 'image' ? 'IMG' : (pickedFile ? 'PDF' : 'DOC'),
-      size: pickedFile?.size ? `${(pickedFile.size / 1024).toFixed(0)} KB` : '1.4 KB',
+      size: pickedFile?.size ? (typeof pickedFile.size === 'number' ? `${(pickedFile.size / 1024).toFixed(0)} KB` : pickedFile.size) : '1.4 KB',
       date: now,
       doctor: 'Self-Uploaded',
       tags: ['Sovereign Vault'],
@@ -450,8 +482,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     setPickedFile(null);
     setUploadTitle('');
     setEnteredText('');
-    setUploadDoctor('');
-    setExtractedResult(null);
 
     showToastMsg('Saved successfully!');
     setActiveTab('documents');
@@ -549,15 +579,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
           end={{ x: 0, y: 1 }}
         >
           <View style={styles.topHeaderInner}>
-            {/* Greeting Typography */}
             <View>
               <Text style={styles.greetingSmall}>Hello,</Text>
               <Text style={styles.greetingName}>{patientInfo.name}</Text>
             </View>
 
-            {/* Top Right Actions */}
             <View style={styles.topRightActions}>
-              {/* 1. QR Code Button (Scan gives emergency PDF) */}
               <TouchableOpacity
                 style={styles.headerIconButton}
                 onPress={() => setShowQrModal(true)}
@@ -567,7 +594,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 <IconQrCode size={22} color={C.textMain} />
               </TouchableOpacity>
 
-              {/* 2. Notifications Bell with Dot */}
               <TouchableOpacity
                 style={styles.headerIconButton}
                 onPress={() => setShowNotificationsModal(true)}
@@ -653,51 +679,104 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 2: UPLOAD (SIMPLE & CLEAN)                                    */}
+        {/* VIEW 2: UPLOAD (MINIMAL, CLEAN & NOT BORING)                       */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'upload' && (
           <View style={styles.viewSection}>
             {/* Top Left: Upload */}
-            <TouchableOpacity style={styles.uploadTopRow} onPress={() => setActiveTab('home')}>
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
               <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.uploadTopTitle}>Upload</Text>
+              <Text style={styles.subPageTitle}>Upload</Text>
             </TouchableOpacity>
 
-            {/* Choose File Box */}
-            <TouchableOpacity
-              style={[styles.chooseFileBox, pickedFile && styles.chooseFileBoxSelected]}
-              onPress={handlePickDocument}
-              activeOpacity={0.8}
-            >
-              <View style={styles.chooseFileIconCircle}>
-                <IconUpload size={28} color={pickedFile ? C.green : C.textSub} />
+            {/* 1. Document Title */}
+            <View style={styles.uploadFieldWrap}>
+              <Text style={styles.cleanFieldLabel}>DOCUMENT TITLE</Text>
+              <TextInput
+                style={styles.cleanInputField}
+                placeholder="e.g. Comprehensive Metabolic Panel"
+                placeholderTextColor="#94A3B8"
+                value={uploadTitle}
+                onChangeText={setUploadTitle}
+              />
+            </View>
+
+            {/* 2. Choose File Box with Camera Option */}
+            <View style={styles.uploadFieldWrap}>
+              <Text style={styles.cleanFieldLabel}>DOCUMENT ATTACHMENT</Text>
+              
+              {pickedFile ? (
+                <View style={styles.selectedFileCard}>
+                  <View style={styles.selectedFileIconWrap}>
+                    <IconCheck size={16} color="white" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selectedFileName} numberOfLines={1}>{pickedFile.name}</Text>
+                    <Text style={styles.selectedFileSize}>{pickedFile.size} · Ready</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removeFileBtn}
+                    onPress={() => setPickedFile(null)}
+                  >
+                    <Text style={styles.removeFileBtnText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.chooseFileDualCard}>
+                  {/* Option A: Choose File / Browse */}
+                  <TouchableOpacity
+                    style={styles.chooseFileActionBtn}
+                    onPress={handlePickDocument}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.chooseFileActionIconCircle}>
+                      <IconUpload size={22} color={C.green} />
+                    </View>
+                    <Text style={styles.chooseFileActionTitle}>Choose File</Text>
+                    <Text style={styles.chooseFileActionSub}>PDF, Scan, or Doc</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.dualCardDivider} />
+
+                  {/* Option B: Use Camera */}
+                  <TouchableOpacity
+                    style={styles.chooseFileActionBtn}
+                    onPress={handleCaptureCamera}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.chooseFileActionIconCircle, { backgroundColor: C.blueBg }]}>
+                      <IconCamera size={22} color={C.blue} />
+                    </View>
+                    <Text style={styles.chooseFileActionTitle}>Use Camera</Text>
+                    <Text style={styles.chooseFileActionSub}>Take direct photo</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* 3. Sleek Divider: Or Paste Raw Clinical Text */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <View style={styles.dividerPill}>
+                <Text style={styles.dividerPillText}>OR PASTE RAW CLINICAL TEXT</Text>
               </View>
-              <Text style={styles.chooseFileTitle}>
-                {pickedFile ? pickedFile.name : 'Choose File'}
-              </Text>
-            </TouchableOpacity>
+              <View style={styles.dividerLine} />
+            </View>
 
-            {/* Document Title */}
-            <TextInput
-              style={styles.cleanInputField}
-              placeholder="Document Title"
-              placeholderTextColor="#94A3B8"
-              value={uploadTitle}
-              onChangeText={setUploadTitle}
-            />
+            {/* 4. Paste Text Area */}
+            <View style={styles.uploadFieldWrap}>
+              <TextInput
+                style={[styles.cleanInputField, styles.cleanInputArea]}
+                placeholder="Paste lab findings, prescription details, or clinical notes here..."
+                placeholderTextColor="#94A3B8"
+                value={enteredText}
+                onChangeText={setEnteredText}
+                multiline
+                numberOfLines={5}
+              />
+            </View>
 
-            {/* Enter Text */}
-            <TextInput
-              style={[styles.cleanInputField, styles.cleanInputArea]}
-              placeholder="Enter Text"
-              placeholderTextColor="#94A3B8"
-              value={enteredText}
-              onChangeText={setEnteredText}
-              multiline
-              numberOfLines={4}
-            />
-
-            {/* Save Button */}
+            {/* 5. Save Button */}
             <TouchableOpacity
               style={styles.cleanSaveBtn}
               onPress={handleSaveUploadedRecord}
@@ -725,14 +804,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'documents' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.backRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={20} color={C.textMain} />
-              <Text style={styles.backText}>At your Fingertip</Text>
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.subPageTitle}>My Documents</Text>
             </TouchableOpacity>
 
             <View style={styles.titleRow}>
               <View>
-                <Text style={styles.pageTitle}>My Documents</Text>
                 <Text style={styles.pageSub}>Organized medical folders & extracted clinical records.</Text>
               </View>
               <TouchableOpacity
@@ -831,26 +909,25 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'connect' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.backRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={20} color={C.textMain} />
-              <Text style={styles.backText}>At your Fingertip</Text>
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.subPageTitle}>Connect</Text>
             </TouchableOpacity>
 
-            <Text style={styles.pageTitle}>Connect Doctors & Caretakers</Text>
             <Text style={styles.pageSub}>Authorize physicians and health proxies with cryptographic access grants.</Text>
 
             {/* Add Connection Form */}
             <View style={styles.connectFormCard}>
               <Text style={styles.formSectionHeader}>Grant New Access</Text>
               <TextInput
-                style={styles.inputField}
+                style={styles.cleanInputField}
                 placeholder="Doctor or Caretaker Name"
                 placeholderTextColor="#94A3B8"
                 value={newDoctorName}
                 onChangeText={setNewDoctorName}
               />
               <TextInput
-                style={[styles.inputField, { marginTop: 10 }]}
+                style={[styles.cleanInputField, { marginTop: 10 }]}
                 placeholder="Clinic or Relationship (e.g. Metro Hospital)"
                 placeholderTextColor="#94A3B8"
                 value={newClinicName}
@@ -869,7 +946,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               </View>
 
               <TouchableOpacity
-                style={styles.geminiBtn}
+                style={styles.cleanSaveBtn}
                 onPress={() => {
                   if (!newDoctorName.trim()) {
                     showToastMsg('Please enter a name');
@@ -892,12 +969,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               >
                 <LinearGradient
                   colors={[C.purple, '#6D28D9']}
-                  style={styles.gradientBtnInner}
+                  style={styles.cleanSaveBtnGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
                   <IconStethoscope size={18} color="white" />
-                  <Text style={styles.btnTextWhite}>Authorize Connection</Text>
+                  <Text style={styles.cleanSaveBtnText}>Authorize Connection</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -935,12 +1012,11 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'pdf-report' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.backRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={20} color={C.textMain} />
-              <Text style={styles.backText}>At your Fingertip</Text>
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.subPageTitle}>PDF Report</Text>
             </TouchableOpacity>
 
-            <Text style={styles.pageTitle}>Consolidated Medical Report</Text>
             <Text style={styles.pageSub}>Official MediVault ISO-standard PDF 1.4 clinical summary.</Text>
 
             {/* Report Card Preview */}
@@ -1013,12 +1089,11 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'chatbot' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.backRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={20} color={C.textMain} />
-              <Text style={styles.backText}>At your Fingertip</Text>
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.subPageTitle}>Chat Bot</Text>
             </TouchableOpacity>
 
-            <Text style={styles.pageTitle}>Medical AI Chat Bot</Text>
             <Text style={styles.pageSub}>Ask questions about your uploaded medical records, medications, and labs.</Text>
 
             {/* Quick Prompt Chips */}
@@ -1072,6 +1147,135 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
             </View>
           </View>
         )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 7: PROFILE & SETTINGS (DEDICATED FULL PAGE)                   */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'profile' && (
+          <View style={styles.viewSection}>
+            {/* Top Left: Profile */}
+            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.subPageTitle}>Profile</Text>
+            </TouchableOpacity>
+
+            {/* 1. Change Photo (from Gallery or Camera) */}
+            <View style={styles.profileAvatarCard}>
+              <View style={styles.profileAvatarLarge}>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.profileAvatarImg} />
+                ) : (
+                  <Text style={styles.profileAvatarInitials}>
+                    {patientInfo.name ? patientInfo.name.substring(0, 2).toUpperCase() : 'MA'}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.changePhotoBtnRow}>
+                <TouchableOpacity
+                  style={styles.changePhotoBtn}
+                  onPress={handlePickAvatar}
+                  activeOpacity={0.8}
+                >
+                  <IconUpload size={14} color={C.blue} />
+                  <Text style={styles.changePhotoBtnText}>Gallery</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.changePhotoBtn, { backgroundColor: C.greenBg, borderColor: C.greenBorder }]}
+                  onPress={handleCaptureCamera}
+                  activeOpacity={0.8}
+                >
+                  <IconCamera size={14} color={C.green} />
+                  <Text style={[styles.changePhotoBtnText, { color: C.green }]}>Camera</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 2. Name */}
+            <View style={styles.uploadFieldWrap}>
+              <Text style={styles.cleanFieldLabel}>NAME</Text>
+              <TextInput
+                style={styles.cleanInputField}
+                placeholder="Full Name"
+                placeholderTextColor="#94A3B8"
+                value={patientInfo.name}
+                onChangeText={(val) => setPatientInfo({ ...patientInfo, name: val })}
+              />
+            </View>
+
+            {/* 3. Settings: Notification & Biometric Lock */}
+            <View style={styles.uploadFieldWrap}>
+              <Text style={styles.cleanFieldLabel}>SETTINGS</Text>
+
+              <View style={styles.settingCard}>
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingItemTitle}>Notifications</Text>
+                    <Text style={styles.settingItemSub}>Alerts for lab results & doctor updates</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.cleanToggle, settings.notifications && styles.cleanToggleActive]}
+                    onPress={() => setSettings({ ...settings, notifications: !settings.notifications })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.cleanToggleKnob, settings.notifications && styles.cleanToggleKnobActive]} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingItemTitle}>Biometric Lock</Text>
+                    <Text style={styles.settingItemSub}>Fingerprint / FaceID security</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.cleanToggle, settings.biometrics && styles.cleanToggleActive]}
+                    onPress={() => setSettings({ ...settings, biometrics: !settings.biometrics })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.cleanToggleKnob, settings.biometrics && styles.cleanToggleKnobActive]} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Save Changes Button */}
+            <TouchableOpacity
+              style={styles.cleanSaveBtn}
+              onPress={() => showToastMsg('Changes saved successfully!')}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[C.green, C.greenDark]}
+                style={styles.cleanSaveBtnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.cleanSaveBtnText}>Save Changes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* 4. Below: Sign Out & Delete Account */}
+            <View style={styles.profileActionGroup}>
+              <TouchableOpacity
+                style={styles.pageSignOutBtn}
+                onPress={onSignOut}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.pageSignOutBtnText}>Sign Out</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.pageDeleteBtn}
+                onPress={() => setShowDeleteModal(true)}
+                activeOpacity={0.8}
+              >
+                <IconTrash size={16} color={C.red} />
+                <Text style={styles.pageDeleteBtnText}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION BAR ────────────────────────────────────────── */}
@@ -1102,157 +1306,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
         <TouchableOpacity
           style={styles.bottomNavItem}
-          onPress={() => setShowProfileModal(true)}
+          onPress={() => setActiveTab('profile')}
         >
-          <IconUser size={22} color={C.textSub} />
-          <Text style={styles.bottomNavText}>Profile</Text>
+          <IconUser size={22} color={activeTab === 'profile' ? C.green : C.textSub} />
+          <Text style={[styles.bottomNavText, activeTab === 'profile' && styles.bottomNavTextActive]}>Profile</Text>
         </TouchableOpacity>
       </View>
-
-      {/* ── PROFILE & SETTINGS MODAL ─────────────────────────────────────── */}
-      <Modal visible={showProfileModal} transparent animationType="slide" onRequestClose={() => setShowProfileModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Patient Profile & Settings</Text>
-              <TouchableOpacity onPress={() => setShowProfileModal(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Profile Avatar */}
-              <View style={styles.profileModalAvatarSection}>
-                <View style={styles.modalAvatarCircle}>
-                  <Text style={styles.modalAvatarInitials}>MA</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.updatePhotoBtn}
-                  onPress={() => showToastMsg('Photo upload feature enabled')}
-                >
-                  <Text style={styles.updatePhotoBtnText}>Change Photo</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Editable Name */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Patient Full Name</Text>
-                <TextInput
-                  style={styles.inputField}
-                  value={patientInfo.name}
-                  onChangeText={(val) => setPatientInfo({ ...patientInfo, name: val })}
-                />
-              </View>
-
-              <View style={styles.infoGridRow}>
-                <View style={styles.infoGridCol}>
-                  <Text style={styles.infoLabel}>Vault ID</Text>
-                  <Text style={styles.infoVal}>{patientInfo.vaultId}</Text>
-                </View>
-                <View style={styles.infoGridCol}>
-                  <Text style={styles.infoLabel}>Blood Group</Text>
-                  <Text style={[styles.infoVal, { color: C.red }]}>{patientInfo.bloodType}</Text>
-                </View>
-              </View>
-
-              <View style={[styles.infoGridRow, { marginTop: 12 }]}>
-                <View style={styles.infoGridCol}>
-                  <Text style={styles.infoLabel}>Emergency Contact</Text>
-                  <Text style={styles.infoVal}>{patientInfo.emergencyContact}</Text>
-                </View>
-                <View style={styles.infoGridCol}>
-                  <Text style={styles.infoLabel}>Primary Hospital</Text>
-                  <Text style={styles.infoVal}>{patientInfo.primaryHospital}</Text>
-                </View>
-              </View>
-
-              {/* Basic Settings */}
-              <Text style={[styles.subHeading, { marginTop: 20, marginBottom: 10 }]}>Basic Settings</Text>
-
-              <View style={styles.settingToggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingTitle}>Biometric Lock</Text>
-                  <Text style={styles.settingSub}>FaceID / Fingerprint security</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, settings.biometrics && styles.toggleBtnActive]}
-                  onPress={() => setSettings({ ...settings, biometrics: !settings.biometrics })}
-                >
-                  <View style={[styles.toggleThumb, settings.biometrics && styles.toggleThumbActive]} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.settingToggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingTitle}>Sovereign AES-256 GCM</Text>
-                  <Text style={styles.settingSub}>Hardware-backed vault keys</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, settings.sovereignEncryption && styles.toggleBtnActive]}
-                  onPress={() => setSettings({ ...settings, sovereignEncryption: !settings.sovereignEncryption })}
-                >
-                  <View style={[styles.toggleThumb, settings.sovereignEncryption && styles.toggleThumbActive]} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.settingToggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingTitle}>Auto Gemini Extraction</Text>
-                  <Text style={styles.settingSub}>Extract clinical JSON automatically</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, settings.autoGeminiExtract && styles.toggleBtnActive]}
-                  onPress={() => setSettings({ ...settings, autoGeminiExtract: !settings.autoGeminiExtract })}
-                >
-                  <View style={[styles.toggleThumb, settings.autoGeminiExtract && styles.toggleThumbActive]} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Save Profile Button */}
-              <TouchableOpacity
-                style={[styles.geminiBtn, { marginTop: 16 }]}
-                onPress={() => {
-                  showToastMsg('Profile settings saved successfully');
-                  setShowProfileModal(false);
-                }}
-              >
-                <LinearGradient
-                  colors={[C.green, C.greenDark]}
-                  style={styles.gradientBtnInner}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.btnTextWhite}>Save Changes</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Danger Zone: Sign Out & Delete Account */}
-              <View style={styles.dangerZone}>
-                <TouchableOpacity
-                  style={styles.signOutBtn}
-                  onPress={() => {
-                    setShowProfileModal(false);
-                    onSignOut();
-                  }}
-                >
-                  <Text style={styles.signOutBtnText}>Sign Out of Patient Portal</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.deleteAccountBtn}
-                  onPress={() => {
-                    setShowProfileModal(false);
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  <IconTrash size={16} color={C.red} />
-                  <Text style={styles.deleteAccountBtnText}>Delete Sovereign Account</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── QR CODE MODAL (SCAN GIVES PDF) ───────────────────────────────── */}
       <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
@@ -1271,7 +1330,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
             <View style={styles.qrSvgWrap}>
               <Svg width={180} height={180} viewBox="0 0 100 100">
                 <Rect x="0" y="0" width="100" height="100" fill="white" />
-                {/* Outer corners */}
                 <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
                 <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
                 <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
@@ -1284,7 +1342,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
                 <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
 
-                {/* Inner Pattern Elements */}
                 <Rect x="42" y="8" width="6" height="18" fill="#16A34A" />
                 <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
                 <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
@@ -1390,9 +1447,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.fieldLabel}>Folder Name</Text>
+            <Text style={styles.cleanFieldLabel}>FOLDER NAME</Text>
             <TextInput
-              style={styles.inputField}
+              style={styles.cleanInputField}
               placeholder="e.g. Dermatology & Skin Scans"
               placeholderTextColor="#94A3B8"
               value={newFolderName}
@@ -1400,7 +1457,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
             />
 
             <TouchableOpacity
-              style={[styles.geminiBtn, { marginTop: 16 }]}
+              style={[styles.cleanSaveBtn, { marginTop: 16 }]}
               onPress={() => {
                 if (!newFolderName.trim()) {
                   showToastMsg('Please enter a folder name');
@@ -1418,12 +1475,12 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
             >
               <LinearGradient
                 colors={[C.blue, '#1D4ED8']}
-                style={styles.gradientBtnInner}
+                style={styles.cleanSaveBtnGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
                 <IconPlus size={18} color="white" />
-                <Text style={styles.btnTextWhite}>Create Folder</Text>
+                <Text style={styles.cleanSaveBtnText}>Create Folder</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -1461,7 +1518,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 </View>
               )}
 
-              <Text style={[styles.findingHeading, { marginTop: 14 }]}>Raw Schema v2 Payload</Text>
+              <Text style={[styles.findingHeading, { marginTop: 14 }]}>Raw Schema Payload</Text>
               <ScrollView style={styles.rawJsonBox} horizontal>
                 <Text style={styles.rawJsonCode}>
                   {JSON.stringify(selectedJsonModal, null, 2)}
@@ -1517,7 +1574,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   );
 }
 
-// ─── STYLES (CLEAN, MODERN & ACCORDING TO REFERENCE) ──────────────────────────
+// ─── STYLES (CLEAN, MINIMAL & SLEEK) ──────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -1576,27 +1633,6 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
     backgroundColor: C.red,
-  },
-  profileAvatarBtn: {
-    padding: 2,
-  },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: C.blue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: C.blue,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  avatarInitials: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '800',
   },
 
   /* Scrollable Area */
@@ -1749,28 +1785,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Sub-view Common Header */
-  backRow: {
+  /* Sub-page Header */
+  subPageHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 20,
+    marginTop: 4,
   },
-  backText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: C.textMain,
-  },
-  pageTitle: {
+  subPageTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: C.textMain,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   pageSub: {
     fontSize: 13,
     color: C.textSub,
-    marginTop: 3,
     marginBottom: 16,
     lineHeight: 18,
   },
@@ -1781,256 +1812,305 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  /* Dropzone */
-  dropzoneCard: {
+  /* Upload Fields & Boxes */
+  uploadFieldWrap: {
+    marginBottom: 16,
+  },
+  cleanFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.textSub,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  cleanInputField: {
     backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 14,
+    color: C.textMain,
+  },
+  cleanInputArea: {
+    minHeight: 110,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+
+  /* Dual Choose File & Camera Card */
+  chooseFileDualCard: {
+    flexDirection: 'row',
+    backgroundColor: C.white,
+    borderRadius: 16,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: C.border,
-    borderRadius: 18,
-    padding: 22,
+    overflow: 'hidden',
+  },
+  chooseFileActionBtn: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
   },
-  dropzoneCardSelected: {
-    borderColor: C.green,
+  dualCardDivider: {
+    width: 1,
+    backgroundColor: C.border,
+    marginVertical: 14,
+  },
+  chooseFileActionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: C.greenBg,
-  },
-  dropzoneIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  dropzoneTitle: {
+  chooseFileActionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: C.textMain,
-    textAlign: 'center',
   },
-  dropzoneSub: {
-    fontSize: 11.5,
-    color: C.textSub,
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  changeFilePill: {
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.green,
-  },
-  changeFilePillText: {
+  chooseFileActionSub: {
     fontSize: 11,
-    fontWeight: '700',
-    color: C.green,
-  },
-
-  /* Forms */
-  formGroup: {
-    marginBottom: 14,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
     color: C.textSub,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 6,
-  },
-  inputField: {
-    backgroundColor: C.white,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 13.5,
-    color: C.textMain,
-  },
-  folderChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  folderChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  folderChipActive: {
-    backgroundColor: C.greenBg,
-    borderColor: C.green,
-  },
-  folderChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.textSub,
-  },
-  folderChipTextActive: {
-    color: C.green,
-    fontWeight: '700',
-  },
-
-  /* Gemini Button */
-  geminiBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  gradientBtnInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-  },
-  btnTextWhite: {
-    color: 'white',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  extractingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FEFCE8',
-    borderColor: '#FEF08A',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 8,
-  },
-  extractingText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#854D0E',
-  },
-  extractingSubText: {
-    fontSize: 11,
-    color: '#A16207',
     marginTop: 2,
   },
-  secondarySaveBtn: {
+
+  /* Selected File Badge */
+  selectedFileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.greenBg,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: C.greenBorder,
+  },
+  selectedFileIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.green,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 11,
-    marginTop: 10,
-    borderRadius: 10,
+  },
+  selectedFileName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  selectedFileSize: {
+    fontSize: 11,
+    color: C.greenDark,
+    marginTop: 2,
+  },
+  removeFileBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
   },
-  secondarySaveBtnText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: C.textSub,
+  removeFileBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: C.textMain,
   },
 
-  /* Extracted Findings Card */
-  extractedCard: {
-    backgroundColor: '#FFFDF9',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    padding: 16,
-    marginTop: 16,
-  },
-  extractedHeaderRow: {
+  /* Minimal Divider */
+  dividerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  extractedTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: C.textMain,
-  },
-  confidencePill: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  confidenceText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: C.amber,
-  },
-  extractedSummaryText: {
-    fontSize: 12,
-    color: C.textMain,
-    lineHeight: 18,
-    backgroundColor: C.white,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FEF08A',
-    marginBottom: 12,
-  },
-  findingsGrid: {
-    flexDirection: 'row',
+    marginVertical: 16,
     gap: 12,
   },
-  findingCol: {
+  dividerLine: {
     flex: 1,
+    height: 1,
+    backgroundColor: C.border,
   },
-  findingHeading: {
+  dividerPill: {
+    backgroundColor: C.bg,
+    paddingHorizontal: 10,
+  },
+  dividerPillText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: C.textSub,
-    textTransform: 'uppercase',
-    marginBottom: 6,
+    letterSpacing: 0.5,
   },
-  findingItemPill: {
-    backgroundColor: C.white,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginBottom: 4,
+
+  /* Clean Save Button */
+  cleanSaveBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 6,
+    shadowColor: C.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  findingItemText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: C.textMain,
-  },
-  toggleRawJsonBtn: {
+  cleanSaveBtnGradient: {
     alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: 10,
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
-  toggleRawJsonText: {
+  cleanSaveBtnText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  /* Profile Page Specific Styles */
+  profileAvatarCard: {
+    alignItems: 'center',
+    backgroundColor: C.white,
+    borderRadius: 18,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: C.borderLight,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  profileAvatarLarge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: C.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: C.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 42,
+  },
+  profileAvatarInitials: {
+    color: 'white',
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  changePhotoBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  changePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: C.blueBg,
+    borderWidth: 1,
+    borderColor: C.blueBorder,
+  },
+  changePhotoBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: C.blue,
   },
-  rawJsonBox: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 10,
-    maxHeight: 160,
+
+  /* Settings Toggles */
+  settingCard: {
+    backgroundColor: C.white,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    paddingHorizontal: 16,
   },
-  rawJsonCode: {
-    color: '#38BDF8',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 11,
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  settingItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  settingItemSub: {
+    fontSize: 11.5,
+    color: C.textSub,
+    marginTop: 2,
+  },
+  cleanToggle: {
+    width: 46,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#CBD5E1',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  cleanToggleActive: {
+    backgroundColor: C.green,
+  },
+  cleanToggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'white',
+  },
+  cleanToggleKnobActive: {
+    alignSelf: 'flex-end',
   },
 
-  /* Search & Folder filters */
+  /* Profile Actions */
+  profileActionGroup: {
+    marginTop: 20,
+    gap: 10,
+  },
+  pageSignOutBtn: {
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.border,
+  },
+  pageSignOutBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  pageDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: C.redBg,
+    borderWidth: 1,
+    borderColor: C.redBorder,
+  },
+  pageDeleteBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.red,
+  },
+
+  /* Documents & Folders */
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2331,6 +2411,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
+  gradientBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  btnTextWhite: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   /* Chat Bot */
   chipScroll: {
@@ -2479,129 +2572,19 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     padding: 4,
   },
-  profileModalAvatarSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalAvatarCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: C.blue,
+  secondarySaveBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-  },
-  modalAvatarInitials: {
-    color: 'white',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  updatePhotoBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: C.blueBg,
-  },
-  updatePhotoBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: C.blue,
-  },
-  infoGridRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  infoGridCol: {
-    flex: 1,
-    backgroundColor: C.bg,
-    padding: 10,
-    borderRadius: 10,
-  },
-  infoLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: C.textSub,
-    textTransform: 'uppercase',
-  },
-  infoVal: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.textMain,
-    marginTop: 2,
-  },
-  settingToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  settingTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.textMain,
-  },
-  settingSub: {
-    fontSize: 11,
-    color: C.textSub,
-    marginTop: 1,
-  },
-  toggleBtn: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#CBD5E1',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleBtnActive: {
-    backgroundColor: C.green,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'white',
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
-  dangerZone: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    gap: 10,
-  },
-  signOutBtn: {
-    alignItems: 'center',
     paddingVertical: 11,
     borderRadius: 10,
     backgroundColor: C.bg,
     borderWidth: 1,
     borderColor: C.border,
   },
-  signOutBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.textMain,
-  },
-  deleteAccountBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: C.redBg,
-    borderWidth: 1,
-    borderColor: C.redBorder,
-  },
-  deleteAccountBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.red,
+  secondarySaveBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: C.textSub,
   },
 
   /* QR Modal Specific */
@@ -2696,7 +2679,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  /* Delete Modal Specific */
+  /* Delete Modal */
   deleteModalIcon: {
     width: 56,
     height: 56,
@@ -2708,6 +2691,22 @@ const styles = StyleSheet.create({
   },
 
   /* JSON Viewer */
+  extractedSummaryText: {
+    fontSize: 12,
+    color: C.textMain,
+    lineHeight: 18,
+    backgroundColor: C.bg,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  findingHeading: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.textSub,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
   jsonLabRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2724,6 +2723,17 @@ const styles = StyleSheet.create({
   jsonLabVal: {
     fontSize: 12,
     color: C.textSub,
+  },
+  rawJsonBox: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 10,
+    maxHeight: 160,
+  },
+  rawJsonCode: {
+    color: '#38BDF8',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
   },
 
   /* Toast */
@@ -2744,81 +2754,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     zIndex: 999,
-  },
-  uploadTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-    marginTop: 6,
-  },
-  uploadTopTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: C.textMain,
-    letterSpacing: -0.3,
-  },
-  chooseFileBox: {
-    backgroundColor: C.white,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: C.border,
-    borderRadius: 18,
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  chooseFileBoxSelected: {
-    borderColor: C.green,
-    backgroundColor: C.greenBg,
-  },
-  chooseFileIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  chooseFileTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.textMain,
-    textAlign: 'center',
-  },
-  cleanInputField: {
-    backgroundColor: C.white,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 14,
-    color: C.textMain,
-    marginBottom: 14,
-  },
-  cleanInputArea: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-    paddingTop: 12,
-  },
-  cleanSaveBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  cleanSaveBtnGradient: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  cleanSaveBtnText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '800',
   },
   toastText: {
     color: 'white',
