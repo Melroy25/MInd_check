@@ -310,6 +310,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   // Upload State
   const [pickedFile, setPickedFile] = useState(null);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [enteredText, setEnteredText] = useState('');
   const [uploadDoctor, setUploadDoctor] = useState('');
   const [targetFolder, setTargetFolder] = useState('cardio');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -381,51 +382,78 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     }
   };
 
-  const handleSaveUploadedRecord = () => {
-    const title = uploadTitle.trim() || (pickedFile ? pickedFile.name : 'Medical Record');
-    const doctor = uploadDoctor.trim() || 'Self-Uploaded';
-    const folderId = targetFolder;
+  const handleSaveUploadedRecord = async () => {
+    const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Medical Note' : 'Medical Record'));
     const now = 'Just now';
+
+    if (!pickedFile && !enteredText.trim() && !uploadTitle.trim()) {
+      showToastMsg('Please choose a file or enter text');
+      return;
+    }
+
+    setIsExtracting(true);
+    let extractedData = null;
+
+    try {
+      if (pickedFile || enteredText.trim()) {
+        const extraction = await extractMedicalDocument({
+          file: pickedFile,
+          fileName: pickedFile ? pickedFile.name : `${title}.pdf`,
+          mimeType: pickedFile ? pickedFile.mimeType : 'text/plain',
+          base64Data: pickedFile ? pickedFile.base64 : null,
+          rawText: enteredText.trim() || `Document: ${title}. Verified sovereign record.`,
+        });
+        if (extraction && extraction.structured_data) {
+          extractedData = extraction.structured_data;
+        }
+      }
+    } catch (err) {
+      console.warn('Extraction notice:', err);
+    } finally {
+      setIsExtracting(false);
+    }
 
     const newDoc = {
       id: String(Date.now()),
       name: title,
-      folder: folderId,
-      type: pickedFile?.type === 'image' ? 'IMG' : 'PDF',
-      size: pickedFile?.size ? `${(pickedFile.size / (1024 * 1024)).toFixed(1)} MB` : '1.8 MB',
+      folder: 'labs',
+      type: pickedFile?.type === 'image' ? 'IMG' : (pickedFile ? 'PDF' : 'DOC'),
+      size: pickedFile?.size ? `${(pickedFile.size / 1024).toFixed(0)} KB` : '1.4 KB',
       date: now,
-      doctor: doctor,
-      tags: ['Sovereign Vault', 'Self-Uploaded'],
+      doctor: 'Self-Uploaded',
+      tags: ['Sovereign Vault'],
       fileBlob: pickedFile?.fileBlob || null,
+      notes: enteredText.trim(),
     };
 
     let newJsonDoc = null;
-    if (extractedResult) {
+    if (extractedData) {
       newJsonDoc = {
         id: `${newDoc.id}-json`,
         name: `${title} (Structured JSON)`,
-        folder: folderId,
+        folder: 'labs',
         type: 'JSON',
         size: '12.4 KB',
         date: now,
-        doctor: doctor,
-        tags: ['Gemini Extracted', 'Schema v2'],
-        extractedData: extractedResult.structured_data,
+        doctor: 'Gemini AI',
+        tags: ['Gemini Extracted'],
+        extractedData: extractedData,
       };
     }
 
     setFiles((prev) => [newDoc, ...(newJsonDoc ? [newJsonDoc] : []), ...prev]);
     setFolders((prev) =>
-      prev.map((f) => (f.id === folderId ? { ...f, count: f.count + (newJsonDoc ? 2 : 1), date: 'Just now' } : f))
+      prev.map((f) => (f.id === 'labs' ? { ...f, count: f.count + (newJsonDoc ? 2 : 1), date: 'Just now' } : f))
     );
 
     // Reset upload form
     setPickedFile(null);
     setUploadTitle('');
+    setEnteredText('');
     setUploadDoctor('');
     setExtractedResult(null);
 
-    showToastMsg('Saved record & structured JSON to My Documents!');
+    showToastMsg('Saved successfully!');
     setActiveTab('documents');
   };
 
@@ -512,45 +540,47 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
   return (
     <View style={styles.root}>
-      {/* ── TOP HEADER (CURVED PASTEL ACCENT) ─────────────────────────────── */}
-      <LinearGradient
-        colors={['#E8EEF9', '#F4F7FC', '#F8FAFC']}
-        style={styles.topCurveContainer}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
-        <View style={styles.topHeaderInner}>
-          {/* Greeting Typography */}
-          <View>
-            <Text style={styles.greetingSmall}>Hello,</Text>
-            <Text style={styles.greetingName}>{patientInfo.name}</Text>
-          </View>
+      {/* ── TOP HEADER (ONLY ON HOME DASHBOARD) ─────────────────────────── */}
+      {activeTab === 'home' && (
+        <LinearGradient
+          colors={['#E8EEF9', '#F4F7FC', '#F8FAFC']}
+          style={styles.topCurveContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
+          <View style={styles.topHeaderInner}>
+            {/* Greeting Typography */}
+            <View>
+              <Text style={styles.greetingSmall}>Hello,</Text>
+              <Text style={styles.greetingName}>{patientInfo.name}</Text>
+            </View>
 
-          {/* Top Right Actions */}
-          <View style={styles.topRightActions}>
-            {/* 1. QR Code Button (Scan gives emergency PDF) */}
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              onPress={() => setShowQrModal(true)}
-              activeOpacity={0.75}
-              accessibilityLabel="Scan Medical QR"
-            >
-              <IconQrCode size={22} color={C.textMain} />
-            </TouchableOpacity>
+            {/* Top Right Actions */}
+            <View style={styles.topRightActions}>
+              {/* 1. QR Code Button (Scan gives emergency PDF) */}
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => setShowQrModal(true)}
+                activeOpacity={0.75}
+                accessibilityLabel="Scan Medical QR"
+              >
+                <IconQrCode size={22} color={C.textMain} />
+              </TouchableOpacity>
 
-            {/* 2. Notifications Bell with Dot */}
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              onPress={() => setShowNotificationsModal(true)}
-              activeOpacity={0.75}
-              accessibilityLabel="Notifications"
-            >
-              <IconBell size={22} color={C.textMain} />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
+              {/* 2. Notifications Bell with Dot */}
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => setShowNotificationsModal(true)}
+                activeOpacity={0.75}
+                accessibilityLabel="Notifications"
+              >
+                <IconBell size={22} color={C.textMain} />
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      )}
 
       {/* ── MAIN CONTENT AREA ────────────────────────────────────────────── */}
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -623,188 +653,70 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 2: UPLOAD MEDICAL RECORD & EXTRACT                            */}
+        {/* VIEW 2: UPLOAD (SIMPLE & CLEAN)                                    */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'upload' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.backRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={20} color={C.textMain} />
-              <Text style={styles.backText}>At your Fingertip</Text>
+            {/* Top Left: Upload */}
+            <TouchableOpacity style={styles.uploadTopRow} onPress={() => setActiveTab('home')}>
+              <IconArrowLeft size={22} color={C.textMain} />
+              <Text style={styles.uploadTopTitle}>Upload</Text>
             </TouchableOpacity>
 
-            <Text style={styles.pageTitle}>Upload Medical Record</Text>
-            <Text style={styles.pageSub}>Upload lab reports or prescriptions. Google Gemini extracts clinical JSON with verbatim evidence.</Text>
-
-            {/* Dropzone File Picker */}
+            {/* Choose File Box */}
             <TouchableOpacity
-              style={[styles.dropzoneCard, pickedFile && styles.dropzoneCardSelected]}
+              style={[styles.chooseFileBox, pickedFile && styles.chooseFileBoxSelected]}
               onPress={handlePickDocument}
               activeOpacity={0.8}
             >
-              <View style={styles.dropzoneIconCircle}>
+              <View style={styles.chooseFileIconCircle}>
                 <IconUpload size={28} color={pickedFile ? C.green : C.textSub} />
               </View>
-              <Text style={styles.dropzoneTitle}>
-                {pickedFile ? pickedFile.name : 'Choose File / Browse Scans or PDFs'}
+              <Text style={styles.chooseFileTitle}>
+                {pickedFile ? pickedFile.name : 'Choose File'}
               </Text>
-              <Text style={styles.dropzoneSub}>
-                {pickedFile ? `${(pickedFile.size / 1024).toFixed(0)} KB · Ready to extract` : 'PDF, JPG, PNG, WEBP, DICOM, or DOCX up to 50MB'}
-              </Text>
-              {pickedFile && (
-                <View style={styles.changeFilePill}>
-                  <Text style={styles.changeFilePillText}>Change Document</Text>
-                </View>
-              )}
             </TouchableOpacity>
 
-            {/* Form Fields */}
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>Document Title</Text>
-              <TextInput
-                style={styles.inputField}
-                placeholder="e.g. Comprehensive Metabolic Panel"
-                placeholderTextColor="#94A3B8"
-                value={uploadTitle}
-                onChangeText={setUploadTitle}
-              />
-            </View>
+            {/* Document Title */}
+            <TextInput
+              style={styles.cleanInputField}
+              placeholder="Document Title"
+              placeholderTextColor="#94A3B8"
+              value={uploadTitle}
+              onChangeText={setUploadTitle}
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>Physician or Diagnostic Center</Text>
-              <TextInput
-                style={styles.inputField}
-                placeholder="e.g. Dr. Sarah Jenkins / Metro Diagnostics"
-                placeholderTextColor="#94A3B8"
-                value={uploadDoctor}
-                onChangeText={setUploadDoctor}
-              />
-            </View>
+            {/* Enter Text */}
+            <TextInput
+              style={[styles.cleanInputField, styles.cleanInputArea]}
+              placeholder="Enter Text"
+              placeholderTextColor="#94A3B8"
+              value={enteredText}
+              onChangeText={setEnteredText}
+              multiline
+              numberOfLines={4}
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>Save As Folder</Text>
-              <View style={styles.folderChipRow}>
-                {folders.map((f) => (
-                  <TouchableOpacity
-                    key={f.id}
-                    style={[styles.folderChip, targetFolder === f.id && styles.folderChipActive]}
-                    onPress={() => setTargetFolder(f.id)}
-                  >
-                    <Text style={[styles.folderChipText, targetFolder === f.id && styles.folderChipTextActive]}>
-                      {f.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Gemini Extraction Button */}
-            {isExtracting ? (
-              <View style={styles.extractingIndicator}>
-                <ActivityIndicator color={C.green} size="small" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.extractingText}>Extracting with Google Gemini AI...</Text>
-                  <Text style={styles.extractingSubText}>{extractionProgress}</Text>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.geminiBtn}
-                onPress={handleExtractWithGemini}
-                activeOpacity={0.8}
+            {/* Save Button */}
+            <TouchableOpacity
+              style={styles.cleanSaveBtn}
+              onPress={handleSaveUploadedRecord}
+              activeOpacity={0.8}
+              disabled={isExtracting}
+            >
+              <LinearGradient
+                colors={[C.green, C.greenDark]}
+                style={styles.cleanSaveBtnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
-                <LinearGradient
-                  colors={[C.green, C.greenDark]}
-                  style={styles.gradientBtnInner}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <IconShield size={18} color="white" />
-                  <Text style={styles.btnTextWhite}>Extract with Google Gemini AI</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-
-            {/* Extracted JSON Review Card */}
-            {extractedResult && (
-              <View style={styles.extractedCard}>
-                <View style={styles.extractedHeaderRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <IconJson size={18} color={C.amber} />
-                    <Text style={styles.extractedTitle}>Extracted Clinical Findings</Text>
-                  </View>
-                  <View style={styles.confidencePill}>
-                    <Text style={styles.confidenceText}>
-                      Confidence: {Math.round((extractedResult.confidence_score || 0.96) * 100)}%
-                    </Text>
-                  </View>
-                </View>
-
-                {extractedResult.summary && (
-                  <Text style={styles.extractedSummaryText}>{extractedResult.summary}</Text>
+                {isExtracting ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <Text style={styles.cleanSaveBtnText}>Save</Text>
                 )}
-
-                <View style={styles.findingsGrid}>
-                  <View style={styles.findingCol}>
-                    <Text style={styles.findingHeading}>Conditions ({extractedResult.conditions_count})</Text>
-                    {extractedResult.conditions?.map((c, idx) => (
-                      <View key={idx} style={styles.findingItemPill}>
-                        <Text style={styles.findingItemText}>{c.name || c}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.findingCol}>
-                    <Text style={styles.findingHeading}>Medications ({extractedResult.medications_count})</Text>
-                    {extractedResult.medications?.map((m, idx) => (
-                      <View key={idx} style={styles.findingItemPill}>
-                        <Text style={styles.findingItemText}>{m.name || m} {m.dose_raw ? `(${m.dose_raw})` : ''}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Raw JSON Toggle */}
-                <TouchableOpacity
-                  style={styles.toggleRawJsonBtn}
-                  onPress={() => setShowRawJson(!showRawJson)}
-                >
-                  <Text style={styles.toggleRawJsonText}>{showRawJson ? 'Hide Raw JSON ▲' : 'View Extracted JSON ▼'}</Text>
-                </TouchableOpacity>
-
-                {showRawJson && (
-                  <ScrollView style={styles.rawJsonBox} horizontal>
-                    <Text style={styles.rawJsonCode}>
-                      {JSON.stringify(extractedResult.structured_data, null, 2)}
-                    </Text>
-                  </ScrollView>
-                )}
-
-                {/* Save to Folder Button */}
-                <TouchableOpacity
-                  style={[styles.geminiBtn, { marginTop: 14 }]}
-                  onPress={handleSaveUploadedRecord}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#2563EB', '#1D4ED8']}
-                    style={styles.gradientBtnInner}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <IconFolder size={18} color="white" />
-                    <Text style={styles.btnTextWhite}>Save Record & JSON to Folder</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {!extractedResult && !isExtracting && (
-              <TouchableOpacity
-                style={styles.secondarySaveBtn}
-                onPress={handleSaveUploadedRecord}
-              >
-                <Text style={styles.secondarySaveBtnText}>Save Directly to Folder (Without AI Extraction)</Text>
-              </TouchableOpacity>
-            )}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -2832,6 +2744,81 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     zIndex: 999,
+  },
+  uploadTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+    marginTop: 6,
+  },
+  uploadTopTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: C.textMain,
+    letterSpacing: -0.3,
+  },
+  chooseFileBox: {
+    backgroundColor: C.white,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: C.border,
+    borderRadius: 18,
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  chooseFileBoxSelected: {
+    borderColor: C.green,
+    backgroundColor: C.greenBg,
+  },
+  chooseFileIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  chooseFileTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textMain,
+    textAlign: 'center',
+  },
+  cleanInputField: {
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 14,
+    color: C.textMain,
+    marginBottom: 14,
+  },
+  cleanInputArea: {
+    minHeight: 110,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  cleanSaveBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  cleanSaveBtnGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  cleanSaveBtnText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '800',
   },
   toastText: {
     color: 'white',
