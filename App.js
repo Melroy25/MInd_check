@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
-  StyleSheet, StatusBar, useWindowDimensions, TextInput, ActivityIndicator,
+  StyleSheet, StatusBar, useWindowDimensions, TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react-native-svg';
