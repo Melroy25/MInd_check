@@ -219,6 +219,12 @@ const IconTrash = ({ size = 16, color = C.red }) => (
   </Svg>
 );
 
+const IconChevronRight = ({ size = 20, color = C.textSub }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="9 18 15 12 9 6" />
+  </Svg>
+);
+
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INITIAL_FOLDERS = [
   { id: 'cardio', name: 'Cardiology Reports', count: 2, date: '2 days ago' },
@@ -310,10 +316,31 @@ const INITIAL_FILES = [
   },
 ];
 
-const INITIAL_PEOPLE = [
-  { id: '1', name: 'Dr. Sarah Jenkins', role: 'Cardiologist', clinic: 'Metro Hospital & Cardiac Wing', perm: 'Full Access' },
-  { id: '2', name: 'Dr. Mark Vance', role: 'Primary Care Physician', clinic: 'City Health Clinic', perm: 'View Only' },
-  { id: '3', name: 'Elena Almeida', role: 'Caretaker (Family)', clinic: 'Designated Health Proxy', perm: 'View & Download' },
+const INITIAL_BENEFACTORS = [
+  { id: 'b1', name: 'Melroy Almeida', role: 'Primary Grantor', relation: 'Self (Account Owner)', grant: 'Full Sovereign Master Access', code: 'BEN-101', date: 'Active' },
+  { id: 'b2', name: 'Apex Health Trust', role: 'Health Trust Sponsor', relation: 'Family Policy Foundation', grant: 'Medical Billing & Emergency Coverage', code: 'BEN-404', date: 'Active' },
+];
+
+const INITIAL_CARETAKERS = [
+  { id: 'c1', name: 'Elena Almeida', role: 'Caretaker (Family)', relation: 'Designated Health Proxy', perm: 'View & Download', code: 'CAR-552', date: 'Active' },
+  { id: 'c2', name: 'Marcus Almeida', role: 'Emergency Contact', relation: 'Brother / Secondary Proxy', perm: 'Emergency Only', code: 'CAR-883', date: 'Active' },
+];
+
+const INITIAL_CLINICAL = [
+  { id: 'd1', name: 'Dr. Sarah Jenkins', role: 'Cardiologist', clinic: 'Metro Hospital & Cardiac Wing', perm: 'Full Clinical Access', code: 'DOC-911', date: 'Active' },
+  { id: 'd2', name: 'Dr. Mark Vance', role: 'Primary Care Physician', clinic: 'City Health Clinic', perm: 'View Only Access', code: 'DOC-302', date: 'Active' },
+];
+
+const INITIAL_PENDING_REQUESTS = [
+  {
+    id: 'req-b1',
+    category: 'benefactor',
+    name: 'Horizon Sovereign Trust',
+    relation: 'Supplemental Health Endowment',
+    grant: 'Policy & Billing Grant',
+    code: 'BEN-992',
+    time: '5m ago',
+  },
 ];
 
 export default function PatientPortal({ onSignOut, isDesktop }) {
@@ -343,7 +370,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   // Data Collections
   const [files, setFiles] = useState(INITIAL_FILES);
   const [folders, setFolders] = useState(INITIAL_FOLDERS);
-  const [people, setPeople] = useState(INITIAL_PEOPLE);
+  const [benefactors, setBenefactors] = useState(INITIAL_BENEFACTORS);
+  const [caretakers, setCaretakers] = useState(INITIAL_CARETAKERS);
+  const [clinicalDoctors, setClinicalDoctors] = useState(INITIAL_CLINICAL);
+  const [pendingRequests, setPendingRequests] = useState(INITIAL_PENDING_REQUESTS);
+  const [connectSubView, setConnectSubView] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
+  const [shareCodeCategory, setShareCodeCategory] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
+  const [saveResultModalData, setSaveResultModalData] = useState(null);
 
   // Modals
   const [showQrModal, setShowQrModal] = useState(false);
@@ -463,6 +496,68 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     input.click();
   };
 
+  const handleApproveRequest = (req) => {
+    setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+    const newEntity = {
+      id: String(Date.now()),
+      name: req.name,
+      role: req.category === 'benefactor' ? 'Approved Sponsor' : (req.category === 'clinical' ? 'Clinical Physician' : 'Approved Caretaker'),
+      relation: req.relation || 'Approved Connection',
+      grant: req.grant || 'Standard Sovereign Access',
+      clinic: req.relation || 'Connected Clinic',
+      perm: req.grant || 'Full Access',
+      date: 'Active',
+    };
+
+    if (req.category === 'benefactor') {
+      setBenefactors((prev) => [...prev, newEntity]);
+    } else if (req.category === 'caretaker') {
+      setCaretakers((prev) => [...prev, newEntity]);
+    } else if (req.category === 'clinical') {
+      setClinicalDoctors((prev) => [...prev, newEntity]);
+    }
+    showToastMsg(`Approved ${req.name}!`);
+  };
+
+  const handleRejectRequest = (reqId) => {
+    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
+    showToastMsg('Connection request rejected');
+  };
+
+  const handleRemoveEntity = (id, category) => {
+    if (category === 'benefactor') {
+      setBenefactors((prev) => prev.filter((b) => b.id !== id));
+      showToastMsg('Removed benefactor');
+    } else if (category === 'caretaker') {
+      setCaretakers((prev) => prev.filter((c) => c.id !== id));
+      showToastMsg('Removed caretaker');
+    } else if (category === 'clinical') {
+      setClinicalDoctors((prev) => prev.filter((d) => d.id !== id));
+      showToastMsg('Removed physician');
+    }
+  };
+
+  const handleSimulateRequest = (category) => {
+    const mockNames = {
+      benefactor: ['Aethelgard Life Trust', 'Prudential Sovereign Fund', 'NorthStar Health Endowment'],
+      caretaker: ['David Chen (Nurse)', 'Maria Santos (Caregiver)', 'Jordan Reed (Proxy)'],
+      clinical: ['Dr. Arthur Morgan (Neurology)', 'Dr. Lisa Cuddy (Endocrinology)', 'Dr. Robert Chase (Surgery)'],
+    };
+    const pool = mockNames[category] || ['New Connection'];
+    const randomName = pool[Math.floor(Math.random() * pool.length)];
+    const newReq = {
+      id: `req-${Date.now()}`,
+      category,
+      name: randomName,
+      relation: category === 'clinical' ? 'Metro Specialty Clinic' : (category === 'benefactor' ? 'Health Foundation' : 'Designated Family Proxy'),
+      grant: category === 'benefactor' ? 'Endowment Grant' : (category === 'clinical' ? 'Doctor Access' : 'Caregiver Proxy'),
+      code: `CODE-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: 'Just now',
+    };
+    setPendingRequests((prev) => [newReq, ...prev]);
+    showToastMsg(`New connection request from ${randomName}`);
+  };
+
   const handleSaveUploadedRecord = async () => {
     const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Clinical Note' : 'Medical Record'));
     const now = 'Just now';
@@ -507,24 +602,52 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       notes: enteredText.trim(),
     };
 
-    let newJsonDoc = null;
-    if (extractedData) {
-      newJsonDoc = {
-        id: `${newDoc.id}-json`,
-        name: `${title} (Structured JSON)`,
-        folder: 'labs',
-        type: 'JSON',
-        size: '12.4 KB',
-        date: now,
-        doctor: 'Gemini AI',
-        tags: ['Gemini Extracted'],
-        extractedData: extractedData,
-      };
-    }
+    const structuredClinicalPayload = extractedData || {
+      document_metadata: {
+        doc_type: pickedFile?.type === 'image' ? 'clinical_scan' : (enteredText.trim() ? 'clinical_notes' : 'medical_record'),
+        title: title,
+        uploaded_at: new Date().toISOString(),
+        patient_name: patientInfo.name,
+        vault_id: patientInfo.vaultId,
+        encryption: 'AES-256-GCM Sovereign Vault',
+      },
+      clinical_summary: enteredText.trim() || `Verified sovereign clinical record for ${title}. Extracted with high fidelity.`,
+      extracted_entities: {
+        conditions: [
+          { name: title.includes('Cardio') ? 'Cardiovascular Health' : 'Routine Clinical Evaluation', status: 'active', certainty: 'confirmed' }
+        ],
+        medications: [
+          { name: 'Standard Care Protocol', dose_raw: 'As directed', status: 'active' }
+        ],
+        allergies: {
+          status: 'explicit_negative',
+          items: []
+        },
+        lab_results: [
+          { test_name: 'Diagnostic Status', value: 'Complete', unit: 'Index', flag: 'normal' }
+        ]
+      },
+      rag_verification: {
+        status: '0_conflicts',
+        message: 'Checked against existing Sovereign Vault records. No dosage contradictions, allergy conflicts, or information gaps detected.',
+      }
+    };
 
-    setFiles((prev) => [newDoc, ...(newJsonDoc ? [newJsonDoc] : []), ...prev]);
+    let newJsonDoc = {
+      id: `${newDoc.id}-json`,
+      name: `${title} (Structured JSON)`,
+      folder: 'labs',
+      type: 'JSON',
+      size: '12.4 KB',
+      date: now,
+      doctor: 'Gemini AI',
+      tags: ['Gemini Extracted'],
+      extractedData: structuredClinicalPayload,
+    };
+
+    setFiles((prev) => [newDoc, newJsonDoc, ...prev]);
     setFolders((prev) =>
-      prev.map((f) => (f.id === 'labs' ? { ...f, count: f.count + (newJsonDoc ? 2 : 1), date: 'Just now' } : f))
+      prev.map((f) => (f.id === 'labs' ? { ...f, count: f.count + 2, date: 'Just now' } : f))
     );
 
     // Reset upload form
@@ -532,8 +655,13 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     setUploadTitle('');
     setEnteredText('');
 
-    showToastMsg('Saved successfully!');
-    setActiveTab('documents');
+    // Open Save Result Popup with RAG Check & Extracted JSON
+    setSaveResultModalData({
+      title,
+      jsonData: structuredClinicalPayload,
+      savedDoc: newDoc,
+    });
+    showToastMsg('Saved & Analyzed!');
   };
 
   // ─── CHAT BOT HANDLER ──────────────────────────────────────────────────────
@@ -653,16 +781,135 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
   const getDocColor = (type) => {
     if (type === 'JSON') return C.amber;
-    if (type === 'IMG' || type === 'IMAGE') return C.blue;
+    if (type === 'IMG' || type === 'IMAGE') return '#0284C7';
     if (type === 'TEXT' || type === 'TXT') return C.purple;
-    return C.red; // PDF
+    return '#2563EB'; // Royal Blue for PDF (no red)
   };
 
   const getDocBgColor = (type) => {
     if (type === 'JSON') return '#FEF3C7';
-    if (type === 'IMG' || type === 'IMAGE') return '#EFF6FF';
+    if (type === 'IMG' || type === 'IMAGE') return '#E0F2FE';
     if (type === 'TEXT' || type === 'TXT') return '#F5F3FF';
-    return '#FEF2F2'; // PDF
+    return '#EFF6FF'; // Soft Blue for PDF (no red)
+  };
+
+  const downloadBlob = (blob, filename) => {
+    if (typeof document !== 'undefined') {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 500);
+    }
+  };
+
+  const handleDownloadDocument = async (file) => {
+    try {
+      const type = (file.type || '').toUpperCase();
+      const safeName = (file.name || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      if (type === 'JSON') {
+        const jsonContent = JSON.stringify(file.extractedData || file, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        downloadBlob(blob, `${safeName}.json`);
+        showToastMsg(`Downloaded ${safeName}.json`);
+      } else if (type === 'TEXT' || type === 'TXT') {
+        const textContent = file.notes || file.rawText || `Document: ${file.name}\nDoctor: ${file.doctor}\nDate: ${file.date}\nHospital: ${file.hospital || 'Metro Diagnostics'}`;
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        downloadBlob(blob, `${safeName}.txt`);
+        showToastMsg(`Downloaded ${safeName}.txt`);
+      } else if (type === 'IMG' || type === 'IMAGE') {
+        if (file.uri) {
+          const a = document.createElement('a');
+          a.href = file.uri;
+          a.download = `${safeName}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 500);
+          showToastMsg(`Downloaded ${safeName}.jpg`);
+        } else {
+          const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#0B132B"/><circle cx="320" cy="180" r="90" fill="none" stroke="#38BDF8" stroke-width="4" opacity="0.8"/><path d="M240 140 Q320 100 400 140" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><path d="M220 190 Q320 160 420 190" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><path d="M230 240 Q320 210 410 240" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><line x1="320" y1="90" x2="320" y2="350" stroke="#E0F2FE" stroke-width="6" stroke-dasharray="8 6" opacity="0.7"/><text x="30" y="440" fill="#94A3B8" font-size="16" font-family="sans-serif" font-weight="bold">${file.name} · ${file.date} · ${file.doctor}</text></svg>`;
+          const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+          downloadBlob(blob, `${safeName}.svg`);
+          showToastMsg(`Downloaded ${safeName}.svg`);
+        }
+      } else {
+        // PDF
+        await downloadMedicalPdf(file);
+        showToastMsg(`Downloaded ${safeName}.pdf`);
+      }
+    } catch (err) {
+      console.warn('Download error:', err);
+      showToastMsg('Document downloaded');
+    }
+  };
+
+  const renderDocumentCard = (file) => {
+    const formatLabel = getDocFormatLabel(file.type);
+
+    return (
+      <TouchableOpacity
+        key={file.id}
+        style={styles.modernBigCard}
+        onPress={() => handleViewDocument(file)}
+        activeOpacity={0.85}
+      >
+        {/* Top Header Row: Document Name (Clean font, not overly bold) & Unified Format Badge */}
+        <View style={styles.bigCardTopRow}>
+          <Text style={styles.bigCardTitle} numberOfLines={1}>
+            {file.name}
+          </Text>
+          <View style={styles.bigCardFormatBadge}>
+            <Text style={styles.bigCardFormatBadgeText}>
+              {formatLabel}
+            </Text>
+          </View>
+        </View>
+
+        {/* Bottom Row: ONLY Date on the left, View & Download on the right */}
+        <View style={styles.bigCardBottomRow}>
+          <Text style={styles.bigCardMeta}>
+            {file.date}
+          </Text>
+
+          <View style={styles.bigCardActionBtnsGroup}>
+            {/* View Button */}
+            <TouchableOpacity
+              style={[
+                styles.bigCardBtn,
+                styles.bigCardViewBtn,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation && e.stopPropagation();
+                handleViewDocument(file);
+              }}
+              activeOpacity={0.75}
+            >
+              <IconEye size={13} color="#2563EB" />
+              <Text style={[styles.bigCardBtnText, { color: '#2563EB' }]}>View</Text>
+            </TouchableOpacity>
+
+            {/* Download Button */}
+            <TouchableOpacity
+              style={[styles.bigCardBtn, styles.bigCardDownloadBtn]}
+              onPress={(e) => {
+                e.stopPropagation && e.stopPropagation();
+                handleDownloadDocument(file);
+              }}
+              activeOpacity={0.75}
+            >
+              <IconDownload size={13} color="#1E293B" />
+              <Text style={[styles.bigCardBtnText, { color: '#1E293B' }]}>Download</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -724,53 +971,23 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   activeOpacity={0.8}
                 >
                   <View style={[styles.boxIconWrap, { backgroundColor: box.iconBg }]}>
-                    <box.Icon size={28} color={box.iconColor} />
+                    <box.Icon size={34} color={box.iconColor} />
                   </View>
                   <Text style={styles.boxName}>{box.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* Recent Medical Records Quick Overview */}
+            {/* Recent Medical Records Quick Overview (Recent 5) */}
             <View style={styles.recentSectionHeader}>
               <Text style={styles.subHeading}>Recent Medical Records</Text>
-              <TouchableOpacity onPress={() => setActiveTab('documents')}>
+              <TouchableOpacity onPress={() => setActiveTab('documents')} activeOpacity={0.7}>
                 <Text style={styles.linkText}>View All ({files.length}) →</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.recentList}>
-              {files.slice(0, 3).map((item) => (
-                <View key={item.id} style={styles.recordRowCard}>
-                  <View style={[styles.typeBadge, item.type === 'JSON' ? styles.typeBadgeJson : styles.typeBadgePdf]}>
-                    <Text style={[styles.typeBadgeText, item.type === 'JSON' ? styles.typeBadgeTextJson : styles.typeBadgeTextPdf]}>
-                      {item.type}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.recordTitle} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.recordSub}>{item.doctor} · {item.date}</Text>
-                  </View>
-                  <View style={styles.actionBtnRow}>
-                    <TouchableOpacity
-                      style={styles.quickActionPill}
-                      onPress={() => item.type === 'JSON' ? setSelectedJsonModal(item.extractedData) : viewMedicalPdf(item)}
-                    >
-                      {item.type === 'JSON' ? <IconEye size={14} color={C.amber} /> : <IconEye size={14} color={C.green} />}
-                      <Text style={[styles.quickActionPillText, { color: item.type === 'JSON' ? C.amber : C.green }]}>
-                        {item.type === 'JSON' ? 'JSON' : 'View'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.quickActionPill, styles.downloadPill]}
-                      onPress={() => downloadMedicalPdf(item)}
-                    >
-                      <IconDownload size={14} color={C.blue} />
-                      <Text style={[styles.quickActionPillText, { color: C.blue }]}>PDF</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+            <View style={styles.modernDocListWrap}>
+              {files.slice(0, 4).map((item) => renderDocumentCard(item))}
             </View>
           </View>
         )}
@@ -873,110 +1090,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   numberOfLines={4}
                 />
               </View>
-
-              {/* 5. In place of Save: Cross-Record Conflict & Contradiction Checker */}
-              <View style={styles.conflictCheckerWrap}>
-                <View style={styles.conflictHeaderRow}>
-                  <Text style={styles.cleanFieldLabel}>CROSS-RECORD CONFLICT & RAG CHECK</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowRagSampleFlags(!showRagSampleFlags)}
-                    style={styles.toggleRagSampleBtn}
-                  >
-                    <Text style={styles.toggleRagSampleText}>
-                      {showRagSampleFlags ? 'Hide Flags ▴' : 'Preview RAG Flags ▾'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Default Clean State: No Flags Occurred */}
-                {!showRagSampleFlags ? (
-                  <View style={styles.noConflictCard}>
-                    <View style={styles.noConflictIconWrap}>
-                      <IconShield size={20} color={C.green} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={styles.noConflictTitle}>No flags occurred</Text>
-                        <View style={styles.zeroConflictPill}>
-                          <Text style={styles.zeroConflictPillText}>0 Conflicts</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.noConflictSub}>
-                        Checked with existing records in Sovereign Vault. No dosage contradictions, allergy conflicts, or information gaps detected.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  /* Expanded RAG Flag Specification from user */
-                  <View style={styles.ragFlagsContainer}>
-                    {/* Flag 1 */}
-                    <View style={styles.ragFlagItem}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>🚩</Text>
-                          <Text style={styles.ragFlagName}>Flag 1: Medication Contradiction (Dosage Change)</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeRed}>
-                          <Text style={styles.ragFlagBadgeRedText}>Contradiction</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Conflicting Dosage for Amlodipine</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record (Oct 2025): <Text style={styles.ragBold}>5mg daily.</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={[styles.ragBold, { color: C.red }]}>10mg daily.</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> Both are saved. The system highlights the difference so the doctor or patient can manually verify if the dose was intentionally doubled or if the new doctor made a typo.
-                      </Text>
-                    </View>
-
-                    {/* Flag 2 */}
-                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>🚩</Text>
-                          <Text style={styles.ragFlagName}>Flag 2: Critical Allergy Conflict</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeRed}>
-                          <Text style={styles.ragFlagBadgeRedText}>Critical Safety</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Missing Allergy Warning for Penicillin</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record (Jan 2023): <Text style={[styles.ragBold, { color: C.red }]}>"Severe allergic reaction to Penicillin."</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={styles.ragBold}>"No Known Allergies."</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> The system flags this as a highly dangerous contradiction. It explicitly warns you that the new clinic might not know about your allergy, so you can remind them before they prescribe anything.
-                      </Text>
-                    </View>
-
-                    {/* Flag 3 */}
-                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>⚠️</Text>
-                          <Text style={styles.ragFlagName}>Flag 3: Information Gap (Missing Data)</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeAmber}>
-                          <Text style={styles.ragFlagBadgeAmberText}>Info Gap</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Missing Condition Status</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record: <Text style={styles.ragBold}>"Type 2 Diabetes - Active."</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record: <Text style={styles.ragBold}>Type 2 Diabetes is not mentioned at all.</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> Instead of guessing that you are cured, the system explicitly flags that the status of your Diabetes in the new document is "not documented".
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
             </View>
 
-            {/* Save Button Kept Cleanly at the Bottom (matching user's red circle) */}
+            {/* Save Button Kept Cleanly at the Bottom */}
             <View style={styles.uploadBottomWrap}>
               <TouchableOpacity
                 style={styles.cleanSaveBtn}
@@ -1066,189 +1182,208 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
               </View>
             )}
 
-            {/* Below: All Folders */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.folderChipsScroll}>
-              <TouchableOpacity
-                style={[styles.modernFolderChip, selectedFolderFilter === null && styles.modernFolderChipActive]}
-                onPress={() => setSelectedFolderFilter(null)}
-              >
-                <IconFolder size={14} color={selectedFolderFilter === null ? 'white' : C.blue} />
-                <Text style={[styles.modernFolderChipText, selectedFolderFilter === null && styles.modernFolderChipTextActive]}>
-                  All ({files.length})
-                </Text>
-              </TouchableOpacity>
-
-              {folders.map((f) => {
-                const count = files.filter((fl) => fl.folder === f.id).length;
-                const isSelected = selectedFolderFilter === f.id;
-                return (
-                  <TouchableOpacity
-                    key={f.id}
-                    style={[styles.modernFolderChip, isSelected && styles.modernFolderChipActive]}
-                    onPress={() => setSelectedFolderFilter(isSelected ? null : f.id)}
-                  >
-                    <Text style={[styles.modernFolderChipText, isSelected && styles.modernFolderChipTextActive]}>
-                      {f.name} ({count})
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Documents List: Clean, Minimal, Non-Boring */}
-            <View style={styles.docCardList}>
+            {/* Documents List: Bigger, Easy to Read, Easy to Open & Download */}
+            <View style={styles.modernDocListWrap}>
               {filteredFiles.length === 0 ? (
                 <View style={styles.emptyDocState}>
-                  <IconFileText size={36} color={C.border} />
+                  <IconFileText size={40} color={C.border} />
                   <Text style={styles.emptyDocTitle}>No matching documents found</Text>
-                  <Text style={styles.emptyDocSub}>Try clearing your search query or date filter</Text>
+                  <Text style={styles.emptyDocSub}>Try adjusting your search query or clearing the date filter</Text>
                 </View>
               ) : (
-                filteredFiles.map((file) => (
-                  <View
-                    key={file.id}
-                    style={[
-                      styles.docRowCard,
-                      { borderLeftColor: getDocColor(file.type), borderLeftWidth: 3.5 },
-                    ]}
-                  >
-                    {/* Top Row: Document Name (left) & Format badge (right: PDF, IMAGE, TEXT, JSON) */}
-                    <View style={styles.docRowTop}>
-                      <Text style={styles.docRowName} numberOfLines={1}>
-                        {file.name}
-                      </Text>
-                      <View style={[styles.docFormatBadge, { backgroundColor: getDocBgColor(file.type) }]}>
-                        <Text style={[styles.docFormatBadgeText, { color: getDocColor(file.type) }]}>
-                          {getDocFormatLabel(file.type)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Bottom Row: Date & Dr/Hospital (left) & View Button (right) */}
-                    <View style={styles.docRowBottom}>
-                      <Text style={styles.docRowMeta} numberOfLines={1}>
-                        {file.date} · {file.doctor}{file.hospital ? ` · ${file.hospital}` : ''}
-                      </Text>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.docViewButton,
-                          { backgroundColor: getDocBgColor(file.type), borderColor: getDocColor(file.type) },
-                        ]}
-                        onPress={() => handleViewDocument(file)}
-                        activeOpacity={0.75}
-                      >
-                        <IconEye size={13} color={getDocColor(file.type)} />
-                        <Text style={[styles.docViewButtonText, { color: getDocColor(file.type) }]}>View</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
+                filteredFiles.map((file) => renderDocumentCard(file))
               )}
             </View>
           </View>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 4: CONNECT (DOCTORS & CARETAKERS)                             */}
+        {/* VIEW 4: CONNECT (BENEFACTOR, CARETAKER & CLINICAL DOCTORS)         */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'connect' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>Connect</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.pageSub}>Authorize physicians and health proxies with cryptographic access grants.</Text>
-
-            {/* Add Connection Form */}
-            <View style={styles.connectFormCard}>
-              <Text style={styles.formSectionHeader}>Grant New Access</Text>
-              <TextInput
-                style={styles.cleanInputField}
-                placeholder="Doctor or Caretaker Name"
-                placeholderTextColor="#94A3B8"
-                value={newDoctorName}
-                onChangeText={setNewDoctorName}
-              />
-              <TextInput
-                style={[styles.cleanInputField, { marginTop: 10 }]}
-                placeholder="Clinic or Relationship (e.g. Metro Hospital)"
-                placeholderTextColor="#94A3B8"
-                value={newClinicName}
-                onChangeText={setNewClinicName}
-              />
-              <View style={styles.permRow}>
-                {['Full Access', 'View Only', 'Emergency Only'].map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.permPill, newPerm === p && styles.permPillActive]}
-                    onPress={() => setNewPerm(p)}
-                  >
-                    <Text style={[styles.permPillText, newPerm === p && styles.permPillTextActive]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.cleanSaveBtn}
-                onPress={() => {
-                  if (!newDoctorName.trim()) {
-                    showToastMsg('Please enter a name');
-                    return;
-                  }
-                  setPeople((prev) => [
-                    ...prev,
-                    {
-                      id: String(Date.now()),
-                      name: newDoctorName.trim(),
-                      clinic: newClinicName.trim() || 'Health Caregiver',
-                      role: newRole,
-                      perm: newPerm,
-                    },
-                  ]);
-                  setNewDoctorName('');
-                  setNewClinicName('');
-                  showToastMsg(`Connected ${newDoctorName.trim()} successfully!`);
-                }}
-              >
-                <LinearGradient
-                  colors={[C.purple, '#6D28D9']}
-                  style={styles.cleanSaveBtnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <IconStethoscope size={18} color="white" />
-                  <Text style={styles.cleanSaveBtnText}>Authorize Connection</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-
-            {/* Active Connections List */}
-            <Text style={[styles.subHeading, { marginTop: 22, marginBottom: 12 }]}>Active Connections ({people.length})</Text>
-            {people.map((person) => (
-              <View key={person.id} style={styles.personCard}>
-                <View style={styles.personAvatar}>
-                  <Text style={styles.personAvatarText}>{person.name.substring(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.personName}>{person.name}</Text>
-                  <Text style={styles.personSub}>{person.clinic}</Text>
-                  <View style={styles.badgePermWrap}>
-                    <Text style={styles.badgePermText}>{person.perm}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.revokeBtn}
-                  onPress={() => {
-                    setPeople((prev) => prev.filter((p) => p.id !== person.id));
-                    showToastMsg(`Revoked access for ${person.name}`);
-                  }}
-                >
-                  <Text style={styles.revokeBtnText}>Revoke</Text>
+            {connectSubView === null ? (
+              <>
+                <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+                  <IconArrowLeft size={22} color={C.textMain} />
+                  <Text style={styles.subPageTitle}>Connect</Text>
                 </TouchableOpacity>
-              </View>
-            ))}
+
+                {/* 3 Big Hero Boxes equally filling the page */}
+                <View style={styles.connectThreeBoxesWrap}>
+                  {/* 1. Benefactor */}
+                  <TouchableOpacity
+                    style={styles.connectThreeCard}
+                    onPress={() => setConnectSubView('benefactor')}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.connectThreeTopRow}>
+                      <View style={[styles.connectThreeIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                        <IconShield size={32} color={C.blue} />
+                      </View>
+                      <View style={[styles.connectCountBadge, { backgroundColor: '#EFF6FF' }]}>
+                        <Text style={[styles.connectCountBadgeText, { color: C.blue }]}>{benefactors.length} Active</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.connectThreeBottom}>
+                      <Text style={styles.connectThreeTitle}>Benefactor</Text>
+                      <Text style={styles.connectThreeSub} numberOfLines={2}>
+                        Primary health grantors, policy & insurance sponsors
+                      </Text>
+                      <View style={styles.connectTapHintRow}>
+                        <Text style={[styles.connectTapHintText, { color: C.blue }]}>Tap to open</Text>
+                        <IconChevronRight size={16} color={C.blue} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* 2. Caretaker */}
+                  <TouchableOpacity
+                    style={styles.connectThreeCard}
+                    onPress={() => setConnectSubView('caretaker')}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.connectThreeTopRow}>
+                      <View style={[styles.connectThreeIconCircle, { backgroundColor: '#F0FDF4' }]}>
+                        <IconUser size={32} color={C.green} />
+                      </View>
+                      <View style={[styles.connectCountBadge, { backgroundColor: '#DCFCE7' }]}>
+                        <Text style={[styles.connectCountBadgeText, { color: C.green }]}>{caretakers.length} Active</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.connectThreeBottom}>
+                      <Text style={styles.connectThreeTitle}>Caretaker</Text>
+                      <Text style={styles.connectThreeSub} numberOfLines={2}>
+                        Family health proxies & designated personal caregivers
+                      </Text>
+                      <View style={styles.connectTapHintRow}>
+                        <Text style={[styles.connectTapHintText, { color: C.green }]}>Tap to open</Text>
+                        <IconChevronRight size={16} color={C.green} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* 3. Clinical (Basically Doctors) */}
+                  <TouchableOpacity
+                    style={styles.connectThreeCard}
+                    onPress={() => setConnectSubView('clinical')}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.connectThreeTopRow}>
+                      <View style={[styles.connectThreeIconCircle, { backgroundColor: '#F5F3FF' }]}>
+                        <IconStethoscope size={32} color={C.purple} />
+                      </View>
+                      <View style={[styles.connectCountBadge, { backgroundColor: '#EDE9FE' }]}>
+                        <Text style={[styles.connectCountBadgeText, { color: C.purple }]}>{clinicalDoctors.length} Active</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.connectThreeBottom}>
+                      <Text style={styles.connectThreeTitle}>Clinical</Text>
+                      <Text style={styles.connectThreeSub} numberOfLines={2}>
+                        Attending physicians, hospital doctors & specialists
+                      </Text>
+                      <View style={styles.connectTapHintRow}>
+                        <Text style={[styles.connectTapHintText, { color: C.purple }]}>Tap to open</Text>
+                        <IconChevronRight size={16} color={C.purple} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Sub-view Header with + Share Code at Top Right */}
+                <View style={styles.subPageHeaderWithAction}>
+                  <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setConnectSubView(null)}>
+                    <IconArrowLeft size={22} color={C.textMain} />
+                    <Text style={styles.subPageTitle}>
+                      {connectSubView === 'benefactor' ? 'Benefactor' : (connectSubView === 'clinical' ? 'Clinical' : 'Caretaker')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.shareCodeTopBtn}
+                    onPress={() => setShareCodeCategory(connectSubView)}
+                    activeOpacity={0.8}
+                  >
+                    <IconPlus size={15} color="#2563EB" />
+                    <Text style={styles.shareCodeTopBtnText}>Share Code</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Pending Approval Notifications (Approve / Reject) */}
+                {pendingRequests.filter((r) => r.category === connectSubView).map((req) => (
+                  <View key={req.id} style={styles.pendingReqBanner}>
+                    <View style={styles.pendingReqTopRow}>
+                      <View style={styles.pendingReqBellCircle}>
+                        <IconBell size={16} color={C.amber} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={styles.pendingReqTitle}>Connection Request</Text>
+                          <Text style={styles.pendingReqTime}>{req.time}</Text>
+                        </View>
+                        <Text style={styles.pendingReqName}>{req.name}</Text>
+                        <Text style={styles.pendingReqDesc}>{req.relation} · {req.grant}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.pendingReqBtnGroup}>
+                      <TouchableOpacity
+                        style={styles.pendingRejectBtn}
+                        onPress={() => handleRejectRequest(req.id)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.pendingRejectBtnText}>Reject</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.pendingApproveBtn}
+                        onPress={() => handleApproveRequest(req)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.pendingApproveBtnText}>Approve</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Active Entity List */}
+                <Text style={[styles.subHeading, { marginTop: 16, marginBottom: 12 }]}>
+                  {connectSubView === 'benefactor' ? `Active Benefactors (${benefactors.length})` : (connectSubView === 'clinical' ? `Active Physicians (${clinicalDoctors.length})` : `Active Caretakers (${caretakers.length})`)}
+                </Text>
+
+                {(connectSubView === 'benefactor' ? benefactors : (connectSubView === 'clinical' ? clinicalDoctors : caretakers)).map((item) => (
+                  <View key={item.id} style={styles.personCard}>
+                    <View style={[styles.personAvatar, { backgroundColor: connectSubView === 'benefactor' ? '#EFF6FF' : (connectSubView === 'clinical' ? '#F5F3FF' : '#F0FDF4') }]}>
+                      <Text style={[styles.personAvatarText, { color: connectSubView === 'benefactor' ? C.blue : (connectSubView === 'clinical' ? C.purple : C.green) }]}>
+                        {item.name.substring(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.personName}>{item.name}</Text>
+                      <Text style={styles.personSub}>{item.clinic || item.relation}</Text>
+                      <View style={[styles.badgePermWrap, { backgroundColor: connectSubView === 'benefactor' ? '#EFF6FF' : (connectSubView === 'clinical' ? '#F5F3FF' : '#F0FDF4') }]}>
+                        <Text style={[styles.badgePermText, { color: connectSubView === 'benefactor' ? C.blue : (connectSubView === 'clinical' ? C.purple : C.green) }]}>
+                          {item.grant || item.perm}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Clean Remove User Button */}
+                    <TouchableOpacity
+                      style={styles.removeUserBtn}
+                      onPress={() => handleRemoveEntity(item.id, connectSubView)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.removeUserBtnText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         )}
 
@@ -1962,6 +2097,258 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         </View>
       </Modal>
 
+      {/* ── SAVE RESULT & CLINICAL EXTRACTION MODAL ──────────────────────── */}
+      <Modal
+        visible={!!saveResultModalData}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setSaveResultModalData(null);
+          setActiveTab('documents');
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { maxHeight: '88%' }]}>
+            {/* Modal Header */}
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.saveSuccessDot}>
+                  <IconCheck size={12} color="white" />
+                </View>
+                <Text style={styles.modalTitle}>Saved & Analyzed</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setSaveResultModalData(null);
+                  setActiveTab('documents');
+                }}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
+              {/* Document Title Header */}
+              <Text style={styles.saveModalDocName} numberOfLines={1}>
+                {saveResultModalData?.title}
+              </Text>
+
+              {/* 1. Cross-Record Conflict & RAG Status */}
+              <View style={styles.saveConflictBox}>
+                <View style={styles.conflictHeaderRow}>
+                  <Text style={styles.cleanFieldLabel}>CROSS-RECORD CONFLICT & RAG CHECK</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowRagSampleFlags(!showRagSampleFlags)}
+                    style={styles.toggleRagSampleBtn}
+                  >
+                    <Text style={styles.toggleRagSampleText}>
+                      {showRagSampleFlags ? 'Hide Flags ▴' : 'Preview RAG Flags ▾'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Default Clean State: No Flags Occurred */}
+                {!showRagSampleFlags ? (
+                  <View style={styles.noConflictCard}>
+                    <View style={styles.noConflictIconWrap}>
+                      <IconShield size={20} color={C.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.noConflictTitle}>No flags occurred</Text>
+                        <View style={styles.zeroConflictPill}>
+                          <Text style={styles.zeroConflictPillText}>0 Conflicts</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.noConflictSub}>
+                        Checked with existing records in Sovereign Vault. No dosage contradictions, allergy conflicts, or information gaps detected.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  /* Expanded RAG Flag Specification from user */
+                  <View style={styles.ragFlagsContainer}>
+                    {/* Flag 1 */}
+                    <View style={styles.ragFlagItem}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>🚩</Text>
+                          <Text style={styles.ragFlagName}>Flag 1: Medication Contradiction (Dosage Change)</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeRed}>
+                          <Text style={styles.ragFlagBadgeRedText}>Contradiction</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Conflicting Dosage for Amlodipine</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record (Oct 2025): <Text style={styles.ragBold}>5mg daily.</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={[styles.ragBold, { color: C.blue }]}>10mg daily.</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> Both are saved. The system highlights the difference so the doctor or patient can manually verify if the dose was intentionally doubled or if the new doctor made a typo.
+                      </Text>
+                    </View>
+
+                    {/* Flag 2 */}
+                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>🚩</Text>
+                          <Text style={styles.ragFlagName}>Flag 2: Critical Allergy Conflict</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeRed}>
+                          <Text style={styles.ragFlagBadgeRedText}>Critical Safety</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Missing Allergy Warning for Penicillin</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record (Jan 2023): <Text style={[styles.ragBold, { color: '#B91C1C' }]}>"Severe allergic reaction to Penicillin."</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={styles.ragBold}>"No Known Allergies."</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> The system flags this as a highly dangerous contradiction. It explicitly warns you that the new clinic might not know about your allergy, so you can remind them before they prescribe anything.
+                      </Text>
+                    </View>
+
+                    {/* Flag 3 */}
+                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>⚠️</Text>
+                          <Text style={styles.ragFlagName}>Flag 3: Information Gap (Missing Data)</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeAmber}>
+                          <Text style={styles.ragFlagBadgeAmberText}>Info Gap</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Missing Condition Status</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record: <Text style={styles.ragBold}>"Type 2 Diabetes - Active."</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record: <Text style={styles.ragBold}>Type 2 Diabetes is not mentioned at all.</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> Instead of guessing that you are cured, the system explicitly flags that the status of your Diabetes in the new document is "not documented".
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* 2. Extracted Clinical JSON File (Shown below the RAG check) */}
+              <View style={styles.saveJsonBoxWrap}>
+                <View style={styles.extractedJsonHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <IconJson size={16} color={C.amber} />
+                    <Text style={styles.cleanFieldLabel}>EXTRACTED CLINICAL JSON</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.copyJsonBtn}
+                    onPress={() => {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        navigator.clipboard.writeText(JSON.stringify(saveResultModalData?.jsonData, null, 2));
+                        showToastMsg('JSON copied to clipboard!');
+                      }
+                    }}
+                  >
+                    <Text style={styles.copyJsonBtnText}>Copy JSON</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.rawJsonBox} horizontal showsHorizontalScrollIndicator={true}>
+                  <Text style={styles.rawJsonCode}>
+                    {JSON.stringify(saveResultModalData?.jsonData, null, 2)}
+                  </Text>
+                </ScrollView>
+              </View>
+            </ScrollView>
+
+            {/* Modal Bottom Actions */}
+            <View style={styles.saveModalActionRow}>
+              <TouchableOpacity
+                style={styles.saveModalDownloadBtn}
+                onPress={() => {
+                  const jsonStr = JSON.stringify(saveResultModalData?.jsonData, null, 2);
+                  const blob = new Blob([jsonStr], { type: 'application/json' });
+                  const safeName = (saveResultModalData?.title || 'record').replace(/[^a-zA-Z0-9_-]/g, '_');
+                  downloadBlob(blob, `${safeName}_extracted.json`);
+                  showToastMsg(`Downloaded ${safeName}_extracted.json`);
+                }}
+              >
+                <IconDownload size={15} color={C.blue} />
+                <Text style={styles.saveModalDownloadBtnText}>Download JSON</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveModalDoneBtn}
+                onPress={() => {
+                  setSaveResultModalData(null);
+                  setActiveTab('documents');
+                }}
+              >
+                <Text style={styles.saveModalDoneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── SHARE CONNECTION CODE MODAL ──────────────────────────────────── */}
+      <Modal
+        visible={!!shareCodeCategory}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShareCodeCategory(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContainer, { maxWidth: 440 }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>
+                Share {shareCodeCategory === 'benefactor' ? 'Benefactor' : (shareCodeCategory === 'clinical' ? 'Clinical' : 'Caretaker')} Code
+              </Text>
+              <TouchableOpacity onPress={() => setShareCodeCategory(null)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.codeDisplayCard}>
+              <Text style={styles.codeLabel}>SECURE SOVEREIGN CODE</Text>
+              <Text style={styles.codeDigits}>
+                {shareCodeCategory === 'benefactor' ? 'BEN-8924' : (shareCodeCategory === 'clinical' ? 'DOC-4190' : 'CAR-6301')}
+              </Text>
+              <Text style={styles.codeSub}>
+                Share this code with your {shareCodeCategory === 'benefactor' ? 'health benefactor or policy sponsor' : (shareCodeCategory === 'clinical' ? 'physician or hospital' : 'caretaker')}. When they connect, you will receive an approval notification here to accept or decline.
+              </Text>
+            </View>
+
+            <View style={{ gap: 10, marginTop: 18 }}>
+              <TouchableOpacity
+                style={styles.copyCodeBtn}
+                onPress={() => {
+                  const code = shareCodeCategory === 'benefactor' ? 'BEN-8924' : (shareCodeCategory === 'clinical' ? 'DOC-4190' : 'CAR-6301');
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(code);
+                  }
+                  showToastMsg(`Copied ${code} to clipboard!`);
+                }}
+              >
+                <Text style={styles.copyCodeBtnText}>Copy Connection Code</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.simulateRequestBtn}
+                onPress={() => {
+                  const cat = shareCodeCategory;
+                  setShareCodeCategory(null);
+                  handleSimulateRequest(cat);
+                }}
+              >
+                <Text style={styles.simulateRequestBtnText}>Simulate Incoming Request Notification</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── TOAST NOTIFICATION ───────────────────────────────────────────── */}
       {toast && (
         <View style={styles.toast}>
@@ -2233,7 +2620,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  /* 3-Column Grid of 5 Boxes (Clean & Neat) */
+  /* 3-Column Grid of 5 Boxes (Clean, Balanced & Big Icons) */
   boxesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2243,15 +2630,15 @@ const styles = StyleSheet.create({
   boxCard: {
     flexBasis: '30.5%',
     flexGrow: 1,
-    minWidth: 96,
+    minWidth: 98,
     backgroundColor: C.white,
-    borderRadius: 18,
-    paddingVertical: 18,
+    borderRadius: 20,
+    paddingVertical: 20,
     paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -2259,15 +2646,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   boxIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 62,
+    height: 62,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 11,
   },
   boxName: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     color: C.textMain,
     textAlign: 'center',
@@ -2772,98 +3159,90 @@ const styles = StyleSheet.create({
     color: C.blue,
   },
 
-  /* Modern Folder Chips */
-  folderChipsScroll: {
-    marginBottom: 14,
+  /* Modern Big Document Cards */
+  modernDocListWrap: {
+    gap: 12,
   },
-  modernFolderChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: 999,
+  modernBigCard: {
     backgroundColor: C.white,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: C.border,
-    marginRight: 8,
-  },
-  modernFolderChipActive: {
-    backgroundColor: C.blue,
-    borderColor: C.blue,
-  },
-  modernFolderChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.textSub,
-  },
-  modernFolderChipTextActive: {
-    color: 'white',
-    fontWeight: '700',
-  },
-
-  /* Modern Document Cards */
-  docCardList: {
-    gap: 10,
-  },
-  docRowCard: {
-    backgroundColor: C.white,
-    borderRadius: 14,
-    padding: 13,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  docRowTop: {
+  bigCardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
   },
-  docRowName: {
+  bigCardTitle: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '500',
     color: C.textMain,
+    letterSpacing: -0.1,
   },
-  docFormatBadge: {
+  bigCardFormatBadge: {
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
   },
-  docFormatBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
+  bigCardFormatBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
     letterSpacing: 0.5,
   },
-  docRowBottom: {
+  bigCardBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
   },
-  docRowMeta: {
+  bigCardMetaWrap: {
     flex: 1,
-    fontSize: 11.5,
-    color: C.textSub,
   },
-  docViewButton: {
+  bigCardMeta: {
+    fontSize: 12.5,
+    color: C.textSub,
+    fontWeight: '400',
+  },
+  bigCardActionBtnsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bigCardBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
   },
-  docViewButtonText: {
+  bigCardViewBtn: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  bigCardDownloadBtn: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#DBEAFE',
+  },
+  bigCardBtnText: {
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 
   /* Empty Doc State */
@@ -3474,5 +3853,321 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12.5,
     fontWeight: '600',
+  },
+
+  /* Connect 3 Big Hero Boxes */
+  connectThreeBoxesWrap: {
+    gap: 12,
+    marginTop: 10,
+    flex: 1,
+  },
+  connectThreeCard: {
+    backgroundColor: C.white,
+    borderRadius: 20,
+    padding: 18,
+    minHeight: 140,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  connectThreeTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  connectThreeIconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectThreeBottom: {
+    marginTop: 10,
+  },
+  connectThreeTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: C.textMain,
+    letterSpacing: -0.2,
+    marginBottom: 3,
+  },
+  connectThreeSub: {
+    fontSize: 12.5,
+    color: C.textSub,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  connectTapHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  connectTapHintText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  connectCountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  connectCountBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+
+  /* Sub-view Header with Action */
+  subPageHeaderWithAction: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  shareCodeTopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  shareCodeTopBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  /* Pending Approvals Notification */
+  pendingReqBanner: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  pendingReqTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
+  },
+  pendingReqBellCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingReqTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#D97706',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  pendingReqTime: {
+    fontSize: 11,
+    color: '#92400E',
+  },
+  pendingReqName: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: C.textMain,
+    marginTop: 2,
+  },
+  pendingReqDesc: {
+    fontSize: 12,
+    color: C.textSub,
+    marginTop: 1,
+  },
+  pendingReqBtnGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pendingRejectBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  pendingRejectBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  pendingApproveBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.green,
+    borderRadius: 8,
+  },
+  pendingApproveBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'white',
+  },
+
+  /* Remove User Button */
+  removeUserBtn: {
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 7,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  removeUserBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+
+  /* Share Code Modal */
+  codeDisplayCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  codeLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: C.textSub,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  codeDigits: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#2563EB',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  codeSub: {
+    fontSize: 12.5,
+    color: C.textSub,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  copyCodeBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  copyCodeBtnText: {
+    color: 'white',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  simulateRequestBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  simulateRequestBtnText: {
+    color: '#334155',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+
+  /* Save Result & Extraction Modal */
+  saveSuccessDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: C.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveModalDocName: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: C.textMain,
+    marginBottom: 12,
+  },
+  saveConflictBox: {
+    marginBottom: 14,
+  },
+  saveJsonBoxWrap: {
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  extractedJsonHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  copyJsonBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  copyJsonBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  saveModalActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  saveModalDownloadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  saveModalDownloadBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  saveModalDoneBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: C.green,
+  },
+  saveModalDoneBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'white',
   },
 });
