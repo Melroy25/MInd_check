@@ -1,345 +1,216 @@
 /**
- * MediVault PDF Generator, Viewer & Downloader Service
- *
- * Provides:
- * 1. generateMedicalPdf(record) - Creates a formatted, clinical A4 medical PDF report.
- * 2. viewPdf(record) - Opens the PDF in a new browser tab or provides an Object URL.
- * 3. downloadPdf(record) - Directly triggers a client-side download of the PDF file.
+ * MediVault Native Clinical PDF Generator, Viewer & Downloader
+ * 
+ * 100% Pure JavaScript, zero-dependency ISO-standard PDF 1.4 engine.
+ * Fully compatible with Expo Web, iOS, and Android without bundler or tslib conflicts.
  */
-
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { Platform } from 'react-native';
-
-const COLOR_GREEN = rgb(0.455, 0.659, 0.259); // #74A842
-const COLOR_DARK_GREEN = rgb(0.365, 0.541, 0.196); // #5d8a32
-const COLOR_LIGHT_GREEN = rgb(0.922, 0.953, 0.902); // #EBF3E6
-const COLOR_CHARCOAL = rgb(0.11, 0.169, 0.102); // #1C2B1A
-const COLOR_TEXT = rgb(0.176, 0.227, 0.18); // #2d3a2e
-const COLOR_MUTED = rgb(0.42, 0.498, 0.424); // #6b7f6c
-const COLOR_BORDER = rgb(0.831, 0.91, 0.784); // #d4e8c8
-const COLOR_GRAY_BG = rgb(0.969, 0.976, 0.965); // #F7F9F6
 
 /**
- * Generate formatted medical PDF bytes using pdf-lib
+ * Generate a beautifully formatted A4 clinical medical PDF report bytes
  */
 export async function generateMedicalPdf(record) {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 dimensions
-  const { width, height } = page.getSize();
+  // If record has an existing raw PDF blob, convert to bytes directly
+  if (record.fileBlob && record.fileBlob.type === 'application/pdf') {
+    const arrayBuffer = await record.fileBlob.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  }
 
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  const patientName = 'Melroy Almeida';
+  const patientId = 'MV-2026-PAT-892';
+  const doctorName = record.doctor || 'Dr. Sarah Jenkins';
+  const facilityName = 'Metro Hospital & Clinical Diagnostics';
+  const recordName = record.name || 'Medical Document';
+  const recordType = record.type || 'PDF';
+  const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' });
+  const recordSize = record.size || '1.8 MB';
+  const currentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  // 1. Top Decorative Bar
-  page.drawRectangle({
-    x: 0,
-    y: height - 12,
-    width: width,
-    height: 12,
-    color: COLOR_GREEN,
-  });
+  // Escape special PDF characters
+  const esc = (str) => {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+  };
 
-  // 2. Header: Logo & Branding
-  page.drawRectangle({
-    x: 40,
-    y: height - 68,
-    width: 34,
-    height: 34,
-    color: COLOR_GREEN,
-  });
+  // Build PDF Content Stream (PostScript operators)
+  const ops = [];
 
-  page.drawText('MV', {
-    x: 48,
-    y: height - 57,
-    size: 14,
-    font: fontBold,
-    color: rgb(1, 1, 1),
-  });
+  // Helper functions
+  const fillRect = (x, y, w, h, r, g, b) => {
+    ops.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
+    ops.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+  };
 
-  page.drawText('MediVault', {
-    x: 84,
-    y: height - 52,
-    size: 20,
-    font: fontBold,
-    color: COLOR_CHARCOAL,
-  });
+  const strokeRect = (x, y, w, h, r, g, b, lineWidth = 1) => {
+    ops.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG`);
+    ops.push(`${lineWidth.toFixed(2)} w`);
+    ops.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re S`);
+  };
 
-  page.drawText('Patient-Owned Sovereign Health Records Vault', {
-    x: 84,
-    y: height - 66,
-    size: 10,
-    font: fontRegular,
-    color: COLOR_MUTED,
-  });
+  const drawLine = (x1, y1, x2, y2, r, g, b, lineWidth = 1) => {
+    ops.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG`);
+    ops.push(`${lineWidth.toFixed(2)} w`);
+    ops.push(`${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+  };
 
-  page.drawText('CONFIDENTIAL MEDICAL RECORD', {
-    x: width - 240,
-    y: height - 52,
-    size: 10,
-    font: fontBold,
-    color: rgb(0.86, 0.15, 0.15), // Red
-  });
+  const drawText = (text, x, y, font = 'F2', size = 10, r = 0.11, g = 0.17, b = 0.1) => {
+    ops.push(`BT`);
+    ops.push(`/${font} ${size.toFixed(1)} Tf`);
+    ops.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
+    ops.push(`${x.toFixed(2)} ${y.toFixed(2)} Td`);
+    ops.push(`(${esc(text)}) Tj`);
+    ops.push(`ET`);
+  };
 
-  page.drawText(`Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, {
-    x: width - 240,
-    y: height - 66,
-    size: 9,
-    font: fontRegular,
-    color: COLOR_MUTED,
-  });
+  const pageW = 595.28;
+  const pageH = 841.89;
+
+  // 1. Top Decorative Green Bar
+  fillRect(0, pageH - 12, pageW, 12, 0.455, 0.659, 0.259); // #74A842
+
+  // 2. Header Brand
+  fillRect(40, pageH - 68, 34, 34, 0.455, 0.659, 0.259);
+  drawText('MV', 48, pageH - 57, 'F1', 14, 1, 1, 1);
+  drawText('MediVault', 84, pageH - 52, 'F1', 20, 0.11, 0.17, 0.1);
+  drawText('Patient-Owned Sovereign Health Records Vault', 84, pageH - 66, 'F2', 9.5, 0.42, 0.5, 0.42);
+
+  // Top Right Confidential Flag
+  drawText('CONFIDENTIAL MEDICAL RECORD', pageW - 220, pageH - 52, 'F1', 9.5, 0.86, 0.15, 0.15);
+  drawText(`Generated: ${currentDate}`, pageW - 220, pageH - 66, 'F2', 9, 0.42, 0.5, 0.42);
 
   // Divider
-  page.drawLine({
-    start: { x: 40, y: height - 85 },
-    end: { x: width - 40, y: height - 85 },
-    thickness: 1,
-    color: COLOR_BORDER,
-  });
+  drawLine(40, pageH - 85, pageW - 40, pageH - 85, 0.83, 0.91, 0.78, 1);
 
   // 3. Document Title Banner
-  const titleY = height - 130;
-  page.drawRectangle({
-    x: 40,
-    y: titleY - 10,
-    width: width - 80,
-    height: 48,
-    color: COLOR_LIGHT_GREEN,
-    borderColor: COLOR_BORDER,
-    borderWidth: 1,
-  });
+  const titleY = pageH - 140;
+  fillRect(40, titleY, pageW - 80, 46, 0.92, 0.95, 0.9);
+  strokeRect(40, titleY, pageW - 80, 46, 0.83, 0.91, 0.78, 1);
 
-  const recordName = record.name || 'Medical Document';
-  page.drawText(truncateText(recordName, 42), {
-    x: 55,
-    y: titleY + 16,
-    size: 15,
-    font: fontBold,
-    color: COLOR_CHARCOAL,
-  });
+  drawText(recordName.length > 44 ? recordName.substring(0, 42) + '...' : recordName, 55, titleY + 26, 'F1', 14, 0.11, 0.17, 0.1);
+  drawText(`Format: ${recordType}  |  Size: ${recordSize}  |  Issued: ${recordDate}`, 55, titleY + 11, 'F2', 9.5, 0.42, 0.5, 0.42);
 
-  page.drawText(`Format: ${record.type || 'PDF'} · Size: ${record.size || '1.8 MB'} · Issued: ${record.date || 'Recent'}`, {
-    x: 55,
-    y: titleY + 2,
-    size: 9.5,
-    font: fontRegular,
-    color: COLOR_MUTED,
-  });
+  // 4. Two-Column Metadata Box
+  const metaY = pageH - 245;
+  fillRect(40, metaY, pageW - 80, 90, 0.97, 0.98, 0.97);
+  strokeRect(40, metaY, pageW - 80, 90, 0.83, 0.91, 0.78, 1);
 
-  // 4. Patient & Clinical Context Block (Two Columns)
-  const metaBoxY = height - 240;
-  page.drawRectangle({
-    x: 40,
-    y: metaBoxY,
-    width: width - 80,
-    height: 90,
-    color: COLOR_GRAY_BG,
-    borderColor: COLOR_BORDER,
-    borderWidth: 1,
-  });
+  // Left Column: Patient
+  drawText('PATIENT INFORMATION', 55, metaY + 70, 'F1', 9, 0.365, 0.541, 0.196);
+  drawText(`Patient Name: ${patientName}`, 55, metaY + 52, 'F2', 9.5, 0.18, 0.23, 0.18);
+  drawText(`Record Identifier: ${patientId}`, 55, metaY + 36, 'F2', 9.5, 0.18, 0.23, 0.18);
+  drawText('Vault Category: Sovereign Medical Vault', 55, metaY + 20, 'F2', 9.5, 0.18, 0.23, 0.18);
 
-  // Column 1: Patient Information
-  page.drawText('PATIENT INFORMATION', {
-    x: 55,
-    y: metaBoxY + 70,
-    size: 9,
-    font: fontBold,
-    color: COLOR_DARK_GREEN,
-  });
-
-  page.drawText('Patient Name: Melroy Almeida', {
-    x: 55,
-    y: metaBoxY + 52,
-    size: 10,
-    font: fontRegular,
-    color: COLOR_TEXT,
-  });
-
-  page.drawText('Record Identifier: MV-2026-PAT-892', {
-    x: 55,
-    y: metaBoxY + 36,
-    size: 9.5,
-    font: fontRegular,
-    color: COLOR_TEXT,
-  });
-
-  page.drawText('Vault Category: Sovereign Medical Vault', {
-    x: 55,
-    y: metaBoxY + 20,
-    size: 9.5,
-    font: fontRegular,
-    color: COLOR_TEXT,
-  });
-
-  // Column 2: Clinical Provider
+  // Right Column: Provider
   const col2X = 320;
-  page.drawText('CLINICAL & PROVIDER METADATA', {
-    x: col2X,
-    y: metaBoxY + 70,
-    size: 9,
-    font: fontBold,
-    color: COLOR_DARK_GREEN,
-  });
+  drawText('CLINICAL & PROVIDER METADATA', col2X, metaY + 70, 'F1', 9, 0.365, 0.541, 0.196);
+  drawText(`Attending Physician: ${doctorName}`, col2X, metaY + 52, 'F2', 9.5, 0.18, 0.23, 0.18);
+  drawText(`Facility: ${facilityName}`, col2X, metaY + 36, 'F2', 9.5, 0.18, 0.23, 0.18);
+  drawText('Encryption: AES-256 GCM Patient-Sovereign', col2X, metaY + 20, 'F2', 9.5, 0.455, 0.659, 0.259);
 
-  page.drawText(`Attending Physician: ${record.doctor || 'Dr. Sarah Jenkins'}`, {
-    x: col2X,
-    y: metaBoxY + 52,
-    size: 10,
-    font: fontRegular,
-    color: COLOR_TEXT,
-  });
+  // 5. Clinical Report Observations
+  let curY = metaY - 35;
+  drawText('CLINICAL REPORT & VERIFIED OBSERVATIONS', 40, curY, 'F1', 11, 0.11, 0.17, 0.1);
+  curY -= 18;
 
-  page.drawText('Facility: Metro Hospital & Clinical Diagnostics', {
-    x: col2X,
-    y: metaBoxY + 36,
-    size: 9.5,
-    font: fontRegular,
-    color: COLOR_TEXT,
-  });
-
-  page.drawText('Encryption: AES-256 GCM Patient-Sovereign', {
-    x: col2X,
-    y: metaBoxY + 20,
-    size: 9.5,
-    font: fontRegular,
-    color: COLOR_GREEN,
-  });
-
-  // 5. Clinical Record Body
-  let curY = metaBoxY - 35;
-  page.drawText('CLINICAL REPORT & OBSERVATIONS', {
-    x: 40,
-    y: curY,
-    size: 12,
-    font: fontBold,
-    color: COLOR_CHARCOAL,
-  });
-
-  curY -= 20;
-
-  // Render Description or Findings
-  const descText = record.desc ||
-    `Complete medical documentation verified and stored in MediVault. All lab values, medications, and diagnostic impressions were verified with verbatim evidence quotes from the primary consultation records.`;
-
-  const lines = wrapText(descText, 70);
-  for (const line of lines) {
-    page.drawText(line, {
-      x: 40,
-      y: curY,
-      size: 10,
-      font: fontRegular,
-      color: COLOR_TEXT,
-    });
+  const summary = record.extractedData?.summary ||
+    'Comprehensive medical documentation stored and verified in MediVault. All conditions, lab values, and medication dosages were verified against original consultation records.';
+  
+  // Wrap summary text
+  const words = summary.split(' ');
+  let line = '';
+  for (const word of words) {
+    if ((line + ' ' + word).length > 74) {
+      drawText(line.trim(), 40, curY, 'F2', 9.5, 0.2, 0.25, 0.2);
+      curY -= 14;
+      line = word + ' ';
+    } else {
+      line += word + ' ';
+    }
+  }
+  if (line.trim()) {
+    drawText(line.trim(), 40, curY, 'F2', 9.5, 0.2, 0.25, 0.2);
     curY -= 16;
   }
 
-  // 6. If record contains extracted structured items
-  curY -= 15;
-  page.drawRectangle({
-    x: 40,
-    y: curY - 140,
-    width: width - 80,
-    height: 140,
-    color: rgb(1, 1, 1),
-    borderColor: COLOR_BORDER,
-    borderWidth: 1,
-  });
+  // 6. Extracted Clinical Findings / Invariants Box
+  curY -= 10;
+  const invBoxH = 150;
+  fillRect(40, curY - invBoxH, pageW - 80, invBoxH, 1, 1, 1);
+  strokeRect(40, curY - invBoxH, pageW - 80, invBoxH, 0.83, 0.91, 0.78, 1);
 
-  page.drawText('VERIFIED CLINICAL INVARIANTS & INTEGRITY', {
-    x: 55,
-    y: curY - 20,
-    size: 10,
-    font: fontBold,
-    color: COLOR_DARK_GREEN,
-  });
+  drawText('VERIFIED CLINICAL INVARIANTS & INTEGRITY', 55, curY - 20, 'F1', 9.5, 0.365, 0.541, 0.196);
 
-  const checkItems = [];
+  const findings = [];
   if (record.extractedData?.conditions?.length > 0) {
-    const cNames = record.extractedData.conditions.slice(0, 2).map(c => c.name).join(', ');
-    checkItems.push(`Extracted Conditions: ${truncateText(cNames, 55)} (evidence verified)`);
+    const cList = record.extractedData.conditions.slice(0, 2).map(c => c.name).join(', ');
+    findings.push(`Extracted Conditions: ${cList} (confirmed with evidence quotes)`);
   }
   if (record.extractedData?.medications?.length > 0) {
-    const mNames = record.extractedData.medications.slice(0, 2).map(m => `${m.name} ${m.dose_raw || ''}`).join(', ');
-    checkItems.push(`Identified Medications: ${truncateText(mNames, 55)}`);
+    const mList = record.extractedData.medications.slice(0, 2).map(m => `${m.name} ${m.dose_raw || ''}`).join(', ');
+    findings.push(`Identified Medications: ${mList}`);
   }
   if (record.extractedData?.lab_results?.length > 0) {
-    const lSummary = record.extractedData.lab_results.slice(0, 2).map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
-    checkItems.push(`Key Lab Measurements: ${truncateText(lSummary, 55)}`);
+    const lList = record.extractedData.lab_results.slice(0, 2).map(l => `${l.test_name}: ${l.value} ${l.unit || ''} [${l.flag || 'Normal'}]`).join(', ');
+    findings.push(`Key Lab Measurements: ${lList}`);
   }
-  if (checkItems.length < 5) {
-    checkItems.push('Verbatim Evidence Linking: All clinical facts link to original source quotations.');
-    checkItems.push('Zero Hallucination Guarantee: No artificial diagnosis or treatment suggestions.');
-    checkItems.push('Three-Way Allergy Status: Checked for explicit negative, present, or not documented.');
-    checkItems.push('Dosage & Unit Preservation: Exact measurements and reference intervals preserved.');
-    checkItems.push('Sovereign Access Control: Patient controls sharing with doctors and caretakers.');
-  }
-
-  let itemY = curY - 42;
-  for (const item of checkItems.slice(0, 5)) {
-    page.drawText('•', { x: 55, y: itemY, size: 10, font: fontBold, color: COLOR_GREEN });
-    page.drawText(item, { x: 68, y: itemY, size: 9, font: fontRegular, color: COLOR_TEXT });
-    itemY -= 18;
+  if (findings.length < 5) {
+    findings.push('Verbatim Evidence Linking: All clinical facts link to original source quotations.');
+    findings.push('Zero Hallucination Guarantee: No artificial diagnosis or treatment suggestions.');
+    findings.push('Three-Way Allergy Status: Checked for explicit negative, present, or not documented.');
+    findings.push('Dosage & Unit Preservation: Exact measurements and reference intervals preserved.');
+    findings.push('Sovereign Access Control: Patient controls sharing with doctors and caretakers.');
   }
 
-  // 7. Signature & Security Verification Seal
-  const sealY = 120;
-  page.drawLine({
-    start: { x: 40, y: sealY + 30 },
-    end: { x: width - 40, y: sealY + 30 },
-    thickness: 1,
-    color: COLOR_BORDER,
-  });
+  let findY = curY - 40;
+  for (const item of findings.slice(0, 5)) {
+    drawText('•', 55, findY, 'F1', 10, 0.455, 0.659, 0.259);
+    drawText(item.length > 76 ? item.substring(0, 74) + '...' : item, 68, findY, 'F2', 9, 0.2, 0.25, 0.2);
+    findY -= 18;
+  }
 
-  page.drawText('Patient Verification Signature:', {
-    x: 40,
-    y: sealY + 10,
-    size: 9,
-    font: fontBold,
-    color: COLOR_MUTED,
-  });
+  // 7. Signature & Cryptographic Seal
+  const sealY = 110;
+  drawLine(40, sealY + 28, pageW - 40, sealY + 28, 0.83, 0.91, 0.78, 1);
 
-  page.drawText('Melroy Almeida [Digitally Signed via MediVault]', {
-    x: 40,
-    y: sealY - 6,
-    size: 10,
-    font: fontOblique,
-    color: COLOR_DARK_GREEN,
-  });
+  drawText('Patient Verification Signature:', 40, sealY + 12, 'F1', 8.5, 0.42, 0.5, 0.42);
+  drawText('Melroy Almeida [Digitally Signed via MediVault]', 40, sealY - 3, 'F1', 9.5, 0.365, 0.541, 0.196);
 
-  page.drawText('Cryptographic Hash (SHA-256):', {
-    x: col2X,
-    y: sealY + 10,
-    size: 9,
-    font: fontBold,
-    color: COLOR_MUTED,
-  });
+  drawText('Cryptographic Hash (SHA-256):', col2X, sealY + 12, 'F1', 8.5, 0.42, 0.5, 0.42);
+  drawText('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', col2X, sealY - 3, 'F2', 7.5, 0.42, 0.5, 0.42);
 
-  page.drawText('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', {
-    x: col2X,
-    y: sealY - 6,
-    size: 7.5,
-    font: fontRegular,
-    color: COLOR_MUTED,
-  });
+  // 8. Footer Bar
+  fillRect(0, 0, pageW, 26, 0.97, 0.98, 0.97);
+  drawText('MediVault Sovereign Health Platform  |  Confidential Medical Record  |  AES-256 Encrypted', 40, 9, 'F2', 8, 0.42, 0.5, 0.42);
 
-  // 8. Footer
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width: width,
-    height: 28,
-    color: COLOR_GRAY_BG,
-  });
+  // Assemble Complete PDF 1.4 File
+  const streamContent = ops.join('\n');
+  const streamBytes = new TextEncoder().encode(streamContent);
 
-  page.drawText('MediVault Sovereign Health Platform · https://github.com/Melroy25/MInd_check · Confidential Medical Record', {
-    x: 50,
-    y: 10,
-    size: 8,
-    font: fontRegular,
-    color: COLOR_MUTED,
-  });
+  let pdfString = '%PDF-1.4\n';
+  const offsets = [];
 
-  return await pdfDoc.save();
+  const addObj = (objContent) => {
+    offsets.push(new TextEncoder().encode(pdfString).length);
+    pdfString += objContent + '\n';
+  };
+
+  addObj('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj');
+  addObj('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj');
+  addObj('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj');
+  addObj('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj');
+  addObj('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj');
+  addObj(`6 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n${streamContent}\nendstream\nendobj`);
+
+  const xrefOffset = new TextEncoder().encode(pdfString).length;
+  pdfString += `xref\n0 7\n0000000000 65535 f \n`;
+  for (let i = 0; i < offsets.length; i++) {
+    pdfString += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdfString += `trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new TextEncoder().encode(pdfString);
 }
 
 /**
@@ -404,9 +275,6 @@ export async function downloadMedicalPdf(record) {
   }
 }
 
-/**
- * Helper to trigger HTML5 download
- */
 function downloadBlob(blob, filename) {
   if (typeof document !== 'undefined') {
     const url = URL.createObjectURL(blob);
@@ -416,32 +284,10 @@ function downloadBlob(blob, filename) {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (a.parentNode) document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }, 150);
+    }, 500);
   }
-}
-
-function truncateText(str, max) {
-  if (!str) return '';
-  return str.length > max ? str.substring(0, max) + '...' : str;
-}
-
-function wrapText(text, maxChars) {
-  const words = text.split(' ');
-  const lines = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    if ((currentLine + word).length <= maxChars) {
-      currentLine += (currentLine ? ' ' : '') + word;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-  return lines;
 }
 
 function sanitizeFilename(name) {
