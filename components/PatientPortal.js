@@ -376,6 +376,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [pendingRequests, setPendingRequests] = useState(INITIAL_PENDING_REQUESTS);
   const [connectSubView, setConnectSubView] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
   const [shareCodeCategory, setShareCodeCategory] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
+  const [inviteName, setInviteName] = useState('');
+  const [inviteRelation, setInviteRelation] = useState('');
+  const [inviteCode, setInviteCode] = useState('BEN-8924');
   const [saveResultModalData, setSaveResultModalData] = useState(null);
 
   // Modals
@@ -537,25 +540,46 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
     }
   };
 
-  const handleSimulateRequest = (category) => {
+  const handleOpenShareModal = (category) => {
+    const prefix = category === 'benefactor' ? 'BEN' : (category === 'clinical' ? 'DOC' : 'CAR');
+    const num = Math.floor(1000 + Math.random() * 9000);
+    setInviteCode(`${prefix}-${num}`);
+    setInviteName('');
+    setInviteRelation('');
+    setShareCodeCategory(category);
+  };
+
+  const handleRegenerateInviteCode = () => {
+    const prefix = shareCodeCategory === 'benefactor' ? 'BEN' : (shareCodeCategory === 'clinical' ? 'DOC' : 'CAR');
+    const num = Math.floor(1000 + Math.random() * 9000);
+    const newCode = `${prefix}-${num}`;
+    setInviteCode(newCode);
+    showToastMsg(`Regenerated one-time code: ${newCode}`);
+  };
+
+  const handleSimulateRequest = (category, customName, customRelation) => {
     const mockNames = {
       benefactor: ['Aethelgard Life Trust', 'Prudential Sovereign Fund', 'NorthStar Health Endowment'],
       caretaker: ['David Chen (Nurse)', 'Maria Santos (Caregiver)', 'Jordan Reed (Proxy)'],
       clinical: ['Dr. Arthur Morgan (Neurology)', 'Dr. Lisa Cuddy (Endocrinology)', 'Dr. Robert Chase (Surgery)'],
     };
     const pool = mockNames[category] || ['New Connection'];
-    const randomName = pool[Math.floor(Math.random() * pool.length)];
+    const fallbackName = pool[Math.floor(Math.random() * pool.length)];
+
+    const finalName = (customName && customName.trim()) || fallbackName;
+    const finalRelation = (customRelation && customRelation.trim()) || (category === 'clinical' ? 'Metro Specialty Clinic' : (category === 'benefactor' ? 'Health Foundation Policy' : 'Designated Family Proxy'));
+
     const newReq = {
       id: `req-${Date.now()}`,
       category,
-      name: randomName,
-      relation: category === 'clinical' ? 'Metro Specialty Clinic' : (category === 'benefactor' ? 'Health Foundation' : 'Designated Family Proxy'),
+      name: finalName,
+      relation: finalRelation,
       grant: category === 'benefactor' ? 'Endowment Grant' : (category === 'clinical' ? 'Doctor Access' : 'Caregiver Proxy'),
-      code: `CODE-${Math.floor(1000 + Math.random() * 9000)}`,
+      code: inviteCode || `CODE-${Math.floor(1000 + Math.random() * 9000)}`,
       time: 'Just now',
     };
     setPendingRequests((prev) => [newReq, ...prev]);
-    showToastMsg(`New connection request from ${randomName}`);
+    showToastMsg(`New connection request from ${finalName}`);
   };
 
   const handleSaveUploadedRecord = async () => {
@@ -1306,7 +1330,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
 
                   <TouchableOpacity
                     style={styles.shareCodeTopBtn}
-                    onPress={() => setShareCodeCategory(connectSubView)}
+                    onPress={() => handleOpenShareModal(connectSubView)}
                     activeOpacity={0.8}
                   >
                     <IconPlus size={15} color="#2563EB" />
@@ -2292,7 +2316,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         </View>
       </Modal>
 
-      {/* ── SHARE CONNECTION CODE MODAL ──────────────────────────────────── */}
+      {/* ── SHARE CONNECTION CODE & ONE-TIME QR MODAL ─────────────────────── */}
       <Modal
         visible={!!shareCodeCategory}
         transparent
@@ -2300,51 +2324,124 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         onRequestClose={() => setShareCodeCategory(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, { maxWidth: 440 }]}>
+          <View style={[styles.modalContainer, { maxWidth: 460, maxHeight: '90%' }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>
-                Share {shareCodeCategory === 'benefactor' ? 'Benefactor' : (shareCodeCategory === 'clinical' ? 'Clinical' : 'Caretaker')} Code
+                Share {shareCodeCategory === 'benefactor' ? 'Benefactor' : (shareCodeCategory === 'clinical' ? 'Clinical' : 'Caretaker')} Invite
               </Text>
               <TouchableOpacity onPress={() => setShareCodeCategory(null)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.codeDisplayCard}>
-              <Text style={styles.codeLabel}>SECURE SOVEREIGN CODE</Text>
-              <Text style={styles.codeDigits}>
-                {shareCodeCategory === 'benefactor' ? 'BEN-8924' : (shareCodeCategory === 'clinical' ? 'DOC-4190' : 'CAR-6301')}
-              </Text>
-              <Text style={styles.codeSub}>
-                Share this code with your {shareCodeCategory === 'benefactor' ? 'health benefactor or policy sponsor' : (shareCodeCategory === 'clinical' ? 'physician or hospital' : 'caretaker')}. When they connect, you will receive an approval notification here to accept or decline.
-              </Text>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 6 }}>
+              {/* 1. Who the Benefactor is: Name & Relation Details to add */}
+              <View style={styles.inviteFieldWrap}>
+                <Text style={styles.cleanFieldLabel}>
+                  {shareCodeCategory === 'benefactor' ? 'BENEFACTOR / SPONSOR NAME' : (shareCodeCategory === 'clinical' ? 'DOCTOR / CLINIC NAME' : 'CARETAKER NAME')}
+                </Text>
+                <TextInput
+                  style={styles.cleanInputField}
+                  placeholder={shareCodeCategory === 'benefactor' ? 'e.g. Horizon Life Foundation' : (shareCodeCategory === 'clinical' ? 'e.g. Dr. Arthur Morgan' : 'e.g. Sofia Almeida')}
+                  placeholderTextColor="#94A3B8"
+                  value={inviteName}
+                  onChangeText={setInviteName}
+                />
+              </View>
 
-            <View style={{ gap: 10, marginTop: 18 }}>
-              <TouchableOpacity
-                style={styles.copyCodeBtn}
-                onPress={() => {
-                  const code = shareCodeCategory === 'benefactor' ? 'BEN-8924' : (shareCodeCategory === 'clinical' ? 'DOC-4190' : 'CAR-6301');
-                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                    navigator.clipboard.writeText(code);
-                  }
-                  showToastMsg(`Copied ${code} to clipboard!`);
-                }}
-              >
-                <Text style={styles.copyCodeBtnText}>Copy Connection Code</Text>
-              </TouchableOpacity>
+              <View style={[styles.inviteFieldWrap, { marginTop: 10 }]}>
+                <Text style={styles.cleanFieldLabel}>
+                  {shareCodeCategory === 'benefactor' ? 'RELATIONSHIP / ORGANIZATION' : (shareCodeCategory === 'clinical' ? 'SPECIALTY / HOSPITAL' : 'RELATIONSHIP')}
+                </Text>
+                <TextInput
+                  style={styles.cleanInputField}
+                  placeholder={shareCodeCategory === 'benefactor' ? 'e.g. Family Policy Sponsor' : (shareCodeCategory === 'clinical' ? 'e.g. Cardiology, City Hospital' : 'e.g. Sister / Designated Proxy')}
+                  placeholderTextColor="#94A3B8"
+                  value={inviteRelation}
+                  onChangeText={setInviteRelation}
+                />
+              </View>
 
-              <TouchableOpacity
-                style={styles.simulateRequestBtn}
-                onPress={() => {
-                  const cat = shareCodeCategory;
-                  setShareCodeCategory(null);
-                  handleSimulateRequest(cat);
-                }}
-              >
-                <Text style={styles.simulateRequestBtnText}>Simulate Incoming Request Notification</Text>
-              </TouchableOpacity>
-            </View>
+              {/* 2. One-Time Code & QR Card with Regenerate Button */}
+              <View style={styles.codeDisplayCard}>
+                <View style={styles.codeCardHeader}>
+                  <Text style={styles.codeLabel}>SECURE ONE-TIME ACCESS</Text>
+                  <TouchableOpacity
+                    style={styles.regenerateSmallBtn}
+                    onPress={handleRegenerateInviteCode}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.regenerateSmallBtnText}>↻ Regenerate</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.codeDigits}>{inviteCode}</Text>
+
+                {/* One-Time QR Code SVG */}
+                <View style={styles.oneTimeQrWrap}>
+                  <Svg width={130} height={130} viewBox="0 0 100 100">
+                    <Rect x="0" y="0" width="100" height="100" fill="white" />
+                    <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
+                    <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
+                    <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
+
+                    <Rect x="67" y="5" width="28" height="28" fill="#0F172A" rx="4" />
+                    <Rect x="71" y="9" width="20" height="20" fill="white" rx="2" />
+                    <Rect x="75" y="13" width="12" height="12" fill="#0F172A" rx="1" />
+
+                    <Rect x="5" y="67" width="28" height="28" fill="#0F172A" rx="4" />
+                    <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
+                    <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
+
+                    <Rect x="42" y="8" width="6" height="18" fill="#2563EB" />
+                    <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
+                    <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
+                    <Rect x="40" y="40" width="20" height="20" fill="#2563EB" rx="4" />
+                    <Rect x="45" y="45" width="10" height="10" fill="white" rx="2" />
+                    <Rect x="68" y="42" width="14" height="6" fill="#0F172A" />
+                    <Rect x="42" y="68" width="6" height="18" fill="#0F172A" />
+                    <Rect x="54" y="72" width="14" height="8" fill="#2563EB" />
+                    <Rect x="74" y="68" width="18" height="6" fill="#0F172A" />
+                    <Rect x="78" y="78" width="12" height="12" fill="#0F172A" />
+                  </Svg>
+                  <View style={styles.oneTimeQrBadge}>
+                    <Text style={styles.oneTimeQrBadgeText}>One-Time QR · Single Use Only</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.codeSub}>
+                  Share this one-time code or QR with this benefactor. When scanned or submitted, an approval notification will arrive on your phone to approve or reject.
+                </Text>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ gap: 10, marginTop: 14 }}>
+                <TouchableOpacity
+                  style={styles.copyCodeBtn}
+                  onPress={() => {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(inviteCode);
+                    }
+                    showToastMsg(`Copied ${inviteCode} to clipboard!`);
+                  }}
+                >
+                  <Text style={styles.copyCodeBtnText}>Copy Connection Code</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.simulateRequestBtn}
+                  onPress={() => {
+                    const cat = shareCodeCategory;
+                    const name = inviteName;
+                    const rel = inviteRelation;
+                    setShareCodeCategory(null);
+                    handleSimulateRequest(cat, name, rel);
+                  }}
+                >
+                  <Text style={styles.simulateRequestBtnText}>Simulate Incoming Request Notification</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -4040,34 +4137,85 @@ const styles = StyleSheet.create({
   },
 
   /* Share Code Modal */
+  inviteFieldWrap: {
+    marginBottom: 4,
+  },
   codeDisplayCard: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     borderRadius: 16,
-    padding: 20,
+    padding: 18,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
+  },
+  codeCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 8,
+  },
+  regenerateSmallBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  regenerateSmallBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   codeLabel: {
     fontSize: 10.5,
     fontWeight: '800',
     color: C.textSub,
     letterSpacing: 0.8,
-    marginBottom: 8,
   },
   codeDigits: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
     color: '#2563EB',
     letterSpacing: 2,
-    marginBottom: 10,
+    marginVertical: 4,
+  },
+  oneTimeQrWrap: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  oneTimeQrBadge: {
+    marginTop: 8,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  oneTimeQrBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16A34A',
+    letterSpacing: 0.4,
   },
   codeSub: {
-    fontSize: 12.5,
+    fontSize: 12,
     color: C.textSub,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 17,
   },
   copyCodeBtn: {
     backgroundColor: '#2563EB',
