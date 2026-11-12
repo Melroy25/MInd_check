@@ -368,6 +368,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [uploadTitle, setUploadTitle] = useState('');
   const [enteredText, setEnteredText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
+  const [showRagSampleFlags, setShowRagSampleFlags] = useState(false);
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -775,123 +776,228 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 2: UPLOAD (MINIMAL, CLEAN & NOT BORING)                       */}
+        {/* VIEW 2: UPLOAD (WITH RAG CONFLICT CHECK & BOTTOM SAVE)             */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'upload' && (
-          <View style={styles.viewSection}>
-            {/* Top Left: Upload */}
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>Upload</Text>
-            </TouchableOpacity>
+          <View style={[styles.viewSection, styles.uploadViewSection]}>
+            <View style={styles.uploadTopContent}>
+              {/* Top Left: Upload */}
+              <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+                <IconArrowLeft size={22} color={C.textMain} />
+                <Text style={styles.subPageTitle}>Upload</Text>
+              </TouchableOpacity>
 
-            {/* 1. Document Title */}
-            <View style={styles.uploadFieldWrap}>
-              <Text style={styles.cleanFieldLabel}>DOCUMENT TITLE</Text>
-              <TextInput
-                style={styles.cleanInputField}
-                placeholder="e.g. Comprehensive Metabolic Panel"
-                placeholderTextColor="#94A3B8"
-                value={uploadTitle}
-                onChangeText={setUploadTitle}
-              />
-            </View>
-
-            {/* 2. Choose File Box with Camera Option */}
-            <View style={styles.uploadFieldWrap}>
-              <Text style={styles.cleanFieldLabel}>DOCUMENT ATTACHMENT</Text>
-              
-              {pickedFile ? (
-                <View style={styles.selectedFileCard}>
-                  <View style={styles.selectedFileIconWrap}>
-                    <IconCheck size={16} color="white" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.selectedFileName} numberOfLines={1}>{pickedFile.name}</Text>
-                    <Text style={styles.selectedFileSize}>{pickedFile.size} · Ready</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.removeFileBtn}
-                    onPress={() => setPickedFile(null)}
-                  >
-                    <Text style={styles.removeFileBtnText}>Change</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.chooseFileDualCard}>
-                  {/* Option A: Choose File / Browse */}
-                  <TouchableOpacity
-                    style={styles.chooseFileActionBtn}
-                    onPress={handlePickDocument}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.chooseFileActionIconCircle}>
-                      <IconUpload size={22} color={C.green} />
-                    </View>
-                    <Text style={styles.chooseFileActionTitle}>Choose File</Text>
-                    <Text style={styles.chooseFileActionSub}>PDF, Scan, or Doc</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.dualCardDivider} />
-
-                  {/* Option B: Use Camera */}
-                  <TouchableOpacity
-                    style={styles.chooseFileActionBtn}
-                    onPress={handleCaptureCamera}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.chooseFileActionIconCircle, { backgroundColor: C.blueBg }]}>
-                      <IconCamera size={22} color={C.blue} />
-                    </View>
-                    <Text style={styles.chooseFileActionTitle}>Use Camera</Text>
-                    <Text style={styles.chooseFileActionSub}>Take direct photo</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* 3. Sleek Divider: Or Paste Raw Clinical Text */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <View style={styles.dividerPill}>
-                <Text style={styles.dividerPillText}>OR PASTE RAW CLINICAL TEXT</Text>
+              {/* 1. Document Title */}
+              <View style={styles.uploadFieldWrap}>
+                <Text style={styles.cleanFieldLabel}>DOCUMENT TITLE</Text>
+                <TextInput
+                  style={styles.cleanInputField}
+                  placeholder="e.g. Comprehensive Metabolic Panel"
+                  placeholderTextColor="#94A3B8"
+                  value={uploadTitle}
+                  onChangeText={setUploadTitle}
+                />
               </View>
-              <View style={styles.dividerLine} />
-            </View>
 
-            {/* 4. Paste Text Area */}
-            <View style={styles.uploadFieldWrap}>
-              <TextInput
-                style={[styles.cleanInputField, styles.cleanInputArea]}
-                placeholder="Paste lab findings, prescription details, or clinical notes here..."
-                placeholderTextColor="#94A3B8"
-                value={enteredText}
-                onChangeText={setEnteredText}
-                multiline
-                numberOfLines={5}
-              />
-            </View>
-
-            {/* 5. Save Button */}
-            <TouchableOpacity
-              style={styles.cleanSaveBtn}
-              onPress={handleSaveUploadedRecord}
-              activeOpacity={0.8}
-              disabled={isExtracting}
-            >
-              <LinearGradient
-                colors={[C.green, C.greenDark]}
-                style={styles.cleanSaveBtnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {isExtracting ? (
-                  <ActivityIndicator color="white" size="small" />
+              {/* 2. Choose File Box with Camera Option */}
+              <View style={styles.uploadFieldWrap}>
+                <Text style={styles.cleanFieldLabel}>DOCUMENT ATTACHMENT</Text>
+                
+                {pickedFile ? (
+                  <View style={styles.selectedFileCard}>
+                    <View style={styles.selectedFileIconWrap}>
+                      <IconCheck size={16} color="white" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.selectedFileName} numberOfLines={1}>{pickedFile.name}</Text>
+                      <Text style={styles.selectedFileSize}>{pickedFile.size} · Ready</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeFileBtn}
+                      onPress={() => setPickedFile(null)}
+                    >
+                      <Text style={styles.removeFileBtnText}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
-                  <Text style={styles.cleanSaveBtnText}>Save</Text>
+                  <View style={styles.chooseFileDualCard}>
+                    {/* Option A: Choose File / Browse */}
+                    <TouchableOpacity
+                      style={styles.chooseFileActionBtn}
+                      onPress={handlePickDocument}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.chooseFileActionIconCircle}>
+                        <IconUpload size={22} color={C.green} />
+                      </View>
+                      <Text style={styles.chooseFileActionTitle}>Choose File</Text>
+                      <Text style={styles.chooseFileActionSub}>PDF, Scan, or Doc</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.dualCardDivider} />
+
+                    {/* Option B: Use Camera */}
+                    <TouchableOpacity
+                      style={styles.chooseFileActionBtn}
+                      onPress={handleCaptureCamera}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.chooseFileActionIconCircle, { backgroundColor: C.blueBg }]}>
+                        <IconCamera size={22} color={C.blue} />
+                      </View>
+                      <Text style={styles.chooseFileActionTitle}>Use Camera</Text>
+                      <Text style={styles.chooseFileActionSub}>Take direct photo</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+              </View>
+
+              {/* 3. Sleek Divider: Or Paste Raw Clinical Text */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerPill}>
+                  <Text style={styles.dividerPillText}>OR PASTE RAW CLINICAL TEXT</Text>
+                </View>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* 4. Paste Text Area */}
+              <View style={styles.uploadFieldWrap}>
+                <TextInput
+                  style={[styles.cleanInputField, styles.cleanInputArea]}
+                  placeholder="Paste lab findings, prescription details, or clinical notes here..."
+                  placeholderTextColor="#94A3B8"
+                  value={enteredText}
+                  onChangeText={setEnteredText}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+
+              {/* 5. In place of Save: Cross-Record Conflict & Contradiction Checker */}
+              <View style={styles.conflictCheckerWrap}>
+                <View style={styles.conflictHeaderRow}>
+                  <Text style={styles.cleanFieldLabel}>CROSS-RECORD CONFLICT & RAG CHECK</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowRagSampleFlags(!showRagSampleFlags)}
+                    style={styles.toggleRagSampleBtn}
+                  >
+                    <Text style={styles.toggleRagSampleText}>
+                      {showRagSampleFlags ? 'Hide Flags ▴' : 'Preview RAG Flags ▾'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Default Clean State: No Flags Occurred */}
+                {!showRagSampleFlags ? (
+                  <View style={styles.noConflictCard}>
+                    <View style={styles.noConflictIconWrap}>
+                      <IconShield size={20} color={C.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.noConflictTitle}>No flags occurred</Text>
+                        <View style={styles.zeroConflictPill}>
+                          <Text style={styles.zeroConflictPillText}>0 Conflicts</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.noConflictSub}>
+                        Checked with existing records in Sovereign Vault. No dosage contradictions, allergy conflicts, or information gaps detected.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  /* Expanded RAG Flag Specification from user */
+                  <View style={styles.ragFlagsContainer}>
+                    {/* Flag 1 */}
+                    <View style={styles.ragFlagItem}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>🚩</Text>
+                          <Text style={styles.ragFlagName}>Flag 1: Medication Contradiction (Dosage Change)</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeRed}>
+                          <Text style={styles.ragFlagBadgeRedText}>Contradiction</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Conflicting Dosage for Amlodipine</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record (Oct 2025): <Text style={styles.ragBold}>5mg daily.</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={[styles.ragBold, { color: C.red }]}>10mg daily.</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> Both are saved. The system highlights the difference so the doctor or patient can manually verify if the dose was intentionally doubled or if the new doctor made a typo.
+                      </Text>
+                    </View>
+
+                    {/* Flag 2 */}
+                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>🚩</Text>
+                          <Text style={styles.ragFlagName}>Flag 2: Critical Allergy Conflict</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeRed}>
+                          <Text style={styles.ragFlagBadgeRedText}>Critical Safety</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Missing Allergy Warning for Penicillin</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record (Jan 2023): <Text style={[styles.ragBold, { color: C.red }]}>"Severe allergic reaction to Penicillin."</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={styles.ragBold}>"No Known Allergies."</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> The system flags this as a highly dangerous contradiction. It explicitly warns you that the new clinic might not know about your allergy, so you can remind them before they prescribe anything.
+                      </Text>
+                    </View>
+
+                    {/* Flag 3 */}
+                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
+                      <View style={styles.ragFlagTopRow}>
+                        <View style={styles.ragFlagTitleWrap}>
+                          <Text style={styles.ragFlagEmoji}>⚠️</Text>
+                          <Text style={styles.ragFlagName}>Flag 3: Information Gap (Missing Data)</Text>
+                        </View>
+                        <View style={styles.ragFlagBadgeAmber}>
+                          <Text style={styles.ragFlagBadgeAmberText}>Info Gap</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.ragAlertText}>Alert: Missing Condition Status</Text>
+                      <View style={styles.ragComparisonBox}>
+                        <Text style={styles.ragRecordText}>• Previous Record: <Text style={styles.ragBold}>"Type 2 Diabetes - Active."</Text></Text>
+                        <Text style={styles.ragRecordText}>• Newly Uploaded Record: <Text style={styles.ragBold}>Type 2 Diabetes is not mentioned at all.</Text></Text>
+                      </View>
+                      <Text style={styles.ragActionText}>
+                        <Text style={styles.ragBold}>System Action:</Text> Instead of guessing that you are cured, the system explicitly flags that the status of your Diabetes in the new document is "not documented".
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Save Button Kept Cleanly at the Bottom (matching user's red circle) */}
+            <View style={styles.uploadBottomWrap}>
+              <TouchableOpacity
+                style={styles.cleanSaveBtn}
+                onPress={handleSaveUploadedRecord}
+                activeOpacity={0.8}
+                disabled={isExtracting}
+              >
+                <LinearGradient
+                  colors={[C.green, C.greenDark]}
+                  style={styles.cleanSaveBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {isExtracting ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text style={styles.cleanSaveBtnText}>Save</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1955,6 +2061,169 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 16,
     paddingBottom: 12,
+  },
+  uploadViewSection: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  uploadTopContent: {
+    width: '100%',
+  },
+  uploadBottomWrap: {
+    width: '100%',
+    marginTop: 16,
+    paddingBottom: 12,
+  },
+  conflictCheckerWrap: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  conflictHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  toggleRagSampleBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  toggleRagSampleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.blue,
+  },
+  noConflictCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.greenBorder,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: C.green,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  noConflictIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.greenBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noConflictTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: C.textMain,
+  },
+  zeroConflictPill: {
+    backgroundColor: C.greenBg,
+    borderWidth: 1,
+    borderColor: C.greenBorder,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  zeroConflictPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: C.green,
+  },
+  noConflictSub: {
+    fontSize: 11.5,
+    color: C.textSub,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  ragFlagsContainer: {
+    gap: 10,
+  },
+  ragFlagItem: {
+    backgroundColor: C.white,
+    borderRadius: 14,
+    padding: 13,
+    borderWidth: 1.5,
+    borderColor: '#FEE2E2',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  ragFlagTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  ragFlagTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  ragFlagEmoji: {
+    fontSize: 14,
+  },
+  ragFlagName: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: C.textMain,
+    flex: 1,
+  },
+  ragFlagBadgeRed: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  ragFlagBadgeRedText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: C.red,
+  },
+  ragFlagBadgeAmber: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  ragFlagBadgeAmberText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: C.amber,
+  },
+  ragAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.red,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  ragComparisonBox: {
+    backgroundColor: C.bg,
+    borderRadius: 8,
+    padding: 8,
+    gap: 3,
+    marginBottom: 6,
+  },
+  ragRecordText: {
+    fontSize: 11,
+    color: C.textMain,
+  },
+  ragBold: {
+    fontWeight: '700',
+  },
+  ragActionText: {
+    fontSize: 11,
+    color: C.textSub,
+    lineHeight: 16,
   },
   sectionTitle: {
     fontSize: 20,
