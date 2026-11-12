@@ -1,0 +1,49 @@
+{
+  "source_file": "doc4_discharge_summary.docx",
+  "doc_type": "discharge_summary",
+  "document_date": {
+    "value": "2023-08-10",
+    "ambiguous": true
+  },
+  "allergies": {
+    "status": "explicit_negative"
+  },
+  "medications": [
+    {
+      "name": "Amlodipine",
+      "dose_value": "10",
+      "dose_unit": "mg",
+      "status": "changed"
+    },
+    {
+      "name": "Metformin",
+      "dose_value": "500",
+      "dose_unit": "mg",
+      "status": "stopped"
+    },
+    {
+      "name": "Pantoprazole",
+      "dose_value": "40",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Essential Hypertension",
+      "certainty": "confirmed",
+      "status": "active"
+    },
+    {
+      "name": "unstable angina",
+      "certainty": "suspected",
+      "status": "suspected"
+    },
+    {
+      "name": "Acute gastroenteritis",
+      "certainty": "confirmed",
+      "status": "resolved"
+    }
+  ],
+  "lab_results": []
+}

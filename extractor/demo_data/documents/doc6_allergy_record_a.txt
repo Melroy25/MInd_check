@@ -1,0 +1,18 @@
+--- Page 1 ---
+St. John Health Centre, Kochi, India
+Consultation Note
+Date: 12/02/2023
+Doctor: Dr. Mathew Thomas, MD
+Patient Name: Priya Nair (29F)
+UHID: PN-44091
+
+Chief Complaint: Sore throat and mild fever for 2 days.
+Allergies: Penicillin (causes skin rash).
+
+Diagnosis: Acute pharyngitis.
+
+Rx:
+1. Tab Azithromycin 500 mg OD x 3 days
+2. Tab Paracetamol 650 mg SOS
+
+Dr. Mathew Thomas

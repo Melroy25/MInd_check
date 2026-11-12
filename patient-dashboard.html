@@ -631,6 +631,7 @@ body {
 .ft-img { background: #dbeafe; color: #2563eb; }
 .ft-doc { background: #ede9fe; color: #7c3aed; }
 .ft-txt { background: #fef3c7; color: #d97706; }
+.ft-json { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; font-weight: 800; }
 
 .tag {
   display: inline-block;
@@ -1539,6 +1540,7 @@ const FOLDERS = [
 
 const FILES = {
   1: [
+    { id: 10, name: 'Blood Test Results (Structured JSON)', type: 'JSON', date: '12 Oct 2026', size: '14.2 KB', desc: 'Gemini-extracted clinical facts with verbatim evidence: CBC, Glucose 104 mg/dL, HbA1c 5.8%.', tags: ['Gemini', 'JSON', 'CBC', 'Verified'] },
     { id: 11, name: 'Blood Test Results — Oct 2026', type: 'PDF', date: '12 Oct 2026', size: '1.8 MB', desc: 'Complete blood count (CBC) with differential. All values within normal range.', tags: ['CBC', 'blood', '2026'] },
     { id: 12, name: 'Lipid Panel Report', type: 'PDF', date: '01 Sep 2026', size: '0.9 MB', desc: 'Fasting lipid panel showing cholesterol and triglyceride levels.', tags: ['lipid', 'cholesterol'] },
     { id: 13, name: 'Kidney Function Test', type: 'DOCX', date: '20 Jul 2026', size: '0.5 MB', desc: 'Renal function markers including creatinine and BUN levels.', tags: ['kidney', 'renal'] },
@@ -1546,6 +1548,7 @@ const FILES = {
     { id: 15, name: 'Urinalysis Report', type: 'TXT', date: '14 Mar 2026', size: '0.2 MB', desc: 'Routine urinalysis; no abnormalities detected.', tags: ['urine', 'routine'] },
   ],
   2: [
+    { id: 20, name: 'Metformin Prescription (Structured JSON)', type: 'JSON', date: '10 Oct 2026', size: '11.8 KB', desc: 'Gemini-extracted medication facts: Metformin HCl 500mg PO twice daily with meals. Verified quote.', tags: ['Gemini', 'JSON', 'Rx', 'Verified'] },
     { id: 21, name: 'Metformin 500mg Prescription', type: 'PDF', date: '10 Oct 2026', size: '0.4 MB', desc: 'Prescription for Metformin 500mg twice daily for Type 2 Diabetes.', tags: ['diabetes', 'metformin'] },
     { id: 22, name: 'Lisinopril 10mg Scan', type: 'IMG', date: '02 Aug 2026', size: '2.3 MB', desc: 'Prescription scan for Lisinopril 10mg once daily — blood pressure.', tags: ['hypertension', 'BP'] },
     { id: 23, name: 'Vitamin D3 Supplement', type: 'PDF', date: '15 Jun 2026', size: '0.3 MB', desc: 'Supplementary vitamin D3 2000 IU daily to address deficiency.', tags: ['vitamins', 'D3'] },
@@ -1573,7 +1576,7 @@ const PEOPLE_DIRECTORY = [
   { name: 'Linda Greene', email: 'l.greene@gmail.com', role: 'Benefactor', initials: 'LG', ac: '#d97706' },
 ];
 
-const FT_MAP = { PDF: 'ft-pdf', IMG: 'ft-img', DOCX: 'ft-doc', TXT: 'ft-txt' };
+const FT_MAP = { PDF: 'ft-pdf', IMG: 'ft-img', DOCX: 'ft-doc', TXT: 'ft-txt', JSON: 'ft-json' };
 
 /* ── Kebab Menu Control (<768px) ── */
 function toggleKebabMenu(forceState) {

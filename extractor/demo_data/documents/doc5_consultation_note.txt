@@ -1,0 +1,22 @@
+--- Page 1 ---
+Family Health Clinic, Civil Lines, Jaipur
+Consultation Note
+Date: 03/04/2022
+Doctor: Dr. Anita Rao, MBBS
+Patient: Amit Kumar (35M)
+MRN: AK-67120
+
+c/o fever with chills x 3 days. k/c/o HTN on Tab Telmisartan 40 mg OD.
+Allergies: NKDA.
+
+O/E:
+BP 130/80 mmHg, Pulse 88 /min, Temp 101 F.
+Systemic exam: Chest clear, abdomen soft.
+
+Impression: Probable viral fever.
+
+Rx:
+1. Tab Paracetamol 650 mg TDS x 5 days
+2. Continue Tab Telmisartan 40 mg OD
+
+Advised: Plenty of oral fluids. Review if fever persists beyond 3 days.

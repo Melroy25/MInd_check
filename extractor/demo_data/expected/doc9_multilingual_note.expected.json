@@ -1,0 +1,26 @@
+{
+  "source_file": "doc9_multilingual_note.txt",
+  "doc_type": "consultation_note",
+  "document_date": {
+    "value": "2023-09-18",
+    "ambiguous": false
+  },
+  "allergies": {
+    "status": "explicit_negative"
+  },
+  "medications": [
+    {
+      "name": "Paracetamol",
+      "dose_value": "650",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Lumbar spondylosis",
+      "certainty": "confirmed"
+    }
+  ],
+  "lab_results": []
+}

@@ -1,0 +1,1152 @@
+{
+  "$defs": {
+    "AllergiesSection": {
+      "description": "Allergies evaluation distinguishing explicit negative from unmentioned.",
+      "properties": {
+        "status": {
+          "default": "not_documented",
+          "description": "present = allergies found; explicit_negative = explicitly denied (NKDA); not_documented = unmentioned",
+          "enum": [
+            "present",
+            "explicit_negative",
+            "not_documented"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AllergyItem"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "AllergiesSection",
+      "type": "object"
+    },
+    "AllergyItem": {
+      "description": "Individual known allergy or adverse reaction.",
+      "properties": {
+        "substance": {
+          "description": "Allergen or substance as written",
+          "title": "Substance",
+          "type": "string"
+        },
+        "reaction": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reaction manifestations if written",
+          "title": "Reaction"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Severity if written",
+          "title": "Severity"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "substance",
+        "evidence"
+      ],
+      "title": "AllergyItem",
+      "type": "object"
+    },
+    "ConditionItem": {
+      "description": "Diagnosis, symptom, or medical condition.",
+      "properties": {
+        "name": {
+          "description": "Condition name as written",
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "default": "not_stated",
+          "description": "Status of condition",
+          "enum": [
+            "active",
+            "resolved",
+            "historical",
+            "suspected",
+            "not_stated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "onset_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "certainty": {
+          "default": "not_stated",
+          "description": "Certainty level. Suspicious terms ('?', 'probable', 'r/o') must be suspected.",
+          "enum": [
+            "confirmed",
+            "suspected",
+            "ruled_out",
+            "not_stated"
+          ],
+          "title": "Certainty",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "evidence"
+      ],
+      "title": "ConditionItem",
+      "type": "object"
+    },
+    "DateObject": {
+      "description": "Structured date representation preserving raw text and uncertainty.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO format date YYYY-MM-DD, YYYY-MM, or YYYY",
+          "title": "Value"
+        },
+        "raw": {
+          "description": "Date text exactly as written in source",
+          "title": "Raw",
+          "type": "string"
+        },
+        "precision": {
+          "default": "unknown",
+          "description": "Temporal precision",
+          "enum": [
+            "day",
+            "month",
+            "year",
+            "unknown"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "ambiguous": {
+          "default": false,
+          "description": "True if day/month could be swapped (e.g. 03/04/2022)",
+          "title": "Ambiguous",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "title": "DateObject",
+      "type": "object"
+    },
+    "DocumentMetadata": {
+      "description": "Metadata describing the input file and extraction context.",
+      "properties": {
+        "document_id": {
+          "description": "Unique UUID identifier for this extraction",
+          "title": "Document Id",
+          "type": "string"
+        },
+        "source_file": {
+          "description": "Original filename or 'raw_text'",
+          "title": "Source File",
+          "type": "string"
+        },
+        "source_type": {
+          "description": "Format of input file",
+          "enum": [
+            "pdf_text",
+            "pdf_scanned",
+            "image",
+            "docx",
+            "raw_text"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 hash of original input bytes or text",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "page_count": {
+          "default": 1,
+          "description": "Number of pages in input document",
+          "title": "Page Count",
+          "type": "integer"
+        },
+        "language": {
+          "default": "en",
+          "description": "Primary document language (e.g. en, hi, kn)",
+          "title": "Language",
+          "type": "string"
+        },
+        "doc_type": {
+          "description": "Classification of medical document",
+          "enum": [
+            "prescription",
+            "lab_report",
+            "discharge_summary",
+            "scan_report",
+            "consultation_note",
+            "other"
+          ],
+          "title": "Doc Type",
+          "type": "string"
+        },
+        "doc_type_confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Doc Type Confidence",
+          "type": "number"
+        },
+        "document_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document creation/issue date"
+        },
+        "provider": {
+          "$ref": "#/$defs/ProviderInfo"
+        },
+        "extracted_at": {
+          "description": "ISO timestamp of extraction",
+          "title": "Extracted At",
+          "type": "string"
+        },
+        "extractor": {
+          "$ref": "#/$defs/ExtractorInfo"
+        },
+        "extraction_stats": {
+          "$ref": "#/$defs/ExtractionStats"
+        }
+      },
+      "required": [
+        "document_id",
+        "source_file",
+        "source_type",
+        "sha256",
+        "doc_type",
+        "extracted_at",
+        "extractor"
+      ],
+      "title": "DocumentMetadata",
+      "type": "object"
+    },
+    "EventItem": {
+      "description": "Clinical event such as admission, discharge, surgery, or procedure.",
+      "properties": {
+        "type": {
+          "default": "other",
+          "enum": [
+            "admission",
+            "discharge",
+            "surgery",
+            "procedure",
+            "visit",
+            "follow_up",
+            "other"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "description": "Description of event",
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description",
+        "evidence"
+      ],
+      "title": "EventItem",
+      "type": "object"
+    },
+    "Evidence": {
+      "description": "Verbatim quote tracing an extracted fact back to the original document.",
+      "properties": {
+        "quote": {
+          "description": "Verbatim text from the source",
+          "title": "Quote",
+          "type": "string"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number where the quote appears",
+          "title": "Page",
+          "type": "integer"
+        },
+        "char_start": {
+          "default": 0,
+          "description": "Character offset start in raw_text",
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "char_end": {
+          "default": 0,
+          "description": "Character offset end in raw_text",
+          "title": "Char End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "quote"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ExtractionStats": {
+      "description": "Statistics tracking verification integrity and page chunking.",
+      "properties": {
+        "items_extracted": {
+          "default": 0,
+          "description": "Total entity items extracted",
+          "title": "Items Extracted",
+          "type": "integer"
+        },
+        "items_verified": {
+          "default": 0,
+          "description": "Count of items verified verbatim",
+          "title": "Items Verified",
+          "type": "integer"
+        },
+        "items_unverified": {
+          "default": 0,
+          "description": "Count of unverifiable items",
+          "title": "Items Unverified",
+          "type": "integer"
+        },
+        "pages_processed": {
+          "default": 1,
+          "description": "Number of pages processed",
+          "title": "Pages Processed",
+          "type": "integer"
+        }
+      },
+      "title": "ExtractionStats",
+      "type": "object"
+    },
+    "ExtractorInfo": {
+      "description": "Metadata regarding the extraction engine.",
+      "properties": {
+        "provider": {
+          "const": "gemini",
+          "default": "gemini",
+          "description": "Extractor provider",
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model or engine identifier",
+          "title": "Model",
+          "type": "string"
+        },
+        "version": {
+          "default": "1.0",
+          "description": "Extractor version",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "ExtractorInfo",
+      "type": "object"
+    },
+    "InvestigationItem": {
+      "description": "Diagnostic imaging, scan, endoscopy, or functional test.",
+      "properties": {
+        "modality": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "X-ray, CT, MRI, USG, ECG, Echo, etc.",
+          "title": "Modality"
+        },
+        "body_part": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Anatomical region",
+          "title": "Body Part"
+        },
+        "findings_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Detailed findings text",
+          "title": "Findings Raw"
+        },
+        "impression_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Final impression/conclusion",
+          "title": "Impression Raw"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence"
+      ],
+      "title": "InvestigationItem",
+      "type": "object"
+    },
+    "LabResultItem": {
+      "description": "Individual lab diagnostic measurement.",
+      "properties": {
+        "test_name": {
+          "description": "Lab test name as written",
+          "title": "Test Name",
+          "type": "string"
+        },
+        "value": {
+          "description": "Result value string exactly as written",
+          "title": "Value",
+          "type": "string"
+        },
+        "value_numeric": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Parsed numeric value if applicable",
+          "title": "Value Numeric"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit exactly as written (never converted)",
+          "title": "Unit"
+        },
+        "reference_range_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference range as written",
+          "title": "Reference Range Raw"
+        },
+        "flag": {
+          "default": "not_stated",
+          "description": "Result flag only if explicitly printed or indicated",
+          "enum": [
+            "high",
+            "low",
+            "normal",
+            "abnormal",
+            "not_stated"
+          ],
+          "title": "Flag",
+          "type": "string"
+        },
+        "collected_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reported_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "test_name",
+        "value",
+        "evidence"
+      ],
+      "title": "LabResultItem",
+      "type": "object"
+    },
+    "MedicationItem": {
+      "description": "Medication prescription, continuation, change, or discontinuation.",
+      "properties": {
+        "name": {
+          "description": "Brand or generic medication name as written",
+          "title": "Name",
+          "type": "string"
+        },
+        "dose_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dose number string (e.g. 500, 10)",
+          "title": "Dose Value"
+        },
+        "dose_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dose unit (e.g. mg, mcg, mL, puff)",
+          "title": "Dose Unit"
+        },
+        "dose_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Full dose string (e.g. 500 mg)",
+          "title": "Dose Raw"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Route (oral, IV, topical, inhalational, etc.)",
+          "title": "Route"
+        },
+        "frequency_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Frequency as written (e.g. BD, OD, TDS, HS, 1-0-1)",
+          "title": "Frequency Raw"
+        },
+        "duration_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Duration as written (e.g. 5 days, 1 month)",
+          "title": "Duration Raw"
+        },
+        "status": {
+          "default": "prescribed",
+          "description": "Medication status relative to this document",
+          "enum": [
+            "prescribed",
+            "continued",
+            "changed",
+            "stopped",
+            "not_stated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "stop_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "change_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Note on dose change or reason if written",
+          "title": "Change Note"
+        },
+        "indication": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Indication if written in source",
+          "title": "Indication"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "evidence"
+      ],
+      "title": "MedicationItem",
+      "type": "object"
+    },
+    "PatientIdentifier": {
+      "description": "Patient medical identification number.",
+      "properties": {
+        "type": {
+          "description": "Identifier type (e.g., MRN, IP, UHID)",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "description": "Identifier value",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "PatientIdentifier",
+      "type": "object"
+    },
+    "PatientInfo": {
+      "description": "Demographic and identification info for the patient.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age"
+        },
+        "sex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sex"
+        },
+        "dob": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateObject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "identifiers": {
+          "items": {
+            "$ref": "#/$defs/PatientIdentifier"
+          },
+          "title": "Identifiers",
+          "type": "array"
+        }
+      },
+      "title": "PatientInfo",
+      "type": "object"
+    },
+    "ProviderInfo": {
+      "description": "Healthcare provider / physician / facility information.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider/Doctor name",
+          "title": "Name"
+        },
+        "facility": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hospital or clinic name",
+          "title": "Facility"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Country",
+          "title": "Country"
+        }
+      },
+      "title": "ProviderInfo",
+      "type": "object"
+    },
+    "UnverifiedItem": {
+      "description": "Extracted item that failed strict verbatim evidence check or numeric consistency.",
+      "properties": {
+        "item_type": {
+          "description": "Entity type e.g. medication, condition, lab_result, vital",
+          "title": "Item Type",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Reason why the item was unverified",
+          "title": "Reason",
+          "type": "string"
+        },
+        "raw_quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Quote submitted by extractor",
+          "title": "Raw Quote"
+        },
+        "item_data": {
+          "additionalProperties": true,
+          "description": "Payload of the item",
+          "title": "Item Data",
+          "type": "object"
+        }
+      },
+      "required": [
+        "item_type",
+        "reason"
+      ],
+      "title": "UnverifiedItem",
+      "type": "object"
+    },
+    "VitalItem": {
+      "description": "Physiological vital signs (BP, Pulse, Temperature, SpO2, RR, BMI).",
+      "properties": {
+        "name": {
+          "description": "Vital sign name (e.g. BP, Pulse, Temp, SpO2)",
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value as written (e.g. 120/80, 72, 98.6)",
+          "title": "Value",
+          "type": "string"
+        },
+        "value_numeric": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Numeric"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit (e.g. mmHg, bpm, F, %)",
+          "title": "Unit"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "evidence"
+      ],
+      "title": "VitalItem",
+      "type": "object"
+    }
+  },
+  "description": "Complete structured JSON representation of an ingested medical document.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "document": {
+      "$ref": "#/$defs/DocumentMetadata"
+    },
+    "patient": {
+      "$ref": "#/$defs/PatientInfo"
+    },
+    "conditions": {
+      "items": {
+        "$ref": "#/$defs/ConditionItem"
+      },
+      "title": "Conditions",
+      "type": "array"
+    },
+    "medications": {
+      "items": {
+        "$ref": "#/$defs/MedicationItem"
+      },
+      "title": "Medications",
+      "type": "array"
+    },
+    "allergies": {
+      "$ref": "#/$defs/AllergiesSection"
+    },
+    "lab_results": {
+      "items": {
+        "$ref": "#/$defs/LabResultItem"
+      },
+      "title": "Lab Results",
+      "type": "array"
+    },
+    "investigations": {
+      "items": {
+        "$ref": "#/$defs/InvestigationItem"
+      },
+      "title": "Investigations",
+      "type": "array"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/EventItem"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "vitals": {
+      "items": {
+        "$ref": "#/$defs/VitalItem"
+      },
+      "title": "Vitals",
+      "type": "array"
+    },
+    "free_text_notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Free Text Notes",
+      "type": "array"
+    },
+    "unverified_items": {
+      "items": {
+        "$ref": "#/$defs/UnverifiedItem"
+      },
+      "title": "Unverified Items",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "raw_text": {
+      "default": "",
+      "description": "Full page-tagged extracted text",
+      "title": "Raw Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "document"
+  ],
+  "title": "MedicalDocumentExtraction",
+  "type": "object"
+}

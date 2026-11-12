@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
-  StyleSheet, StatusBar, useWindowDimensions, TextInput,
+  StyleSheet, StatusBar, useWindowDimensions, TextInput, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react-native-svg';
+import { pickMedicalDocument, extractMedicalDocument } from './services/geminiExtractor';
 
 // ─── TOKENS ──────────────────────────────────────────────────────────────────
 const G = {
@@ -111,6 +112,23 @@ const IconTrash = ({ size = 16, color = '#dc2626' }) => (
     <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
   </Svg>
 );
+const IconSparkles = ({ size = 18, color = G.green }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/>
+  </Svg>
+);
+const IconJson = ({ size = 18, color = G.amber }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="16 18 22 12 16 6"/>
+    <Polyline points="8 6 2 12 8 18"/>
+  </Svg>
+);
+const IconCopy = ({ size = 16, color = G.muted }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+    <Path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </Svg>
+);
 
 // ─── ROLE DATA ────────────────────────────────────────────────────────────────
 const ROLES = [
@@ -121,18 +139,76 @@ const ROLES = [
 
 // ─── INITIAL MOCK DATA ────────────────────────────────────────────────────────
 const INITIAL_FOLDERS = [
-  { id: 'cardio', name: 'Cardiology Reports', count: 4, date: '2 days ago', desc: 'ECG, Echo, stress tests, lipid panels' },
-  { id: 'labs',   name: 'Blood & Lab Tests',  count: 8, date: 'Yesterday',  desc: 'CBC, Metabolic panel, HbA1c, Thyroid' },
-  { id: 'rx',     name: 'Prescriptions & Rx', count: 3, date: '1 week ago', desc: 'Current regimens, dosages, refills' },
+  { id: 'cardio', name: 'Cardiology Reports', count: 5, date: '2 days ago', desc: 'ECG, Echo, stress tests, lipid panels' },
+  { id: 'labs',   name: 'Blood & Lab Tests',  count: 9, date: 'Yesterday',  desc: 'CBC, Metabolic panel, HbA1c, Thyroid' },
+  { id: 'rx',     name: 'Prescriptions & Rx', count: 4, date: '1 week ago', desc: 'Current regimens, dosages, refills' },
   { id: 'rad',    name: 'Radiology & Scans',  count: 2, date: '3 weeks ago',desc: 'Chest X-Ray, Brain MRI, CT scans' },
 ];
 
 const INITIAL_FILES = [
-  { id: '1', name: 'Comprehensive Metabolic Panel', folder: 'labs', type: 'PDF', size: '1.4 MB', date: 'Oct 24, 2026', doctor: 'Dr. Sarah Jenkins', tags: ['Metabolic', 'Routine', 'Verified'] },
-  { id: '2', name: 'Resting ECG & 2D Echo Report', folder: 'cardio', type: 'PDF', size: '3.8 MB', date: 'Oct 12, 2026', doctor: 'Dr. Mark Vance', tags: ['Cardio', 'Echo', 'Normal Sinus'] },
-  { id: '3', name: 'Chest X-Ray PA & Lateral View', folder: 'rad', type: 'IMG', size: '14.2 MB', date: 'Sep 28, 2026', doctor: 'Metro Diagnostic Center', tags: ['Radiology', 'X-Ray'] },
-  { id: '4', name: 'Atorvastatin & Lisinopril Active Rx', folder: 'rx', type: 'PDF', size: '420 KB', date: 'Sep 15, 2026', doctor: 'Dr. Sarah Jenkins', tags: ['Prescription', 'Daily'] },
-  { id: '5', name: 'HbA1c & Fasting Glucose Profile', folder: 'labs', type: 'DOC', size: '890 KB', date: 'Aug 30, 2026', doctor: 'Dr. Mark Vance', tags: ['Endocrine', 'Glucose 94'] },
+  {
+    id: '1',
+    name: 'Comprehensive Metabolic Panel',
+    folder: 'labs',
+    type: 'PDF',
+    size: '1.4 MB',
+    date: 'Oct 24, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    tags: ['Metabolic', 'Routine', 'Verified'],
+  },
+  {
+    id: '1-json',
+    name: 'Comprehensive Metabolic Panel (Structured JSON)',
+    folder: 'labs',
+    type: 'JSON',
+    size: '14.8 KB',
+    date: 'Oct 24, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    tags: ['Gemini Extracted', 'Schema v2', '6 Lab Tests'],
+    extractedData: {
+      document_metadata: { doc_type: 'lab_report', provider_name: 'Dr. Sarah Jenkins', facility_name: 'Metro Diagnostics', patient_name: 'Melroy Almeida' },
+      conditions: [{ name: 'Pre-diabetes', status: 'active', certainty: 'confirmed', evidence: { quote: 'Patient shows borderline fasting glucose 104 mg/dL', page: 1 } }],
+      medications: [{ name: 'Metformin HCl', dose_raw: '500 mg', route: 'Oral', frequency_raw: 'Daily with meal', status: 'prescribed', evidence: { quote: 'Rx: Metformin 500mg PO daily', page: 1 } }],
+      allergies: { status: 'explicit_negative', items: [] },
+      lab_results: [
+        { test_name: 'Fasting Plasma Glucose', value: '104', unit: 'mg/dL', reference_range_raw: '70-99', flag: 'high', evidence: { quote: 'Glucose, Fasting: 104 mg/dL [70-99]', page: 1 } },
+        { test_name: 'HbA1c', value: '5.8', unit: '%', reference_range_raw: '< 5.7', flag: 'high', evidence: { quote: 'Hemoglobin A1c: 5.8% [<5.7]', page: 1 } },
+        { test_name: 'Creatinine, Serum', value: '0.9', unit: 'mg/dL', reference_range_raw: '0.7-1.3', flag: 'normal', evidence: { quote: 'Creatinine: 0.9 mg/dL', page: 1 } },
+      ],
+      vitals: [{ name: 'Blood Pressure', value: '122/78', unit: 'mmHg', evidence: { quote: 'BP 122/78 sitting', page: 1 } }],
+      summary: 'Metabolic panel extracted with verbatim evidence linking. Identified borderline fasting glucose and HbA1c elevation.',
+    },
+  },
+  {
+    id: '2',
+    name: 'Resting ECG & 2D Echo Report',
+    folder: 'cardio',
+    type: 'PDF',
+    size: '3.8 MB',
+    date: 'Oct 12, 2026',
+    doctor: 'Dr. Mark Vance',
+    tags: ['Cardio', 'Echo', 'Normal Sinus'],
+  },
+  {
+    id: '3',
+    name: 'Chest X-Ray PA & Lateral View',
+    folder: 'rad',
+    type: 'IMG',
+    size: '14.2 MB',
+    date: 'Sep 28, 2026',
+    doctor: 'Metro Diagnostic Center',
+    tags: ['Radiology', 'X-Ray'],
+  },
+  {
+    id: '4',
+    name: 'Atorvastatin & Lisinopril Active Rx',
+    folder: 'rx',
+    type: 'PDF',
+    size: '420 KB',
+    date: 'Sep 15, 2026',
+    doctor: 'Dr. Sarah Jenkins',
+    tags: ['Prescription', 'Daily'],
+  },
 ];
 
 const INITIAL_PEOPLE = [
@@ -152,6 +228,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
   const [folders, setFolders] = useState(INITIAL_FOLDERS);
   const [people, setPeople] = useState(INITIAL_PEOPLE);
   const [selectedFileModal, setSelectedFileModal] = useState(null);
+  const [selectedJsonModal, setSelectedJsonModal] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Upload Form State
@@ -159,39 +236,123 @@ function PatientPortal({ onSignOut, isDesktop }) {
   const [newFolder, setNewFolder] = useState('cardio');
   const [newDoctor, setNewDoctor] = useState('');
   const [convertToPdf, setConvertToPdf] = useState(true);
+  const [geminiExtractionEnabled, setGeminiExtractionEnabled] = useState(true);
 
-  // Share Form State
-  const [shareName, setShareName] = useState('');
-  const [shareRole, setShareRole] = useState('Doctor');
-  const [sharePerm, setSharePerm] = useState('Full Access');
+  // Picked Document File
+  const [pickedFile, setPickedFile] = useState(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState('');
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const handleUploadSubmit = () => {
-    if (!newTitle.trim()) {
-      showToast('Please enter a record or file name');
+  const handlePickDocument = async () => {
+    try {
+      const doc = await pickMedicalDocument();
+      if (doc) {
+        setPickedFile(doc);
+        if (!newTitle.trim()) {
+          // Pre-fill title from file name
+          const cleanName = doc.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          setNewTitle(cleanName);
+        }
+        showToast(`Selected: ${doc.name}`);
+      }
+    } catch (err) {
+      console.warn('Pick document error:', err);
+      showToast('Could not open file picker');
+    }
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!newTitle.trim() && !pickedFile) {
+      showToast('Please select a file or enter a document title');
       return;
     }
-    const newDoc = {
+
+    const title = newTitle.trim() || (pickedFile ? pickedFile.name : 'Medical Document');
+    const doctorName = newDoctor.trim() || 'Self-Uploaded';
+
+    // Build the original uploaded file entry
+    const isPdf = pickedFile?.name?.toLowerCase()?.endsWith('.pdf') || convertToPdf;
+    const isImg = pickedFile?.name?.toLowerCase()?.match(/\.(png|jpg|jpeg|webp)$/);
+    const originalDoc = {
       id: Date.now().toString(),
-      name: newTitle.trim(),
+      name: title,
       folder: newFolder,
-      type: convertToPdf ? 'PDF' : 'DOC',
-      size: '2.1 MB',
+      type: isPdf ? 'PDF' : (isImg ? 'IMG' : 'DOC'),
+      size: pickedFile?.size || '2.1 MB',
       date: 'Just now',
-      doctor: newDoctor.trim() || 'Self-Uploaded',
-      tags: ['Sovereign Vault', 'Encrypted'],
+      doctor: doctorName,
+      tags: ['Sovereign Vault', convertToPdf ? 'Converted PDF' : 'Original'],
     };
-    setFiles([newDoc, ...files]);
-    // update folder count
-    setFolders(folders.map(f => f.id === newFolder ? { ...f, count: f.count + 1, date: 'Just now' } : f));
+
+    let newFilesToAdd = [originalDoc];
+    let folderIncrement = 1;
+
+    // Run Gemini Extraction if enabled
+    if (geminiExtractionEnabled) {
+      setIsExtracting(true);
+      setExtractionProgress('Initializing Gemini Medical Extractor...');
+
+      try {
+        const extraction = await extractMedicalDocument({
+          file: pickedFile,
+          fileName: pickedFile ? pickedFile.name : `${title}.pdf`,
+          mimeType: pickedFile ? pickedFile.mimeType : 'application/pdf',
+          base64Data: pickedFile ? pickedFile.base64 : null,
+          rawText: `Document: ${title}. Doctor: ${doctorName}. Folder: ${newFolder}. Verified sovereign medical record.`,
+          onProgress: (p) => setExtractionProgress(p),
+        });
+
+        // Create the companion structured JSON file
+        const jsonDoc = {
+          id: (Date.now() + 1).toString(),
+          name: `${title} (Structured JSON)`,
+          folder: newFolder,
+          type: 'JSON',
+          size: '12.4 KB',
+          date: 'Just now',
+          doctor: extraction.doctor || doctorName,
+          tags: [
+            'Gemini Extracted',
+            'Verified JSON',
+            `${extraction.medications_count} Meds`,
+            `${extraction.conditions_count} Conditions`,
+          ],
+          extractedData: extraction.data,
+          rawJson: extraction.raw_json,
+        };
+
+        newFilesToAdd = [originalDoc, jsonDoc];
+        folderIncrement = 2;
+        showToast(`Gemini extracted ${extraction.medications_count} meds & ${extraction.conditions_count} conditions into JSON!`);
+      } catch (err) {
+        console.warn('[handleUploadSubmit] Gemini extraction failed:', err);
+        showToast('Document saved. Gemini extraction error (see details).');
+      } finally {
+        setIsExtracting(false);
+        setExtractionProgress('');
+      }
+    } else {
+      showToast('Document added to your vault');
+    }
+
+    // Save to state
+    setFiles((prev) => [...newFilesToAdd, ...prev]);
+    setFolders((prev) =>
+      prev.map((f) =>
+        f.id === newFolder ? { ...f, count: f.count + folderIncrement, date: 'Just now' } : f
+      )
+    );
+
+    // Reset upload form
     setNewTitle('');
     setNewDoctor('');
+    setPickedFile(null);
     setActiveTab('folders');
-    showToast('Document securely added to your vault');
   };
 
   const handleShareSubmit = () => {
@@ -212,17 +373,27 @@ function PatientPortal({ onSignOut, isDesktop }) {
   };
 
   const handleRevoke = (id) => {
-    setPeople(people.filter(p => p.id !== id));
+    setPeople(people.filter((p) => p.id !== id));
     showToast('Permission revoked successfully');
   };
 
+  const copyToClipboard = (text) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      showToast('Raw JSON copied to clipboard!');
+    } else {
+      showToast('JSON ready in modal');
+    }
+  };
+
   const filteredFiles = useMemo(() => {
-    return files.filter(f => {
+    return files.filter((f) => {
       const matchesFolder = !selectedFolder || f.folder === selectedFolder;
-      const matchesSearch = !search.trim() ||
+      const matchesSearch =
+        !search.trim() ||
         f.name.toLowerCase().includes(search.toLowerCase()) ||
         f.doctor.toLowerCase().includes(search.toLowerCase()) ||
-        f.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
+        f.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
       return matchesFolder && matchesSearch;
     });
   }, [files, selectedFolder, search]);
@@ -276,12 +447,12 @@ function PatientPortal({ onSignOut, isDesktop }) {
           <View style={pStyles.vaultHeroHeader}>
             <View>
               <View style={pStyles.badgeEncrypted}>
-                <IconShield size={12} color={G.green} strokeWidth={2.5}/>
-                <Text style={pStyles.badgeEncryptedText}>Zero Third-Party Cloud · Sovereign Vault</Text>
+                <IconSparkles size={13} color={G.green}/>
+                <Text style={pStyles.badgeEncryptedText}>Gemini AI Extraction Enabled · Zero Cloud Tie-In</Text>
               </View>
               <Text style={pStyles.vaultHeroTitle}>Patient Medical History Vault</Text>
               <Text style={pStyles.vaultHeroSub}>
-                All your records, lab tests, prescriptions, and radiology files are encrypted and owned by you.
+                Upload prescriptions, lab tests, or scan reports. MediVault and Google Gemini extract structured clinical JSON with verbatim evidence linking.
               </Text>
             </View>
           </View>
@@ -293,12 +464,12 @@ function PatientPortal({ onSignOut, isDesktop }) {
               <Text style={pStyles.statLabel}>Total Records</Text>
             </View>
             <View style={pStyles.statCard}>
-              <Text style={pStyles.statNum}>{folders.length}</Text>
-              <Text style={pStyles.statLabel}>Organized Folders</Text>
+              <Text style={pStyles.statNum}>{files.filter(f => f.type === 'JSON').length}</Text>
+              <Text style={[pStyles.statLabel, { color: G.amber, fontWeight: '700' }]}>Structured JSON</Text>
             </View>
             <View style={pStyles.statCard}>
-              <Text style={pStyles.statNum}>{people.length}</Text>
-              <Text style={pStyles.statLabel}>Shared Doctors</Text>
+              <Text style={pStyles.statNum}>{folders.length}</Text>
+              <Text style={pStyles.statLabel}>Organized Folders</Text>
             </View>
             <View style={pStyles.statCard}>
               <Text style={[pStyles.statNum, { color: G.green }]}>100%</Text>
@@ -311,10 +482,10 @@ function PatientPortal({ onSignOut, isDesktop }) {
         <View style={pStyles.tabsRow}>
           {[
             { key: 'folders', label: 'My Folders & Files', Icon: IconFolder },
-            { key: 'upload',  label: 'Upload Record',     Icon: IconUpload },
+            { key: 'upload',  label: 'Upload Record & Extract', Icon: IconUpload },
             { key: 'share',   label: 'Share Access',      Icon: IconShare },
             { key: 'access',  label: 'Manage Permissions',Icon: IconLock },
-          ].map(t => {
+          ].map((t) => {
             const active = activeTab === t.key;
             return (
               <TouchableOpacity
@@ -361,7 +532,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
             </View>
 
             <View style={[pStyles.foldersGrid, isDesktop && pStyles.foldersGridDesktop]}>
-              {folders.map(f => {
+              {folders.map((f) => {
                 const isSelected = selectedFolder === f.id;
                 return (
                   <TouchableOpacity
@@ -389,10 +560,12 @@ function PatientPortal({ onSignOut, isDesktop }) {
             {/* Files List */}
             <View style={[pStyles.sectionHeaderRow, { marginTop: 28 }]}>
               <Text style={pStyles.sectionHeading}>
-                {selectedFolder ? `${folders.find(x => x.id === selectedFolder)?.name} (${filteredFiles.length})` : `All Medical Records (${filteredFiles.length})`}
+                {selectedFolder
+                  ? `${folders.find((x) => x.id === selectedFolder)?.name} (${filteredFiles.length})`
+                  : `All Medical Records (${filteredFiles.length})`}
               </Text>
               <TouchableOpacity onPress={() => setActiveTab('upload')} style={pStyles.linkAddFile}>
-                <Text style={pStyles.linkAddFileText}>+ Upload Record</Text>
+                <Text style={pStyles.linkAddFileText}>+ Upload &amp; Extract</Text>
               </TouchableOpacity>
             </View>
 
@@ -407,23 +580,37 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 {filteredFiles.map((file, idx) => (
                   <TouchableOpacity
                     key={file.id}
-                    onPress={() => setSelectedFileModal(file)}
+                    onPress={() => {
+                      if (file.type === 'JSON' && file.extractedData) {
+                        setSelectedJsonModal(file);
+                      } else {
+                        setSelectedFileModal(file);
+                      }
+                    }}
                     style={[pStyles.fileRow, idx < filteredFiles.length - 1 && pStyles.fileRowBorder]}
                     activeOpacity={0.7}
                   >
                     {/* Badge */}
-                    <View style={[
-                      pStyles.fileTypeBadge,
-                      file.type === 'PDF' && { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
-                      file.type === 'IMG' && { backgroundColor: '#f3e8ff', borderColor: '#d8b4fe' },
-                      file.type === 'DOC' && { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
-                    ]}>
-                      <Text style={[
-                        pStyles.fileTypeText,
-                        file.type === 'PDF' && { color: G.red },
-                        file.type === 'IMG' && { color: G.purple },
-                        file.type === 'DOC' && { color: G.blue },
-                      ]}>{file.type}</Text>
+                    <View
+                      style={[
+                        pStyles.fileTypeBadge,
+                        file.type === 'PDF' && { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+                        file.type === 'IMG' && { backgroundColor: '#f3e8ff', borderColor: '#d8b4fe' },
+                        file.type === 'DOC' && { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
+                        file.type === 'JSON' && { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          pStyles.fileTypeText,
+                          file.type === 'PDF' && { color: G.red },
+                          file.type === 'IMG' && { color: G.purple },
+                          file.type === 'DOC' && { color: G.blue },
+                          file.type === 'JSON' && { color: G.amber },
+                        ]}
+                      >
+                        {file.type}
+                      </Text>
                     </View>
 
                     {/* Details */}
@@ -437,17 +624,42 @@ function PatientPortal({ onSignOut, isDesktop }) {
                         <Text style={pStyles.fileMetaText}>{file.date}</Text>
                       </View>
                       <View style={pStyles.tagsRow}>
-                        {file.tags.map(t => (
-                          <View key={t} style={pStyles.tagPill}>
-                            <Text style={pStyles.tagPillText}>{t}</Text>
+                        {file.tags.map((t) => (
+                          <View
+                            key={t}
+                            style={[
+                              pStyles.tagPill,
+                              t.includes('Gemini') && { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                pStyles.tagPillText,
+                                t.includes('Gemini') && { color: G.amber, fontWeight: '700' },
+                              ]}
+                            >
+                              {t}
+                            </Text>
                           </View>
                         ))}
                       </View>
                     </View>
 
                     {/* Action Button */}
-                    <View style={pStyles.btnViewFile}>
-                      <Text style={pStyles.btnViewFileText}>Inspect</Text>
+                    <View
+                      style={[
+                        pStyles.btnViewFile,
+                        file.type === 'JSON' && { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          pStyles.btnViewFileText,
+                          file.type === 'JSON' && { color: G.amber },
+                        ]}
+                      >
+                        {file.type === 'JSON' ? 'View JSON' : 'Inspect'}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -456,25 +668,79 @@ function PatientPortal({ onSignOut, isDesktop }) {
           </View>
         )}
 
-        {/* ══ VIEW: UPLOAD RECORD ═════════════════════════════════════════════ */}
+        {/* ══ VIEW: UPLOAD RECORD & EXTRACT ═══════════════════════════════════ */}
         {activeTab === 'upload' && (
           <View style={pStyles.formCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <View style={pStyles.formIconWrap}><IconUpload size={20} color={G.green}/></View>
-              <View>
-                <Text style={pStyles.formTitle}>Upload New Medical Record</Text>
-                <Text style={pStyles.formSub}>All uploads are converted to clean, standardized PDFs and encrypted.</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={pStyles.formTitle}>Upload Medical Record &amp; Extract Data</Text>
+                <Text style={pStyles.formSub}>
+                  Uploads are converted to standardized PDFs, and Gemini extracts validated clinical JSON.
+                </Text>
               </View>
             </View>
 
-            {/* Drag Drop Mock Area */}
-            <View style={pStyles.dropzone}>
-              <IconUpload size={32} color={G.green}/>
-              <Text style={pStyles.dropzoneTitle}>Ready for files or scans</Text>
-              <Text style={pStyles.dropzoneSub}>PDF, JPG, PNG, DICOM, or DOC up to 50MB</Text>
-            </View>
+            {/* File Picker / Dropzone */}
+            <TouchableOpacity
+              onPress={handlePickDocument}
+              style={[pStyles.dropzone, pickedFile && pStyles.dropzoneSelected]}
+              activeOpacity={0.8}
+            >
+              {pickedFile ? (
+                <View style={{ alignItems: 'center' }}>
+                  <View style={[pStyles.fileTypeBadge, { backgroundColor: G.greenL, borderColor: G.border, marginBottom: 8 }]}>
+                    <Text style={[pStyles.fileTypeText, { color: G.green }]}>{pickedFile.name.split('.').pop().toUpperCase()}</Text>
+                  </View>
+                  <Text style={pStyles.dropzoneTitle}>{pickedFile.name}</Text>
+                  <Text style={pStyles.dropzoneSub}>{pickedFile.size} · Ready for Gemini Extraction</Text>
+                  <View style={pStyles.btnChangeFile}>
+                    <Text style={pStyles.btnChangeFileText}>Choose Different File</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ alignItems: 'center' }}>
+                  <IconUpload size={32} color={G.green}/>
+                  <Text style={pStyles.dropzoneTitle}>Choose File / Browse Scans or PDFs</Text>
+                  <Text style={pStyles.dropzoneSub}>PDF, JPG, PNG, WEBP, DICOM, or DOCX up to 50MB</Text>
+                  <View style={[pStyles.btnChangeFile, { marginTop: 10 }]}>
+                    <Text style={pStyles.btnChangeFileText}>Browse Device / Disk</Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
 
-            <View style={pStyles.inputGroup}>
+            {/* Gemini AI Extraction Toggle */}
+            <TouchableOpacity
+              onPress={() => setGeminiExtractionEnabled(!geminiExtractionEnabled)}
+              style={[
+                pStyles.toggleRow,
+                geminiExtractionEnabled ? { backgroundColor: '#fef9ee', borderColor: '#fcd34d' } : {},
+              ]}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  pStyles.checkbox,
+                  geminiExtractionEnabled && { backgroundColor: G.amber, borderColor: G.amber },
+                ]}
+              >
+                {geminiExtractionEnabled && <IconCheck size={10} color="white"/>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <IconSparkles size={14} color={G.amber}/>
+                  <Text style={[pStyles.toggleLabel, { color: G.charcoal }]}>
+                    Google Gemini Multimodal AI Extraction
+                  </Text>
+                </View>
+                <Text style={pStyles.toggleSub}>
+                  Extracts structured medications, dosages, lab tests, diagnoses, and allergies into verifiable JSON with verbatim quotes.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={[pStyles.inputGroup, { marginTop: 16 }]}>
               <Text style={pStyles.inputLabel}>Record / Document Title *</Text>
               <TextInput
                 value={newTitle}
@@ -488,13 +754,18 @@ function PatientPortal({ onSignOut, isDesktop }) {
             <View style={pStyles.inputGroup}>
               <Text style={pStyles.inputLabel}>Select Vault Folder</Text>
               <View style={pStyles.folderSelectRow}>
-                {folders.map(f => (
+                {folders.map((f) => (
                   <TouchableOpacity
                     key={f.id}
                     onPress={() => setNewFolder(f.id)}
                     style={[pStyles.folderChip, newFolder === f.id && pStyles.folderChipSelected]}
                   >
-                    <Text style={[pStyles.folderChipText, newFolder === f.id && pStyles.folderChipTextSelected]}>
+                    <Text
+                      style={[
+                        pStyles.folderChipText,
+                        newFolder === f.id && pStyles.folderChipTextSelected,
+                      ]}
+                    >
                       {f.name}
                     </Text>
                   </TouchableOpacity>
@@ -524,16 +795,37 @@ function PatientPortal({ onSignOut, isDesktop }) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={pStyles.toggleLabel}>Auto-convert to Standardized Medical PDF</Text>
-                <Text style={pStyles.toggleSub}>Ensures universal compatibility across all doctor and hospital EHRs</Text>
+                <Text style={pStyles.toggleSub}>
+                  Ensures universal compatibility across all doctor and hospital EHRs
+                </Text>
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleUploadSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
-              <LinearGradient colors={[G.green, G.greenD]} style={s.btnPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <Text style={s.btnPrimaryText}>Add Record to Sovereign Vault</Text>
-                <View style={s.arrowCircle}><IconArrow size={11}/></View>
-              </LinearGradient>
-            </TouchableOpacity>
+            {/* Loading Indicator during extraction */}
+            {isExtracting ? (
+              <View style={pStyles.extractingCard}>
+                <ActivityIndicator size="small" color={G.green}/>
+                <View style={{ flex: 1 }}>
+                  <Text style={pStyles.extractingTitle}>Extracting Medical Facts with Gemini...</Text>
+                  <Text style={pStyles.extractingSub}>{extractionProgress || 'Analyzing document...'}</Text>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={handleUploadSubmit} activeOpacity={0.8} style={{ marginTop: 24 }}>
+                <LinearGradient
+                  colors={[G.green, G.greenD]}
+                  style={s.btnPrimary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <IconSparkles size={16} color="white"/>
+                  <Text style={s.btnPrimaryText}>
+                    {geminiExtractionEnabled ? 'Add Record & Extract with Gemini' : 'Add to Vault'}
+                  </Text>
+                  <View style={s.arrowCircle}><IconArrow size={11}/></View>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -562,7 +854,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
             <View style={pStyles.inputGroup}>
               <Text style={pStyles.inputLabel}>Recipient Role</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                {['Doctor', 'Caretaker', 'Hospital Staff'].map(r => (
+                {['Doctor', 'Caretaker', 'Hospital Staff'].map((r) => (
                   <TouchableOpacity
                     key={r}
                     onPress={() => setShareRole(r)}
@@ -580,7 +872,7 @@ function PatientPortal({ onSignOut, isDesktop }) {
                 { key: 'Full Access', desc: 'Can view all medical folders and download records' },
                 { key: 'View Only', desc: 'Can inspect records in browser without download' },
                 { key: '30-Day Limited', desc: 'Temporary access automatically expiring in 30 days' },
-              ].map(opt => (
+              ].map((opt) => (
                 <TouchableOpacity
                   key={opt.key}
                   onPress={() => setSharePerm(opt.key)}
@@ -640,9 +932,199 @@ function PatientPortal({ onSignOut, isDesktop }) {
 
       </ScrollView>
 
-      {/* File Details Modal */}
+      {/* ══ STRUCTURED MEDICAL JSON VIEWER MODAL ══════════════════════════════ */}
+      {selectedJsonModal && (
+        <Modal
+          visible={!!selectedJsonModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedJsonModal(null)}
+        >
+          <View style={s.overlay}>
+            <View style={[s.modal, { maxWidth: 640, maxHeight: '88%' }]}>
+              <TouchableOpacity style={s.closeBtn} onPress={() => setSelectedJsonModal(null)}>
+                <Text style={{ color: G.muted, fontSize: 14, fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <View style={[pStyles.formIconWrap, { width: 36, height: 36, backgroundColor: '#fef3c7' }]}>
+                  <IconJson size={18} color={G.amber}/>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.modalTitle, { marginBottom: 0, fontSize: 17 }]}>
+                    Structured Medical JSON
+                  </Text>
+                  <Text style={{ fontSize: 12, color: G.muted }}>
+                    Verified Clinical Schema · Verbatim Evidence Quotes
+                  </Text>
+                </View>
+              </View>
+
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {/* Meta summary card */}
+                {selectedJsonModal.extractedData?.document_metadata && (
+                  <View style={pStyles.jsonMetaBox}>
+                    <Text style={pStyles.jsonMetaTitle}>Document Metadata</Text>
+                    <View style={pStyles.jsonMetaGrid}>
+                      <Text style={pStyles.jsonMetaItem}>
+                        <Text style={{ fontWeight: '700' }}>Doc Type: </Text>
+                        {selectedJsonModal.extractedData.document_metadata.doc_type || 'Clinical Report'}
+                      </Text>
+                      <Text style={pStyles.jsonMetaItem}>
+                        <Text style={{ fontWeight: '700' }}>Provider: </Text>
+                        {selectedJsonModal.extractedData.document_metadata.provider_name || selectedJsonModal.doctor}
+                      </Text>
+                      <Text style={pStyles.jsonMetaItem}>
+                        <Text style={{ fontWeight: '700' }}>Patient: </Text>
+                        {selectedJsonModal.extractedData.document_metadata.patient_name || 'Melroy Almeida'}
+                      </Text>
+                      <Text style={pStyles.jsonMetaItem}>
+                        <Text style={{ fontWeight: '700' }}>Facility: </Text>
+                        {selectedJsonModal.extractedData.document_metadata.facility_name || 'Medical Center'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Medications List */}
+                {selectedJsonModal.extractedData?.medications?.length > 0 && (
+                  <View style={pStyles.jsonSection}>
+                    <Text style={pStyles.jsonSectionHeader}>
+                      Extracted Medications ({selectedJsonModal.extractedData.medications.length})
+                    </Text>
+                    {selectedJsonModal.extractedData.medications.map((m, i) => (
+                      <View key={i} style={pStyles.jsonEntityCard}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={pStyles.jsonEntityTitle}>{m.name}</Text>
+                          <View style={pStyles.jsonStatusBadge}>
+                            <Text style={pStyles.jsonStatusBadgeText}>{m.status || 'prescribed'}</Text>
+                          </View>
+                        </View>
+                        <Text style={pStyles.jsonEntityDetail}>
+                          Dose: {m.dose_raw || 'Not specified'} · Freq: {m.frequency_raw || 'Standard'} · Route: {m.route || 'Oral'}
+                        </Text>
+                        {m.evidence?.quote && (
+                          <View style={pStyles.evidenceBox}>
+                            <Text style={pStyles.evidenceLabel}>Verbatim Evidence:</Text>
+                            <Text style={pStyles.evidenceQuote}>"{m.evidence.quote}"</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Conditions List */}
+                {selectedJsonModal.extractedData?.conditions?.length > 0 && (
+                  <View style={pStyles.jsonSection}>
+                    <Text style={pStyles.jsonSectionHeader}>
+                      Extracted Conditions ({selectedJsonModal.extractedData.conditions.length})
+                    </Text>
+                    {selectedJsonModal.extractedData.conditions.map((c, i) => (
+                      <View key={i} style={pStyles.jsonEntityCard}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={pStyles.jsonEntityTitle}>{c.name}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: G.green }}>{c.certainty || 'confirmed'}</Text>
+                        </View>
+                        {c.evidence?.quote && (
+                          <View style={pStyles.evidenceBox}>
+                            <Text style={pStyles.evidenceQuote}>"{c.evidence.quote}"</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Lab Results */}
+                {selectedJsonModal.extractedData?.lab_results?.length > 0 && (
+                  <View style={pStyles.jsonSection}>
+                    <Text style={pStyles.jsonSectionHeader}>
+                      Lab Measurements ({selectedJsonModal.extractedData.lab_results.length})
+                    </Text>
+                    {selectedJsonModal.extractedData.lab_results.map((l, i) => (
+                      <View key={i} style={pStyles.jsonEntityCard}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={pStyles.jsonEntityTitle}>{l.test_name}</Text>
+                          <Text style={[pStyles.jsonEntityTitle, l.flag === 'high' && { color: G.red }]}>
+                            {l.value} {l.unit || ''}
+                          </Text>
+                        </View>
+                        <Text style={pStyles.jsonEntityDetail}>
+                          Reference: {l.reference_range_raw || 'Normal'} · Flag: {l.flag || 'Normal'}
+                        </Text>
+                        {l.evidence?.quote && (
+                          <View style={pStyles.evidenceBox}>
+                            <Text style={pStyles.evidenceQuote}>"{l.evidence.quote}"</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Allergies Status */}
+                {selectedJsonModal.extractedData?.allergies && (
+                  <View style={pStyles.jsonSection}>
+                    <Text style={pStyles.jsonSectionHeader}>Allergy Status</Text>
+                    <View style={pStyles.jsonEntityCard}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: G.charcoal }}>
+                        Status:{' '}
+                        <Text style={{ color: selectedJsonModal.extractedData.allergies.status === 'present' ? G.red : G.green }}>
+                          {selectedJsonModal.extractedData.allergies.status}
+                        </Text>
+                      </Text>
+                      {selectedJsonModal.extractedData.allergies.items?.map((a, i) => (
+                        <Text key={i} style={pStyles.jsonEntityDetail}>
+                          • {a.substance} ({a.reaction || 'No reaction specified'})
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Raw JSON Preformatted */}
+                <View style={pStyles.jsonSection}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={pStyles.jsonSectionHeader}>Raw JSON Payload</Text>
+                    <TouchableOpacity
+                      onPress={() => copyToClipboard(selectedJsonModal.rawJson || JSON.stringify(selectedJsonModal.extractedData, null, 2))}
+                      style={pStyles.btnCopy}
+                    >
+                      <IconCopy size={13} color={G.muted}/>
+                      <Text style={pStyles.btnCopyText}>Copy JSON</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={pStyles.codeBlock}>
+                    <Text style={pStyles.codeText}>
+                      {selectedJsonModal.rawJson || JSON.stringify(selectedJsonModal.extractedData, null, 2)}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setSelectedJsonModal(null)}
+                activeOpacity={0.8}
+                style={{ marginTop: 14 }}
+              >
+                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={s.signupBtnText}>Close JSON Viewer</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Regular File Details Modal */}
       {selectedFileModal && (
-        <Modal visible={!!selectedFileModal} transparent animationType="fade" onRequestClose={() => setSelectedFileModal(null)}>
+        <Modal
+          visible={!!selectedFileModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedFileModal(null)}
+        >
           <View style={s.overlay}>
             <View style={s.modal}>
               <TouchableOpacity style={s.closeBtn} onPress={() => setSelectedFileModal(null)}>
@@ -668,17 +1150,14 @@ function PatientPortal({ onSignOut, isDesktop }) {
 
                 <Text style={[pStyles.modalDetailLabel, { marginTop: 8 }]}>Tags:</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                  {selectedFileModal.tags.map(t => (
+                  {selectedFileModal.tags.map((t) => (
                     <View key={t} style={pStyles.tagPill}><Text style={pStyles.tagPillText}>{t}</Text></View>
                   ))}
                 </View>
               </View>
 
               <TouchableOpacity
-                onPress={() => {
-                  setSelectedFileModal(null);
-                  showToast('Record verified and active');
-                }}
+                onPress={() => setSelectedFileModal(null)}
                 activeOpacity={0.8}
                 style={{ marginTop: 20 }}
               >
@@ -721,7 +1200,7 @@ function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
         {/* Center links — desktop only */}
         {isDesktop && (
           <View style={s.navLinks}>
-            {['Home', 'Roles', 'Security'].map(l => (
+            {['Home', 'Roles', 'Security'].map((l) => (
               <TouchableOpacity key={l}><Text style={[s.navLink, l === 'Home' && s.navLinkActive]}>{l}</Text></TouchableOpacity>
             ))}
           </View>
@@ -755,7 +1234,6 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
 
         {/* Left */}
         <View style={[s.heroLeft, isDesktop && s.heroLeftDesktop]}>
-          {/* Badge */}
           <View style={s.heroBadge}>
             <IconShield size={13} color={G.green} strokeWidth={2}/>
             <Text style={s.heroBadgeText}>Patient-Owned Medical Records</Text>
@@ -794,7 +1272,6 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
             style={s.heroImgWrap}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           >
-            {/* SVG Doctor illustration */}
             <Svg viewBox="0 0 280 360" width="100%" height="100%">
               <Rect x="60" y="180" width="160" height="180" rx="14" fill="white" opacity="0.95"/>
               <Polygon points="100,180 140,240 140,180" fill="#EBF3E6"/>
@@ -826,7 +1303,6 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
             </View>
           </TouchableOpacity>
 
-          {/* Floating card — Doctor */}
           <View style={[s.floatCard, s.fcRight]}>
             <View style={s.floatIcon}><IconPulse size={16}/></View>
             <View>
@@ -835,7 +1311,6 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
             </View>
           </View>
 
-          {/* Floating card — Caretaker */}
           <View style={[s.floatCard, s.fcBottom]}>
             <View style={s.floatIcon}><IconGroup size={16}/></View>
             <View>
@@ -874,7 +1349,7 @@ function RolesSection({ isDesktop, onOpenPatient, onShowNotice }) {
         <View style={s.sectionUnderline}/>
         <Text style={s.sectionTitle}>One Vault. Three Clear Roles.</Text>
         <View style={[s.rolesGrid, isDesktop && s.rolesGridRow]}>
-          {cards.map(c => (
+          {cards.map((c) => (
             <TouchableOpacity
               key={c.label}
               style={[s.roleCard, isDesktop && s.roleCardFlex, c.roleKey === 'patient' && pStyles.roleCardPatientActive]}
@@ -912,7 +1387,7 @@ function Footer() {
     <View style={s.footer}>
       <Text style={s.footerCopy}>© 2026 MediVault. All rights reserved.</Text>
       <View style={s.footerLinks}>
-        {['Privacy Policy', 'Terms', 'Security'].map(l => (
+        {['Privacy Policy', 'Terms', 'Security'].map((l) => (
           <TouchableOpacity key={l}><Text style={s.footerLink}>{l}</Text></TouchableOpacity>
         ))}
       </View>
@@ -955,7 +1430,7 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
 
           {isSignup ? (
             <>
-              {ROLES.map(r => (
+              {ROLES.map((r) => (
                 <TouchableOpacity
                   key={r.key}
                   style={[s.roleOpt, selected === r.key && s.roleOptSelected]}
@@ -984,7 +1459,7 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
             </>
           ) : (
             <>
-              {[{ label: 'Email', placeholder: 'melroy@example.com' }, { label: 'Password', placeholder: '••••••••' }].map(f => (
+              {[{ label: 'Email', placeholder: 'melroy@example.com' }, { label: 'Password', placeholder: '••••••••' }].map((f) => (
                 <View key={f.label} style={{ marginBottom: 12 }}>
                   <Text style={s.inputLabel}>{f.label}</Text>
                   <View style={s.inputField}>
@@ -1006,7 +1481,7 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── ROOT APP COMPONENT ────────────────═══════════════════════════════════════
+// ─── ROOT APP COMPONENT ───────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const { width } = useWindowDimensions();
@@ -1016,7 +1491,7 @@ export default function App() {
   const [notice, setNotice] = useState(null);
 
   const open  = (type) => setModal({ open: true, type });
-  const close = ()     => setModal(m => ({ ...m, open: false }));
+  const close = ()     => setModal((m) => ({ ...m, open: false }));
 
   const handleSelectRole = (role) => {
     if (role === 'patient') {
@@ -1089,7 +1564,6 @@ export default function App() {
 const MAX = 1280;
 
 const s = StyleSheet.create({
-  /* Navbar */
   navbarWrap: { backgroundColor: 'rgba(247,249,246,0.97)', borderBottomWidth: 1, borderBottomColor: G.border },
   navbar:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   navbarDesktop: { maxWidth: MAX, alignSelf: 'center', width: '100%', paddingHorizontal: 32 },
@@ -1108,7 +1582,6 @@ const s = StyleSheet.create({
   signupBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   arrowCircle: { width: 20, height: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
 
-  /* Hero */
   heroWrap:        { paddingHorizontal: 20, paddingTop: 48, paddingBottom: 60 },
   heroWrapDesktop: { maxWidth: MAX, alignSelf: 'center', width: '100%', paddingHorizontal: 32, paddingTop: 72 },
   heroGrid:        { flexDirection: 'column', gap: 48 },
@@ -1128,7 +1601,6 @@ const s = StyleSheet.create({
   btnSecondary: { paddingHorizontal: 24, paddingVertical: 13, borderRadius: 999, borderWidth: 1.5, borderColor: '#c8dfc0', backgroundColor: G.white },
   btnSecondaryText: { color: G.charcoal, fontWeight: '600', fontSize: 15 },
 
-  /* Hero Visual */
   heroVisual: { flex: 1, position: 'relative', minHeight: 380 },
   heroImgWrap: { borderRadius: 28, overflow: 'hidden', minHeight: 380, alignItems: 'center', justifyContent: 'flex-end' },
   floatCard: { position: 'absolute', backgroundColor: G.white, borderRadius: 14, borderWidth: 1, borderColor: '#e8f0e2', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 160, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
@@ -1139,7 +1611,6 @@ const s = StyleSheet.create({
   fcRight:   { bottom: 90, right: -8 },
   fcBottom:  { bottom: -16, alignSelf: 'center', left: '20%' },
 
-  /* Roles Section */
   rolesSectionWrap: { backgroundColor: G.white, paddingVertical: 1 },
   rolesInner: { maxWidth: MAX, alignSelf: 'center', width: '100%', paddingHorizontal: 32, paddingTop: 72, paddingBottom: 88 },
   sectionLabel:    { fontSize: 12, fontWeight: '700', color: G.green, letterSpacing: 1, textTransform: 'uppercase' },
@@ -1153,16 +1624,14 @@ const s = StyleSheet.create({
   roleName: { fontSize: 18, fontWeight: '800', color: G.charcoal, marginBottom: 10 },
   roleDesc: { fontSize: 14, color: G.muted, lineHeight: 22 },
 
-  /* Footer */
   footer:      { maxWidth: MAX, alignSelf: 'center', width: '100%', paddingHorizontal: 32, paddingVertical: 28, borderTopWidth: 1, borderTopColor: G.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   footerCopy:  { fontSize: 13, color: G.muted },
   footerLinks: { flexDirection: 'row', gap: 20 },
   footerLink:  { fontSize: 13, color: G.muted },
 
-  /* Modal */
-  overlay: { flex: 1, backgroundColor: 'rgba(28,43,26,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modal:   { width: '100%', maxWidth: 440, borderRadius: 22, padding: 28, backgroundColor: G.white, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.12, shadowRadius: 48, elevation: 10 },
-  closeBtn:{ position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: 999, backgroundColor: G.greenL, alignItems: 'center', justifyContent: 'center' },
+  overlay: { flex: 1, backgroundColor: 'rgba(28,43,26,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modal:   { width: '100%', maxWidth: 460, borderRadius: 22, padding: 26, backgroundColor: G.white, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.14, shadowRadius: 48, elevation: 12 },
+  closeBtn:{ position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: 999, backgroundColor: G.greenL, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
   modalTitle:{ fontSize: 20, fontWeight: '800', color: G.charcoal, marginBottom: 6 },
   modalSub:  { fontSize: 13, color: G.muted, marginBottom: 20, lineHeight: 20 },
   roleOpt:         { flexDirection: 'row', alignItems: 'center', padding: 13, borderRadius: 13, borderWidth: 1.5, borderColor: '#e0edd8', backgroundColor: G.bg, marginBottom: 8 },
@@ -1171,7 +1640,7 @@ const s = StyleSheet.create({
   roleOptName: { fontSize: 14, fontWeight: '700', color: G.charcoal, marginBottom: 2 },
   roleOptSub:  { fontSize: 12, color: G.muted },
   radio:  { width: 20, height: 20, borderRadius: 999, borderWidth: 2, borderColor: '#c8d8c0', alignItems: 'center', justifyContent: 'center' },
-  modalCta: { paddingVertical: 13, borderRadius: 999, alignItems: 'center' },
+  modalCta: { paddingVertical: 13, borderRadius: 999, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   inputLabel: { fontSize: 12, fontWeight: '700', color: G.muted, marginBottom: 6 },
   inputField: { padding: 13, borderRadius: 12, borderWidth: 1.5, borderColor: G.border, backgroundColor: G.bg },
 });
@@ -1511,7 +1980,7 @@ const pStyles = StyleSheet.create({
     borderWidth: 1,
   },
   fileTypeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
   },
   fileName: {
@@ -1617,22 +2086,40 @@ const pStyles = StyleSheet.create({
     borderColor: G.border,
     borderRadius: 14,
     backgroundColor: G.bg,
-    padding: 32,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     marginTop: 10,
+  },
+  dropzoneSelected: {
+    borderColor: G.green,
+    backgroundColor: G.greenL,
   },
   dropzoneTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: G.charcoal,
-    marginTop: 10,
+    marginTop: 6,
   },
   dropzoneSub: {
     fontSize: 12,
     color: G.muted,
     marginTop: 2,
+  },
+  btnChangeFile: {
+    marginTop: 8,
+    backgroundColor: G.white,
+    borderWidth: 1,
+    borderColor: G.border,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  btnChangeFileText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.green,
   },
   inputGroup: {
     marginBottom: 16,
@@ -1713,6 +2200,27 @@ const pStyles = StyleSheet.create({
   },
   toggleSub: {
     fontSize: 11,
+    color: G.muted,
+    marginTop: 2,
+  },
+  extractingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: G.greenL,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: G.green,
+    padding: 16,
+    marginTop: 20,
+  },
+  extractingTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  extractingSub: {
+    fontSize: 12,
     color: G.muted,
     marginTop: 2,
   },
@@ -1859,6 +2367,7 @@ const pStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
+    zIndex: 99,
   },
   toastText: {
     color: 'white',
@@ -1937,5 +2446,122 @@ const pStyles = StyleSheet.create({
     color: 'white',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  /* JSON Viewer Styles */
+  jsonMetaBox: {
+    backgroundColor: G.bg,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginBottom: 16,
+  },
+  jsonMetaTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: G.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  jsonMetaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  jsonMetaItem: {
+    fontSize: 13,
+    color: G.charcoal,
+  },
+  jsonSection: {
+    marginBottom: 18,
+  },
+  jsonSectionHeader: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: G.charcoal,
+    marginBottom: 8,
+  },
+  jsonEntityCard: {
+    backgroundColor: G.bg,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: G.border,
+    marginBottom: 8,
+  },
+  jsonEntityTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.charcoal,
+  },
+  jsonEntityDetail: {
+    fontSize: 12,
+    color: G.muted,
+    marginTop: 4,
+  },
+  jsonStatusBadge: {
+    backgroundColor: G.greenL,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  jsonStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: G.green,
+    textTransform: 'uppercase',
+  },
+  evidenceBox: {
+    backgroundColor: G.white,
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: G.green,
+  },
+  evidenceLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: G.muted,
+    textTransform: 'uppercase',
+  },
+  evidenceQuote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: G.charcoal,
+    marginTop: 2,
+  },
+  codeBlock: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    maxHeight: 220,
+    overflow: 'hidden',
+  },
+  codeText: {
+    color: '#38BDF8',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  btnCopy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: G.greenL,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: G.border,
+  },
+  btnCopyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: G.green,
   },
 });

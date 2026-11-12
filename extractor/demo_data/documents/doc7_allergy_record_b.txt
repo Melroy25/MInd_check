@@ -1,0 +1,20 @@
+--- Page 1 ---
+City Emergency Care Hospital, Kochi, India
+Emergency Triage Note
+Date: 25/06/2023
+Patient: Priya Nair (29F)
+UHID: PN-44091
+
+c/o twisted right ankle after slip and fall on stairs.
+Allergies: NKDA.
+
+O/E:
+Swelling and tenderness over right lateral malleolus. No neurovascular deficit.
+Diagnosis: Ankle sprain.
+
+Rx:
+1. Tab Ibuprofen 400 mg BD x 5 days
+2. Crepe bandage support and ice packs.
+
+Dr. Joseph Kurian
+Emergency Medical Officer

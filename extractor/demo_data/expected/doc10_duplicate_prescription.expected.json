@@ -1,0 +1,42 @@
+{
+  "source_file": "doc10_duplicate_prescription.pdf",
+  "doc_type": "prescription",
+  "document_date": {
+    "value": "2023-01-15",
+    "ambiguous": false
+  },
+  "allergies": {
+    "status": "not_documented"
+  },
+  "medications": [
+    {
+      "name": "Metformin",
+      "dose_value": "500",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    },
+    {
+      "name": "Telmisartan",
+      "dose_value": "40",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    },
+    {
+      "name": "Atorvastatin",
+      "dose_value": "10",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Type 2 Diabetes Mellitus",
+      "certainty": "confirmed"
+    },
+    {
+      "name": "Essential Hypertension",
+      "certainty": "confirmed"
+    }
+  ],
+  "lab_results": []
+}

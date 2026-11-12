@@ -1,0 +1,26 @@
+{
+  "source_file": "doc7_allergy_record_b.txt",
+  "doc_type": "consultation_note",
+  "document_date": {
+    "value": "2023-06-25",
+    "ambiguous": false
+  },
+  "allergies": {
+    "status": "explicit_negative"
+  },
+  "medications": [
+    {
+      "name": "Ibuprofen",
+      "dose_value": "400",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Ankle sprain",
+      "certainty": "confirmed"
+    }
+  ],
+  "lab_results": []
+}

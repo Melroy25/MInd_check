@@ -1,0 +1,38 @@
+{
+  "source_file": "doc6_allergy_record_a.txt",
+  "doc_type": "consultation_note",
+  "document_date": {
+    "value": "2023-02-12",
+    "ambiguous": true
+  },
+  "allergies": {
+    "status": "present",
+    "items": [
+      {
+        "substance": "Penicillin",
+        "reaction": "skin rash"
+      }
+    ]
+  },
+  "medications": [
+    {
+      "name": "Azithromycin",
+      "dose_value": "500",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    },
+    {
+      "name": "Paracetamol",
+      "dose_value": "650",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Acute pharyngitis",
+      "certainty": "confirmed"
+    }
+  ],
+  "lab_results": []
+}

@@ -1,0 +1,14 @@
+{
+  "source_file": "doc8_scan_report.pdf",
+  "doc_type": "scan_report",
+  "document_date": {
+    "value": "2023-08-12",
+    "ambiguous": true
+  },
+  "allergies": {
+    "status": "not_documented"
+  },
+  "medications": [],
+  "conditions": [],
+  "lab_results": []
+}

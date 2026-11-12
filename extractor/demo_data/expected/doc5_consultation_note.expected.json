@@ -1,0 +1,36 @@
+{
+  "source_file": "doc5_consultation_note.txt",
+  "doc_type": "consultation_note",
+  "document_date": {
+    "value": "2022-04-03",
+    "ambiguous": true
+  },
+  "allergies": {
+    "status": "explicit_negative"
+  },
+  "medications": [
+    {
+      "name": "Paracetamol",
+      "dose_value": "650",
+      "dose_unit": "mg",
+      "status": "prescribed"
+    },
+    {
+      "name": "Telmisartan",
+      "dose_value": "40",
+      "dose_unit": "mg",
+      "status": "continued"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "HTN",
+      "certainty": "confirmed"
+    },
+    {
+      "name": "viral fever",
+      "certainty": "suspected"
+    }
+  ],
+  "lab_results": []
+}
