@@ -1152,127 +1152,133 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         {/* VIEW 7: PROFILE & SETTINGS (DEDICATED FULL PAGE)                   */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'profile' && (
-          <View style={styles.viewSection}>
-            {/* Top Left: Profile */}
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>Profile</Text>
-            </TouchableOpacity>
+          <View style={[styles.viewSection, styles.profileViewSection]}>
+            {/* Top Section: Header, Avatar, Name & Settings */}
+            <View style={styles.profileTopContent}>
+              {/* Top Left: Profile */}
+              <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+                <IconArrowLeft size={22} color={C.textMain} />
+                <Text style={styles.subPageTitle}>Profile</Text>
+              </TouchableOpacity>
 
-            {/* 1. Change Photo (from Gallery or Camera) */}
-            <View style={styles.profileAvatarCard}>
-              <View style={styles.profileAvatarLarge}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.profileAvatarImg} />
-                ) : (
-                  <Text style={styles.profileAvatarInitials}>
-                    {patientInfo.name ? patientInfo.name.substring(0, 2).toUpperCase() : 'MA'}
-                  </Text>
-                )}
-              </View>
-
-              <View style={styles.changePhotoBtnRow}>
-                <TouchableOpacity
-                  style={styles.changePhotoBtn}
-                  onPress={handlePickAvatar}
-                  activeOpacity={0.8}
-                >
-                  <IconUpload size={14} color={C.blue} />
-                  <Text style={styles.changePhotoBtnText}>Gallery</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.changePhotoBtn, { backgroundColor: C.greenBg, borderColor: C.greenBorder }]}
-                  onPress={handleCaptureCamera}
-                  activeOpacity={0.8}
-                >
-                  <IconCamera size={14} color={C.green} />
-                  <Text style={[styles.changePhotoBtnText, { color: C.green }]}>Camera</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* 2. Name */}
-            <View style={styles.uploadFieldWrap}>
-              <Text style={styles.cleanFieldLabel}>NAME</Text>
-              <TextInput
-                style={styles.cleanInputField}
-                placeholder="Full Name"
-                placeholderTextColor="#94A3B8"
-                value={patientInfo.name}
-                onChangeText={(val) => setPatientInfo({ ...patientInfo, name: val })}
-              />
-            </View>
-
-            {/* 3. Settings: Notification & Biometric Lock */}
-            <View style={styles.uploadFieldWrap}>
-              <Text style={styles.cleanFieldLabel}>SETTINGS</Text>
-
-              <View style={styles.settingCard}>
-                <View style={styles.settingRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.settingItemTitle}>Notifications</Text>
-                    <Text style={styles.settingItemSub}>Alerts for lab results & doctor updates</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.cleanToggle, settings.notifications && styles.cleanToggleActive]}
-                    onPress={() => setSettings({ ...settings, notifications: !settings.notifications })}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.cleanToggleKnob, settings.notifications && styles.cleanToggleKnobActive]} />
-                  </TouchableOpacity>
+              {/* 1. Change Photo (from Gallery or Camera) */}
+              <View style={styles.profileAvatarCard}>
+                <View style={styles.profileAvatarLarge}>
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.profileAvatarImg} />
+                  ) : (
+                    <Text style={styles.profileAvatarInitials}>
+                      {patientInfo.name ? patientInfo.name.substring(0, 2).toUpperCase() : 'MA'}
+                    </Text>
+                  )}
                 </View>
 
-                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.settingItemTitle}>Biometric Lock</Text>
-                    <Text style={styles.settingItemSub}>Fingerprint / FaceID security</Text>
-                  </View>
+                <View style={styles.changePhotoBtnRow}>
                   <TouchableOpacity
-                    style={[styles.cleanToggle, settings.biometrics && styles.cleanToggleActive]}
-                    onPress={() => setSettings({ ...settings, biometrics: !settings.biometrics })}
+                    style={styles.changePhotoBtn}
+                    onPress={handlePickAvatar}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.cleanToggleKnob, settings.biometrics && styles.cleanToggleKnobActive]} />
+                    <IconUpload size={14} color={C.blue} />
+                    <Text style={styles.changePhotoBtnText}>Gallery</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.changePhotoBtn, { backgroundColor: C.greenBg, borderColor: C.greenBorder }]}
+                    onPress={handleCaptureCamera}
+                    activeOpacity={0.8}
+                  >
+                    <IconCamera size={14} color={C.green} />
+                    <Text style={[styles.changePhotoBtnText, { color: C.green }]}>Camera</Text>
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* 2. Name */}
+              <View style={styles.uploadFieldWrap}>
+                <Text style={styles.cleanFieldLabel}>NAME</Text>
+                <TextInput
+                  style={styles.cleanInputField}
+                  placeholder="Full Name"
+                  placeholderTextColor="#94A3B8"
+                  value={patientInfo.name}
+                  onChangeText={(val) => setPatientInfo({ ...patientInfo, name: val })}
+                />
+              </View>
+
+              {/* 3. Settings: Notification & Biometric Lock */}
+              <View style={styles.uploadFieldWrap}>
+                <Text style={styles.cleanFieldLabel}>SETTINGS</Text>
+
+                <View style={styles.settingCard}>
+                  <View style={styles.settingRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingItemTitle}>Notifications</Text>
+                      <Text style={styles.settingItemSub}>Alerts for lab results & doctor updates</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.cleanToggle, settings.notifications && styles.cleanToggleActive]}
+                      onPress={() => setSettings({ ...settings, notifications: !settings.notifications })}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.cleanToggleKnob, settings.notifications && styles.cleanToggleKnobActive]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingItemTitle}>Biometric Lock</Text>
+                      <Text style={styles.settingItemSub}>Fingerprint / FaceID security</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.cleanToggle, settings.biometrics && styles.cleanToggleActive]}
+                      onPress={() => setSettings({ ...settings, biometrics: !settings.biometrics })}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.cleanToggleKnob, settings.biometrics && styles.cleanToggleKnobActive]} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
             </View>
 
-            {/* Save Changes Button */}
-            <TouchableOpacity
-              style={styles.cleanSaveBtn}
-              onPress={() => showToastMsg('Changes saved successfully!')}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={[C.green, C.greenDark]}
-                style={styles.cleanSaveBtnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.cleanSaveBtnText}>Save Changes</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* 4. Below: Sign Out & Delete Account */}
-            <View style={styles.profileActionGroup}>
+            {/* Bottom 3 Action Buttons Pushed Cleanly to Bottom */}
+            <View style={styles.profileBottomButtonsWrap}>
+              {/* Button 1: Save Changes */}
               <TouchableOpacity
-                style={styles.pageSignOutBtn}
-                onPress={onSignOut}
+                style={styles.cleanSaveBtn}
+                onPress={() => showToastMsg('Changes saved successfully!')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.pageSignOutBtnText}>Sign Out</Text>
+                <LinearGradient
+                  colors={[C.green, C.greenDark]}
+                  style={styles.cleanSaveBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.cleanSaveBtnText}>Save Changes</Text>
+                </LinearGradient>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.pageDeleteBtn}
-                onPress={() => setShowDeleteModal(true)}
-                activeOpacity={0.8}
-              >
-                <IconTrash size={16} color={C.red} />
-                <Text style={styles.pageDeleteBtnText}>Delete Account</Text>
-              </TouchableOpacity>
+              {/* Buttons 2 & 3: Sign Out & Delete Account */}
+              <View style={styles.profileActionGroup}>
+                <TouchableOpacity
+                  style={styles.pageSignOutBtn}
+                  onPress={onSignOut}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.pageSignOutBtnText}>Sign Out</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pageDeleteBtn}
+                  onPress={() => setShowDeleteModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <IconTrash size={16} color={C.red} />
+                  <Text style={styles.pageDeleteBtnText}>Delete Account</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -1642,13 +1648,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 90,
+    paddingBottom: 20,
     maxWidth: 640,
     alignSelf: 'center',
     width: '100%',
+    flexGrow: 1,
   },
   viewSection: {
     width: '100%',
+  },
+  profileViewSection: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  profileTopContent: {
+    width: '100%',
+  },
+  profileBottomButtonsWrap: {
+    width: '100%',
+    marginTop: 16,
+    paddingBottom: 12,
   },
   sectionTitle: {
     fontSize: 20,
@@ -1790,8 +1809,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 20,
-    marginTop: 4,
+    marginBottom: 14,
+    marginTop: 2,
   },
   subPageTitle: {
     fontSize: 22,
@@ -1814,7 +1833,7 @@ const styles = StyleSheet.create({
 
   /* Upload Fields & Boxes */
   uploadFieldWrap: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   cleanFieldLabel: {
     fontSize: 11,
@@ -1974,11 +1993,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: C.white,
     borderRadius: 18,
-    paddingVertical: 24,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: C.borderLight,
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -1986,14 +2005,14 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   profileAvatarLarge: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: C.blue,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 10,
     shadowColor: C.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -2003,11 +2022,11 @@ const styles = StyleSheet.create({
   profileAvatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 42,
+    borderRadius: 36,
   },
   profileAvatarInitials: {
     color: 'white',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
   },
   changePhotoBtnRow: {
@@ -2042,7 +2061,7 @@ const styles = StyleSheet.create({
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 11,
   },
   settingItemTitle: {
     fontSize: 14,
@@ -2077,7 +2096,7 @@ const styles = StyleSheet.create({
 
   /* Profile Actions */
   profileActionGroup: {
-    marginTop: 20,
+    marginTop: 10,
     gap: 10,
   },
   pageSignOutBtn: {
