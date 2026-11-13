@@ -1,15 +1,34 @@
 /**
  * services/supabase/authService.js
  * 
- * Kavana's Authentication Service
- * Handles sign in, sign up, session recovery, and sign out with fallback.
+ * Unified Authentication Service with Dual Engine:
+ * - Primary: Firebase Auth (instant registration, zero email rate limits).
+ * - Fallback / Sync: Supabase Auth & Database.
+ * 
+ * Automatically switches to Firebase Auth whenever EXPO_PUBLIC_FIREBASE_API_KEY is defined.
  */
+
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { PROFILES } from '../../constants/mockData';
 
+function isFirebaseConfigured() {
+  const apiKey = typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_FIREBASE_API_KEY : undefined;
+  return Boolean(apiKey && apiKey.trim().length > 5 && !apiKey.includes('your_'));
+}
+
 export async function signInWithEmail(email, password, role = 'patient') {
+  // If Firebase keys are configured, use Firebase Auth
+  if (isFirebaseConfigured()) {
+    try {
+      const { signInWithFirebase } = await import('../firebase/authService');
+      return await signInWithFirebase(email, password, role);
+    } catch (fbErr) {
+      console.warn('[AuthService] Firebase sign in error, trying Supabase fallback:', fbErr);
+    }
+  }
+
+  // Supabase Auth
   if (!isSupabaseConfigured()) {
-    // Fallback: return mock active profile
     return {
       user: { email, role },
       profile: PROFILES[role] || PROFILES.patient,
@@ -38,6 +57,17 @@ export async function signInWithEmail(email, password, role = 'patient') {
 }
 
 export async function signUpWithEmail(email, password, metadata = {}) {
+  // If Firebase keys are configured, use Firebase Auth
+  if (isFirebaseConfigured()) {
+    try {
+      const { signUpWithFirebase } = await import('../firebase/authService');
+      return await signUpWithFirebase(email, password, metadata);
+    } catch (fbErr) {
+      console.warn('[AuthService] Firebase sign up error, trying Supabase fallback:', fbErr);
+    }
+  }
+
+  // Supabase Auth
   if (!isSupabaseConfigured()) {
     return { user: { email, ...metadata }, error: null };
   }
@@ -57,7 +87,6 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 
   if (error) return { user: null, session: null, error };
 
-  // Explicitly ensure profile is upserted if trigger has delay
   if (data?.user) {
     try {
       await supabase.from('profiles').upsert([
@@ -79,6 +108,23 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 }
 
 export async function getCurrentUser() {
+  if (isFirebaseConfigured()) {
+    try {
+      const { auth } = await import('../firebase/firebaseClient');
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        let profile = null;
+        if (supabase) {
+          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.uid).single();
+          profile = data;
+        }
+        return { ...currentUser, profile };
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   if (!isSupabaseConfigured()) return null;
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -97,6 +143,18 @@ export async function getCurrentUser() {
 }
 
 export async function signOutUser() {
-  if (!isSupabaseConfigured()) return { error: null };
-  return await supabase.auth.signOut();
+  if (isFirebaseConfigured()) {
+    try {
+      const { signOutFirebase } = await import('../firebase/authService');
+      await signOutFirebase();
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (isSupabaseConfigured()) {
+    await supabase.auth.signOut();
+  }
+
+  return { error: null };
 }
