@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
 import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64, audioRecorder } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
+import { GlassCard, StatusBadge, CustomButton, QuickActionTile } from './common';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -1394,23 +1395,19 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
 
             <Text style={styles.sectionTitle}>At your Fingertip</Text>
 
-            {/* 3-column Grid of the 6 Boxes (Clean & Balanced 3x2) */}
+            {/* 3-column Grid of the 6 Boxes (Standardized QuickActionTiles) */}
             <View style={styles.boxesGrid}>
               {FINGERTIP_BOXES.map((box) => (
-                <TouchableOpacity
+                <QuickActionTile
                   key={box.id}
-                  style={styles.boxCard}
+                  icon={box.Icon}
+                  title={box.name}
                   onPress={box.onPress}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.boxIconWrap, { backgroundColor: box.iconBg, position: 'relative' }]}>
-                    <box.Icon size={34} color={box.iconColor} />
-                    {box.id === 'connect' && pendingRequests.length > 0 && (
-                      <View style={styles.boxBadgeDot} />
-                    )}
-                  </View>
-                  <Text style={styles.boxName}>{box.name}</Text>
-                </TouchableOpacity>
+                  tintColor={box.iconColor}
+                  iconBg={box.iconBg}
+                  badgeCount={box.id === 'connect' && pendingRequests.length > 0 ? true : undefined}
+                  style={styles.boxCard}
+                />
               ))}
             </View>
 

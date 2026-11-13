@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
 import PatientPortal from './PatientPortal';
+import { GlassCard, StatusBadge, CustomButton, QuickActionTile } from './common';
 import { INITIAL_CARETAKER_WARDS, INITIAL_AUDIT_LOGS } from '../constants/mockData';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -307,64 +308,42 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
             <Text style={s.sectionTitle}>At your Fingertip</Text>
             <View style={s.quickGrid}>
               {/* Tile 1: Scan Patient QR */}
-              <TouchableOpacity
-                style={s.quickTile}
-                activeOpacity={0.85}
+              <QuickActionTile
+                icon={IconQrCode}
+                title="Scan QR"
+                subtitle="Link new ward"
                 onPress={() => setShowQrModal(true)}
-              >
-                <View style={[s.quickIconBox, { backgroundColor: C.purpleBg }]}>
-                  <IconQrCode size={24} color={C.purple} />
-                </View>
-                <Text style={s.quickTitle}>Scan QR</Text>
-                <Text style={s.quickSub}>Link new ward</Text>
-              </TouchableOpacity>
+                tintColor="#7C3AED"
+              />
 
               {/* Tile 2: Ward Patients */}
-              <TouchableOpacity
-                style={s.quickTile}
-                activeOpacity={0.85}
+              <QuickActionTile
+                icon={IconUsers}
+                title="Wards"
+                subtitle={`${wards.length} Connected`}
+                badgeCount={wards.length}
                 onPress={() => setActiveTab('wards')}
-              >
-                <View style={[s.quickIconBox, { backgroundColor: C.blueBg }]}>
-                  <IconUsers size={24} color={C.blue} />
-                  <View style={s.tileCountBadge}>
-                    <Text style={s.tileCountBadgeText}>{wards.length}</Text>
-                  </View>
-                </View>
-                <Text style={s.quickTitle}>Wards</Text>
-                <Text style={s.quickSub}>{wards.length} Connected</Text>
-              </TouchableOpacity>
+                tintColor="#2563EB"
+              />
 
               {/* Tile 3: Proposed Changes (GitHub PR style) */}
-              <TouchableOpacity
-                style={s.quickTile}
-                activeOpacity={0.85}
+              <QuickActionTile
+                icon={IconGitCommit}
+                title="Audits"
+                subtitle="Reversible changes"
+                badgeCount={changes.filter((c) => c.status === 'applied').length}
                 onPress={() => setActiveTab('changes')}
-              >
-                <View style={[s.quickIconBox, { backgroundColor: C.amberBg }]}>
-                  <IconGitCommit size={24} color={C.amber} />
-                  <View style={[s.tileCountBadge, { backgroundColor: C.amber }]}>
-                    <Text style={s.tileCountBadgeText}>
-                      {changes.filter((c) => c.status === 'applied').length}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={s.quickTitle}>Audits</Text>
-                <Text style={s.quickSub}>Reversible changes</Text>
-              </TouchableOpacity>
+                tintColor="#D97706"
+              />
 
               {/* Tile 4: Emergency SOS */}
-              <TouchableOpacity
-                style={s.quickTile}
-                activeOpacity={0.85}
+              <QuickActionTile
+                icon={IconAlertTriangle}
+                title="SOS Alert"
+                subtitle="Instant broadcast"
                 onPress={() => setShowSosModal(true)}
-              >
-                <View style={[s.quickIconBox, { backgroundColor: C.redBg }]}>
-                  <IconAlertTriangle size={24} color={C.red} />
-                </View>
-                <Text style={[s.quickTitle, { color: C.red }]}>SOS Alert</Text>
-                <Text style={s.quickSub}>Instant broadcast</Text>
-              </TouchableOpacity>
+                tintColor="#DC2626"
+              />
             </View>
 
             {/* Search & Select Assigned Patient */}
@@ -614,27 +593,16 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <Text style={s.commitHash}>commit #{commit.commitHash}</Text>
-                        <View
-                          style={[
-                            s.commitStatusBadge,
-                            commit.status === 'applied' && { backgroundColor: C.greenBg },
-                            commit.status === 'pending' && { backgroundColor: C.amberBg },
-                            commit.status === 'reverted' && { backgroundColor: C.redBg },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              s.commitStatusBadgeText,
-                              commit.status === 'applied' && { color: C.green },
-                              commit.status === 'pending' && { color: C.amber },
-                              commit.status === 'reverted' && { color: C.red },
-                            ]}
-                          >
-                            {commit.status === 'applied' && 'Applied (Reversible)'}
-                            {commit.status === 'pending' && 'Pending Patient'}
-                            {commit.status === 'reverted' && 'Reverted (Rolled back)'}
-                          </Text>
-                        </View>
+                        <StatusBadge
+                          status={commit.status}
+                          label={
+                            commit.status === 'applied' ? 'Applied (Reversible)' :
+                            commit.status === 'pending' ? 'Pending Patient' :
+                            'Reverted (Rolled back)'
+                          }
+                          pulse={commit.status === 'pending'}
+                          size="sm"
+                        />
                       </View>
                       <Text style={s.commitTitle}>{commit.title}</Text>
                       <Text style={s.commitDetail}>{commit.detail}</Text>

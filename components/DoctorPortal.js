@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
 import { pickMedicalDocument, extractMedicalDocument } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
+import { GlassCard, StatusBadge, CustomButton, QuickActionTile } from './common';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -947,63 +948,44 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
             {/* At your Fingertip Section */}
             <Text style={styles.sectionTitle}>At your Fingertip</Text>
 
-            {/* Exactly 4 Buttons Grid as specified */}
-            {/* 1. Scan QR, 2. No of patients connected (count no), 3. Upload, 4. History */}
+            {/* Exactly 4 Standardized QuickActionTiles */}
             <View style={styles.boxesGridFour}>
               {/* Button 1: Scan QR */}
-              <TouchableOpacity
-                style={styles.boxCardFour}
+              <QuickActionTile
+                icon={IconQrCode}
+                title="Scan QR"
+                subtitle="Scan patient code"
                 onPress={() => setShowQrScanModal(true)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.boxIconWrap, { backgroundColor: C.purpleBg }]}>
-                  <IconQrCode size={30} color={C.purple} />
-                </View>
-                <Text style={styles.boxName}>Scan QR</Text>
-                <Text style={styles.boxSubText}>Scan patient code</Text>
-              </TouchableOpacity>
+                tintColor="#7C3AED"
+              />
 
-              {/* Button 2: No of patients connected (count no) */}
-              <TouchableOpacity
-                style={styles.boxCardFour}
+              {/* Button 2: No of patients connected */}
+              <QuickActionTile
+                icon={IconUsers}
+                title="Connected"
+                subtitle={`${connectedPatients.length} Patients`}
+                badgeCount={connectedPatients.length}
                 onPress={() => setActiveTab('patients')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.boxIconWrap, { backgroundColor: C.blueBg }]}>
-                  <IconUsers size={30} color={C.blue} />
-                  <View style={styles.countBadgePill}>
-                    <Text style={styles.countBadgePillText}>{connectedPatients.length}</Text>
-                  </View>
-                </View>
-                <Text style={styles.boxName}>Connected</Text>
-                <Text style={styles.boxSubText}>{connectedPatients.length} Patients</Text>
-              </TouchableOpacity>
+                tintColor="#2563EB"
+              />
 
               {/* Button 3: Upload */}
-              <TouchableOpacity
-                style={styles.boxCardFour}
+              <QuickActionTile
+                icon={IconUpload}
+                title="Upload"
+                subtitle="Add patient records"
                 onPress={() => setActiveTab('upload')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.boxIconWrap, { backgroundColor: C.greenBg }]}>
-                  <IconUpload size={30} color={C.green} />
-                </View>
-                <Text style={styles.boxName}>Upload</Text>
-                <Text style={styles.boxSubText}>Add patient records</Text>
-              </TouchableOpacity>
+                tintColor="#16A34A"
+              />
 
               {/* Button 4: History */}
-              <TouchableOpacity
-                style={styles.boxCardFour}
+              <QuickActionTile
+                icon={IconClock}
+                title="History"
+                subtitle={`${historyList.length} Entries`}
                 onPress={() => setActiveTab('history')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.boxIconWrap, { backgroundColor: C.coralBg }]}>
-                  <IconClock size={30} color={C.coral} />
-                </View>
-                <Text style={styles.boxName}>History</Text>
-                <Text style={styles.boxSubText}>{historyList.length} Entries</Text>
-              </TouchableOpacity>
+                tintColor="#EA580C"
+              />
             </View>
 
             {/* Overview / Quick Patient Record Hub */}
@@ -1342,27 +1324,14 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
 
             {/* ── STEP 6: BOTTOM SAVE & UPLOAD BUTTON ───────────────────────── */}
             <View style={styles.uploadBottomWrap}>
-              <TouchableOpacity
-                style={[styles.cleanSaveBtn, !targetPatient && { opacity: 0.7 }]}
+              <CustomButton
+                title={targetPatient ? `Upload to ${targetPatient.name}'s Vault` : 'Select Target Patient First'}
+                variant="primary"
                 onPress={handleSaveUploadedRecord}
-                activeOpacity={0.8}
-                disabled={isExtracting}
-              >
-                <LinearGradient
-                  colors={[C.green, C.greenDark]}
-                  style={styles.cleanSaveBtnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  {isExtracting ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <Text style={styles.cleanSaveBtnText}>
-                      {targetPatient ? `Upload to ${targetPatient.name}'s Vault` : 'Select Target Patient First'}
-                    </Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+                loading={isExtracting}
+                disabled={!targetPatient || isExtracting}
+                style={{ width: '100%' }}
+              />
             </View>
           </View>
         )}
@@ -1414,7 +1383,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
                 </View>
               ) : (
                 filteredHistory.map((item) => (
-                  <View key={item.id} style={styles.timelineItemCard}>
+                  <GlassCard key={item.id} style={styles.timelineItemCard} roleTint="doctor">
                     {/* Left Icon Badge */}
                     <View style={[styles.timelineIconBadge, { backgroundColor: item.badgeBg }]}>
                       {item.type === 'upload' ? (
@@ -1430,7 +1399,14 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
                     <View style={styles.timelineContentWrap}>
                       {/* Top Row: Record Name & Date/Time */}
                       <View style={styles.timelineTopRow}>
-                        <Text style={styles.timelineItemTitle}>{item.title}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 6 }}>
+                          <Text style={styles.timelineItemTitle} numberOfLines={1}>{item.title}</Text>
+                          <StatusBadge
+                            status={item.type === 'upload' ? 'active' : item.type === 'connection' ? 'normal' : 'pending'}
+                            label={item.category || (item.type === 'upload' ? 'LAB' : item.type === 'connection' ? 'ACCESS' : 'UPDATE')}
+                            size="sm"
+                          />
+                        </View>
                         <View style={styles.timelineDateTimeBox}>
                           <IconClock size={12} color={C.textSub} />
                           <Text style={styles.timelineDateTimeText}>
@@ -1479,7 +1455,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
                         </TouchableOpacity>
                       </View>
                     </View>
-                  </View>
+                  </GlassCard>
                 ))
               )}
             </View>
@@ -1657,39 +1633,29 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
             {/* Bottom 3 Action Buttons Pushed to Bottom */}
             <View style={styles.profileBottomButtonsWrap}>
               {/* Button 1: Save Changes */}
-              <TouchableOpacity
-                style={styles.cleanSaveBtn}
+              <CustomButton
+                title="Save Profile Changes"
+                variant="doctor"
                 onPress={() => showToast('Doctor profile updated successfully!')}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={[C.green, C.greenDark]}
-                  style={styles.cleanSaveBtnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.cleanSaveBtnText}>Save Profile Changes</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                style={{ width: '100%', marginBottom: 12 }}
+              />
 
               {/* Buttons 2 & 3: Sign Out & Clear Session */}
               <View style={styles.profileActionGroup}>
-                <TouchableOpacity
-                  style={styles.pageSignOutBtn}
+                <CustomButton
+                  title="Sign Out"
+                  variant="secondary"
                   onPress={handleSignOut}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.pageSignOutBtnText}>Sign Out</Text>
-                </TouchableOpacity>
+                  style={{ flex: 1 }}
+                />
 
-                <TouchableOpacity
-                  style={styles.pageDeleteBtn}
+                <CustomButton
+                  title="End Session"
+                  variant="danger"
+                  icon={IconTrash}
                   onPress={() => setShowDeleteModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <IconTrash size={16} color={C.red} />
-                  <Text style={styles.pageDeleteBtnText}>End Active Session</Text>
-                </TouchableOpacity>
+                  style={{ flex: 1 }}
+                />
               </View>
             </View>
           </View>
