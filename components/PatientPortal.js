@@ -1360,14 +1360,19 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       extractedData: structuredClinicalPayload,
     };
 
+    const docToVerify = {
+      ...newDoc,
+      extractedData: structuredClinicalPayload,
+    };
+
     setIsVerifyingConflict(true);
     try {
-      const conflictResult = await checkCrossRecordConflicts(newDoc, files);
+      const conflictResult = await checkCrossRecordConflicts(docToVerify, files);
       if (conflictResult.hasConflicts && conflictResult.conflicts.length > 0) {
         // Discrepancy detected: Prompt user with conflict resolution modal
         setConflictModalData({
           conflicts: conflictResult.conflicts,
-          newDoc,
+          newDoc: docToVerify,
           newJsonDoc,
           structuredClinicalPayload,
           title,
@@ -1376,10 +1381,10 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       }
 
       // No conflict detected: "just if no conflict save"
-      commitSaveDocument(newDoc, newJsonDoc);
+      commitSaveDocument(docToVerify, newJsonDoc);
     } catch (confErr) {
       console.warn('Conflict verification fallback:', confErr);
-      commitSaveDocument(newDoc, newJsonDoc);
+      commitSaveDocument(docToVerify, newJsonDoc);
     } finally {
       setIsVerifyingConflict(false);
     }

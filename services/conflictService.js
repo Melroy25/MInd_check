@@ -50,17 +50,40 @@ function extractDocClinicalSummary(doc) {
 }
 
 /**
+ * Helper to extract medications from raw notes if structured entities are absent
+ */
+function extractMedsFromText(text = '') {
+  if (!text || typeof text !== 'string') return [];
+  const meds = [];
+  const regex = /(metformin|amoxicillin|lisinopril|atorvastatin|losartan|cetirizine|omeprazole|amlodipine|aspirin|ibuprofen|albuterol|insulin)[\s:]*([0-9]+\s*(?:mg|mcg|g|ml|units?)(?:\s+(?:daily|twice daily|bid|tid|prn))?)/gi;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    meds.push({
+      name: match[1].charAt(0).toUpperCase() + match[1].slice(1),
+      dose_raw: match[2].trim(),
+    });
+  }
+  return meds;
+}
+
+/**
  * Deterministic local fallback conflict detector
  */
 function checkDeterministicConflicts(newDoc, existingDocs = []) {
   const conflicts = [];
   const newData = newDoc.extractedData || newDoc.jsonData || {};
-  const newMeds = newData?.extracted_entities?.medications || newData?.medications || [];
+  let newMeds = newData?.extracted_entities?.medications || newData?.medications || [];
+  if (newMeds.length === 0 && (newDoc.notes || newData.clinical_summary)) {
+    newMeds = extractMedsFromText(`${newDoc.notes || ''} ${newData.clinical_summary || ''}`);
+  }
   const newAllergies = newData?.extracted_entities?.allergies?.items || newData?.allergies || [];
 
   existingDocs.forEach((existDoc, idx) => {
     const existData = existDoc.extractedData || existDoc.data || {};
-    const existMeds = existData?.extracted_entities?.medications || existData?.medications || [];
+    let existMeds = existData?.extracted_entities?.medications || existData?.medications || [];
+    if (existMeds.length === 0 && (existDoc.notes || existData.clinical_summary)) {
+      existMeds = extractMedsFromText(`${existDoc.notes || ''} ${existData.clinical_summary || ''}`);
+    }
     const existAllergies = existData?.extracted_entities?.allergies?.items || existData?.allergies || [];
 
     // 1. Medication Dosage Variance Check

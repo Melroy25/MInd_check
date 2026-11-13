@@ -23,14 +23,14 @@ const grokCooldownMap = new Map(); // key -> cooldownExpiryTimestamp (ms)
  */
 export function getGrokApiKeys() {
   let rawKeys = [
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GROK_API_KEY_1 : undefined,
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GROK_API_KEY_2 : undefined,
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GROK_API_KEY_3 : undefined,
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GROK_API_KEY_4 : undefined,
+    typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_GROK_API_KEY_1 : undefined,
+    typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_GROK_API_KEY_2 : undefined,
+    typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_GROK_API_KEY_3 : undefined,
+    typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_GROK_API_KEY_4 : undefined,
     // Fallback single keys
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GROK_API_KEY : undefined,
-    typeof process !== 'undefined' ? process.env?.GROK_API_KEY : undefined,
-    typeof process !== 'undefined' ? process.env?.GROQ_API_KEY : undefined,
+    typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_GROK_API_KEY : undefined,
+    typeof process !== 'undefined' ? process.env.GROK_API_KEY : undefined,
+    typeof process !== 'undefined' ? process.env.GROQ_API_KEY : undefined,
   ];
 
   let validKeys = rawKeys
@@ -38,17 +38,19 @@ export function getGrokApiKeys() {
     .filter((k) => k.length > 0);
 
   // If running in Node.js test environment and env vars are not set in process.env
-  if (validKeys.length === 0 && typeof process !== 'undefined' && typeof require !== 'undefined') {
+  if (validKeys.length === 0 && typeof process !== 'undefined' && process.versions?.node) {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const envPath = path.resolve(process.cwd(), '.env.local');
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, 'utf8');
-        for (let i = 1; i <= 4; i++) {
-          const match = content.match(new RegExp(`EXPO_PUBLIC_GROK_API_KEY_${i}=([^\r\n]+)`));
-          if (match && match[1]) {
-            validKeys.push(match[1].trim());
+      const fs = typeof process.getBuiltinModule === 'function' ? process.getBuiltinModule('fs') : (typeof require !== 'undefined' ? require('fs') : null);
+      const path = typeof process.getBuiltinModule === 'function' ? process.getBuiltinModule('path') : (typeof require !== 'undefined' ? require('path') : null);
+      if (fs && path) {
+        const envPath = path.resolve(process.cwd(), '.env.local');
+        if (fs.existsSync(envPath)) {
+          const content = fs.readFileSync(envPath, 'utf8');
+          for (let i = 1; i <= 4; i++) {
+            const match = content.match(new RegExp(`EXPO_PUBLIC_GROK_API_KEY_${i}=([^\r\n]+)`));
+            if (match && match[1]) {
+              validKeys.push(match[1].trim());
+            }
           }
         }
       }

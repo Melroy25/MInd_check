@@ -985,11 +985,16 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
       extractedData: liveExtractedJson,
     };
 
+    const structuredPayload = liveExtractedJson || {
+      clinical_summary: enteredText.trim() || `Clinical notes for ${docName}.`,
+      notes: enteredText.trim(),
+    };
+
     const newDocToVerify = {
       id: newHistoryItem.id,
       name: docName,
       title: docName,
-      extractedData: liveExtractedJson,
+      extractedData: structuredPayload,
       notes: enteredText.trim(),
     };
 
@@ -1012,7 +1017,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
           conflicts: conflictResult.conflicts,
           newHistoryItem,
           newDocToVerify,
-          structuredClinicalPayload: liveExtractedJson,
+          structuredClinicalPayload: structuredPayload,
         });
         return;
       }
