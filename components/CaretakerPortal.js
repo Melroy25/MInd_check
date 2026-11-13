@@ -134,7 +134,7 @@ const IconBack = ({ size = 20, color = C.textMain }) => (
 
 export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, currentProfile }) {
   const isRealUser = Boolean(currentUser || currentProfile);
-  const caretakerDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Vikram Almeida');
+  const caretakerDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Verified Health Proxy');
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'wards' | 'changes' | 'profile'
   const [wards, setWards] = useState(() => (isRealUser ? [] : INITIAL_CARETAKER_WARDS));
   const [changes, setChanges] = useState(() => (isRealUser ? [] : INITIAL_AUDIT_LOGS));

@@ -6,15 +6,19 @@ import CreateAccountScreen from './CreateAccountScreen';
 import PatientPortal       from '../../../components/PatientPortal';
 import DoctorPortal        from '../../../components/DoctorPortal';
 import CaretakerPortal     from '../../../components/CaretakerPortal';
+import EmergencySummaryScreen from '../EmergencySummaryScreen';
 import { supabase, isSupabaseConfigured } from '../../../services/supabase/supabaseClient';
 import { getCurrentUser, signOutUser, isFirebaseConfigured } from '../../../services/supabase/authService';
 import { onFirebaseAuthStateChanged } from '../../../services/firebase/authService';
+import { Platform } from 'react-native';
 
 // ─── Screen IDs ───────────────────────────────────────────────────────────────
 // 'landing' | 'role_select' | 'sign_in' | 'create_account'
 // 'patient' | 'doctor'      | 'caretaker'
 
 export default function AppNavigator({ isDesktop }) {
+  const isEmergencyRoute = Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.search?.includes('view=emergency');
+  const [showEmergencyScreen, setShowEmergencyScreen] = useState(isEmergencyRoute);
   const [screen,          setScreen]          = useState('landing');
   const [selectedRole,    setSelectedRole]    = useState(null);
   const [currentUser,     setCurrentUser]     = useState(null);
@@ -106,6 +110,17 @@ export default function AppNavigator({ isDesktop }) {
     setCurrentProfile(null);
     goTo('landing', null);
   };
+
+  if (showEmergencyScreen) {
+    return (
+      <EmergencySummaryScreen
+        onBackToPortal={() => {
+          setShowEmergencyScreen(false);
+          goTo('landing');
+        }}
+      />
+    );
+  }
 
   switch (screen) {
 

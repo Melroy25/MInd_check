@@ -247,6 +247,54 @@ export const storageService = {
   },
 
   /**
+   * Get connected patients for doctor portal
+   */
+  async getConnectedPatients(doctorId = 'doctor') {
+    try {
+      const data = await AsyncStorage.getItem(`@medflow_connected_patients_${doctorId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * Save connected patients for doctor portal
+   */
+  async saveConnectedPatients(doctorId = 'doctor', patients = []) {
+    try {
+      await AsyncStorage.setItem(`@medflow_connected_patients_${doctorId}`, JSON.stringify(patients));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
+   * Get connected doctors for patient portal
+   */
+  async getConnectedDoctors(patientId = 'patient') {
+    try {
+      const data = await AsyncStorage.getItem(`@medflow_connected_doctors_${patientId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * Save connected doctors for patient portal
+   */
+  async saveConnectedDoctors(patientId = 'patient', doctors = []) {
+    try {
+      await AsyncStorage.setItem(`@medflow_connected_doctors_${patientId}`, JSON.stringify(doctors));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
    * Reset local state back to initial mock contracts
    */
   async resetAll() {

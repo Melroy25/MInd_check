@@ -239,307 +239,11 @@ const INITIAL_DOCTOR_INFO = {
   phone: '+1 (555) 234-5678',
 };
 
-const INITIAL_CONNECTED_PATIENTS = [
-  {
-    id: 'p1',
-    name: 'Verified Patient',
-    patientId: 'MV-SOVEREIGN',
-    age: '32 yrs',
-    gender: 'Male',
-    blood: 'O+',
-    condition: 'Borderline Hyperglycemia / Pre-diabetes',
-    recordsCount: 6,
-    lastVisit: 'Today',
-    status: 'Full Access Granted',
-    avatarColor: '#2563EB',
-    folder: 'labs',
-  },
-  {
-    id: 'p2',
-    name: 'Sofia Almeida',
-    patientId: 'MV-2026-DEP-304',
-    age: '58 yrs',
-    gender: 'Female',
-    blood: 'A+',
-    condition: 'Hypertension Stage 1 & Echo Review',
-    recordsCount: 4,
-    lastVisit: 'Nov 11, 2026',
-    status: 'Full Access Granted',
-    avatarColor: '#16A34A',
-    folder: 'cardio',
-  },
-  {
-    id: 'p3',
-    name: 'James Peterson',
-    patientId: 'MV-2026-PAT-112',
-    age: '45 yrs',
-    gender: 'Male',
-    blood: 'B+',
-    condition: 'Coronary Artery Disease monitoring',
-    recordsCount: 8,
-    lastVisit: 'Nov 08, 2026',
-    status: 'Full Access Granted',
-    avatarColor: '#7C3AED',
-    folder: 'cardio',
-  },
-  {
-    id: 'p4',
-    name: 'David Miller',
-    patientId: 'MV-2026-PAT-553',
-    age: '61 yrs',
-    gender: 'Male',
-    blood: 'AB+',
-    condition: 'Post-Stent Routine Cardiac Follow-up',
-    recordsCount: 5,
-    lastVisit: 'Nov 05, 2026',
-    status: 'View Only Access',
-    avatarColor: '#EA580C',
-    folder: 'rad',
-  },
-  {
-    id: 'p5',
-    name: 'Elena Rostova',
-    patientId: 'MV-2026-PAT-741',
-    age: '29 yrs',
-    gender: 'Female',
-    blood: 'O-',
-    condition: 'Sinus Arrhythmia Investigation',
-    recordsCount: 3,
-    lastVisit: 'Oct 29, 2026',
-    status: 'Full Access Granted',
-    avatarColor: '#0D9488',
-    folder: 'cardio',
-  },
-  {
-    id: 'p6',
-    name: 'Arthur Pendelton',
-    patientId: 'MV-2026-PAT-908',
-    age: '72 yrs',
-    gender: 'Male',
-    blood: 'A-',
-    condition: 'Congestive Heart Failure (Compensated)',
-    recordsCount: 11,
-    lastVisit: 'Oct 22, 2026',
-    status: 'Full Access Granted',
-    avatarColor: '#2563EB',
-    folder: 'cardio',
-  },
-  {
-    id: 'p7',
-    name: 'Maya Lin',
-    patientId: 'MV-2026-PAT-620',
-    age: '38 yrs',
-    gender: 'Female',
-    blood: 'B-',
-    condition: 'Mitral Valve Prolapse routine',
-    recordsCount: 4,
-    lastVisit: 'Oct 15, 2026',
-    status: 'View Only Access',
-    avatarColor: '#7C3AED',
-    folder: 'cardio',
-  },
-  {
-    id: 'p8',
-    name: 'Robert Chang',
-    patientId: 'MV-2026-PAT-439',
-    age: '50 yrs',
-    gender: 'Male',
-    blood: 'O+',
-    condition: 'Dyslipidemia & Metabolic Regimen',
-    recordsCount: 7,
-    lastVisit: 'Oct 02, 2026',
-    status: 'Full Access Granted',
-    avatarColor: '#16A34A',
-    folder: 'labs',
-  },
-];
+const INITIAL_CONNECTED_PATIENTS = [];
 
-const INITIAL_HISTORY = [
-  {
-    id: 'h-1',
-    type: 'upload',
-    title: 'Metabolic Panel Report',
-    patientName: 'Verified Patient',
-    patientId: 'MV-SOVEREIGN',
-    date: 'Today, Nov 13, 2026',
-    time: '06:15 AM',
-    timestamp: '2026-11-13T06:15:00',
-    details: '6 lab values extracted (Fasting Glucose: 104 mg/dL, HbA1c: 5.8%). Document stored in patient Blood & Lab Tests folder.',
-    category: 'Lab Report',
-    format: 'PDF',
-    size: '1.4 MB',
-    badgeColor: C.green,
-    badgeBg: C.greenBg,
-  },
-  {
-    id: 'h-2',
-    type: 'connection',
-    title: 'Patient QR Access',
-    patientName: 'Verified Patient',
-    patientId: 'MV-SOVEREIGN',
-    date: 'Today, Nov 13, 2026',
-    time: '05:45 AM',
-    timestamp: '2026-11-13T05:45:00',
-    details: 'Cryptographic token handshake verified. Granted Full Clinical Access for 90 days.',
-    category: 'QR Access',
-    format: 'TOKEN',
-    size: 'Verified',
-    badgeColor: C.blue,
-    badgeBg: C.blueBg,
-  },
-  {
-    id: 'h-3',
-    type: 'update',
-    title: 'Rx: Maintenance Regimen',
-    patientName: 'Verified Patient',
-    patientId: 'MV-SOVEREIGN',
-    date: 'Nov 12, 2026',
-    time: '04:20 PM',
-    timestamp: '2026-11-12T16:20:00',
-    details: 'Standard maintenance regimen prescribed and verified.',
-    category: 'Prescription',
-    format: 'RX',
-    size: 'Active Rx',
-    badgeColor: C.purple,
-    badgeBg: C.purpleBg,
-  },
-  {
-    id: 'h-4',
-    type: 'upload',
-    title: '2D Echocardiogram Study',
-    patientName: 'Sofia Almeida',
-    patientId: 'MV-2026-DEP-304',
-    date: 'Nov 11, 2026',
-    time: '02:35 PM',
-    timestamp: '2026-11-11T14:35:00',
-    details: 'Resting left ventricular ejection fraction 62%. Normal diastolic filling parameters.',
-    category: 'Cardiology',
-    format: 'PDF',
-    size: '3.8 MB',
-    badgeColor: C.green,
-    badgeBg: C.greenBg,
-  },
-  {
-    id: 'h-5',
-    type: 'connection',
-    title: 'Health Proxy Linked',
-    patientName: 'Sofia Almeida',
-    patientId: 'MV-2026-DEP-304',
-    date: 'Nov 10, 2026',
-    time: '11:10 AM',
-    timestamp: '2026-11-10T11:10:00',
-    details: 'Designated caretaker proxy authorization confirmed by Dr. Sarah Jenkins.',
-    category: 'Access Link',
-    format: 'PROXY',
-    size: 'Active',
-    badgeColor: C.blue,
-    badgeBg: C.blueBg,
-  },
-  {
-    id: 'h-6',
-    type: 'upload',
-    title: 'Lipid Profile & Biomarkers',
-    patientName: 'James Peterson',
-    patientId: 'MV-2026-PAT-112',
-    date: 'Nov 08, 2026',
-    time: '10:05 AM',
-    timestamp: '2026-11-08T10:05:00',
-    details: 'Total Cholesterol: 185 mg/dL, HDL: 48 mg/dL, LDL: 102 mg/dL. Synced to patient profile.',
-    category: 'Lab Report',
-    format: 'PDF',
-    size: '1.1 MB',
-    badgeColor: C.green,
-    badgeBg: C.greenBg,
-  },
-  {
-    id: 'h-7',
-    type: 'update',
-    title: 'Cardiovascular Progress Note',
-    patientName: 'James Peterson',
-    patientId: 'MV-2026-PAT-112',
-    date: 'Nov 08, 2026',
-    time: '09:40 AM',
-    timestamp: '2026-11-08T09:40:00',
-    details: 'Blood pressure 126/82 mmHg. Aerobic conditioning compliant. Follow-up in 3 months.',
-    category: 'Clinical Note',
-    format: 'NOTE',
-    size: 'Clinical Record',
-    badgeColor: C.coral,
-    badgeBg: C.coralBg,
-  },
-  {
-    id: 'h-8',
-    type: 'upload',
-    title: 'Chest CT Scan Report',
-    patientName: 'David Miller',
-    patientId: 'MV-2026-PAT-553',
-    date: 'Nov 05, 2026',
-    time: '03:15 PM',
-    timestamp: '2026-11-05T15:15:00',
-    details: 'No acute parenchymal infiltration. Stable post-cardiac intervention findings.',
-    category: 'Radiology',
-    format: 'PDF',
-    size: '5.2 MB',
-    badgeColor: C.green,
-    badgeBg: C.greenBg,
-  },
-  {
-    id: 'h-9',
-    type: 'connection',
-    title: 'Clinic QR Verification',
-    patientName: 'David Miller',
-    patientId: 'MV-2026-PAT-553',
-    date: 'Nov 05, 2026',
-    time: '02:50 PM',
-    timestamp: '2026-11-05T14:50:00',
-    details: 'Scanned patient identification barcode from smartphone MediVault badge.',
-    category: 'QR Access',
-    format: 'TOKEN',
-    size: 'Verified',
-    badgeColor: C.blue,
-    badgeBg: C.blueBg,
-  },
-  {
-    id: 'h-10',
-    type: 'upload',
-    title: '24-Hour Holter ECG',
-    patientName: 'Elena Rostova',
-    patientId: 'MV-2026-PAT-741',
-    date: 'Oct 29, 2026',
-    time: '01:25 PM',
-    timestamp: '2026-10-29T13:25:00',
-    details: 'Predominantly normal sinus rhythm throughout 24-hour acquisition with rare isolated PACs.',
-    category: 'Cardiology',
-    format: 'PDF',
-    size: '2.6 MB',
-    badgeColor: C.green,
-    badgeBg: C.greenBg,
-  },
-];
+const INITIAL_HISTORY = [];
 
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: 'notif-1',
-    title: 'New Patient Connection',
-    desc: 'Verified patient shared clinical vault records with attending team.',
-    time: '15 mins ago',
-    unread: true,
-  },
-  {
-    id: 'notif-2',
-    title: 'Lab Extraction Confirmed',
-    desc: 'Metabolic Panel structured schema successfully indexed.',
-    time: '2 hours ago',
-    unread: true,
-  },
-  {
-    id: 'notif-3',
-    title: 'Sofia Almeida Proxy Update',
-    desc: 'Designated caretaker Elena Almeida downloaded latest Echo summary report.',
-    time: 'Yesterday',
-    unread: false,
-  },
-];
+const INITIAL_NOTIFICATIONS = [];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── DOCTOR PORTAL COMPONENT ──────────────────────────────────────────────────
@@ -590,6 +294,22 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
     loadDoctorAvatar();
     return () => { isMounted = false; };
   }, [currentUser?.uid, currentProfile?.avatar_url, currentUser?.photoURL]);
+
+  // Load persisted connected patients
+  useEffect(() => {
+    async function loadDoctorPatients() {
+      try {
+        const stored = await storageService.getConnectedPatients(currentUser?.uid || 'doctor');
+        if (Array.isArray(stored) && stored.length > 0) {
+          setConnectedPatients(stored);
+          setTargetPatient((prev) => prev || stored[0]);
+        }
+      } catch (e) {
+        console.warn('[DoctorPortal] Error loading connected patients:', e);
+      }
+    }
+    loadDoctorPatients();
+  }, [currentUser?.uid]);
 
   // Settings
   const [settings, setSettings] = useState({
@@ -1060,11 +780,47 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   };
 
   // ─── HANDLE QR CODE SCAN / LINK PATIENT ──────────────────────────────────────
-  const handleProcessQrScan = (code) => {
+  const handleProcessQrScan = (code, parsed) => {
+    let patientName = 'Verified Patient';
+    let vaultId = `MV-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+    let bloodType = 'Not documented';
+    let emergencyContact = 'Not specified';
+
+    if (parsed && typeof parsed === 'object') {
+      patientName = parsed.patient || parsed.name || patientName;
+      vaultId = parsed.vaultId || parsed.id || vaultId;
+      bloodType = parsed.bloodType || parsed.blood || bloodType;
+      emergencyContact = parsed.emergencyContact || emergencyContact;
+    } else if (typeof code === 'string') {
+      const trimmed = code.trim();
+      if (trimmed.includes('?')) {
+        try {
+          const query = trimmed.split('?')[1];
+          const params = new URLSearchParams(query);
+          patientName = params.get('patient') || params.get('name') || patientName;
+          vaultId = params.get('vaultId') || vaultId;
+          bloodType = params.get('blood') || params.get('bloodType') || bloodType;
+          emergencyContact = params.get('contact') || emergencyContact;
+        } catch (e) {}
+      } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const p = JSON.parse(trimmed);
+          patientName = p.patient || p.name || patientName;
+          vaultId = p.vaultId || p.id || vaultId;
+          bloodType = p.bloodType || p.blood || bloodType;
+          emergencyContact = p.emergencyContact || emergencyContact;
+        } catch (e) {
+          patientName = trimmed;
+        }
+      } else if (trimmed) {
+        patientName = trimmed;
+      }
+    }
+
     const matched = connectedPatients.find(
       (p) =>
-        p.patientId.toLowerCase() === code.trim().toLowerCase() ||
-        p.name.toLowerCase().includes(code.trim().toLowerCase())
+        (p.patientId && p.patientId.toLowerCase() === vaultId.toLowerCase()) ||
+        (p.name && p.name.toLowerCase() === patientName.toLowerCase())
     );
 
     const now = new Date();
@@ -1082,7 +838,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         date: formattedDate,
         time: formattedTime,
         timestamp: now.toISOString(),
-        details: `QR Code verified via biometric optical scanner. Direct vault access session opened.`,
+        details: `QR Code verified. Direct sovereign vault session opened for ${matched.name}.`,
         category: 'QR Verification',
         format: 'QR',
         size: 'Active',
@@ -1094,44 +850,46 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
       setQrScanInput('');
       showToast(`Connected with ${matched.name}!`);
     } else {
-      // Simulate creating a newly connected patient
       const newP = {
-        id: `p-${Date.now()}`,
-        name: qrScanInput.trim() || 'Alexander Wright',
-        patientId: `MV-2026-PAT-${Math.floor(100 + Math.random() * 900)}`,
-        age: '41 yrs',
-        gender: 'Male',
-        blood: 'A+',
-        condition: 'General Health Review & Cardiac Screening',
-        recordsCount: 2,
-        lastVisit: 'Today',
+        id: vaultId,
+        name: patientName,
+        patientId: vaultId,
+        age: 'Adult',
+        gender: 'Patient',
+        blood: bloodType,
+        emergencyContact: emergencyContact,
+        condition: 'Active Sovereign Vault',
+        recordsCount: 0,
+        lastVisit: 'Connected Today',
         status: 'Full Access Granted',
         avatarColor: '#2563EB',
         folder: 'labs',
       };
-      setConnectedPatients([newP, ...connectedPatients]);
+      const updated = [newP, ...connectedPatients];
+      setConnectedPatients(updated);
       setTargetPatient(newP);
+      storageService.saveConnectedPatients(currentUser?.uid || 'doctor', updated);
 
       const newHistoryItem = {
         id: `h-scan-${Date.now()}`,
         type: 'connection',
-        title: `QR Access: ${newP.name}`,
+        title: `QR Linked: ${newP.name}`,
         patientName: newP.name,
         patientId: newP.patientId,
         date: formattedDate,
         time: formattedTime,
         timestamp: now.toISOString(),
-        details: `New patient identity handshake confirmed via MediVault QR token. Access permissions granted.`,
+        details: `New patient identity handshake confirmed via MediVault QR token (${newP.patientId}). Access permissions granted.`,
         category: 'QR Connection',
         format: 'TOKEN',
         size: 'Linked',
-        badgeColor: C.blue,
-        badgeBg: C.blueBg,
+        badgeColor: C.green,
+        badgeBg: C.greenBg,
       };
       setHistoryList([newHistoryItem, ...historyList]);
       setShowQrScanModal(false);
       setQrScanInput('');
-      showToast(`🎉 New patient connected: ${newP.name}!`);
+      showToast(`Connected to patient: ${newP.name} (${newP.patientId})!`);
     }
   };
 
@@ -2181,7 +1939,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         })}
         onScan={(token, parsed) => {
           setShowQrScanModal(false);
-          handleProcessQrScan(String(token || 'Patient'));
+          handleProcessQrScan(String(token || ''), parsed);
         }}
       />
 

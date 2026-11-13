@@ -487,6 +487,21 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     loadStoredFiles();
   }, [currentUser?.uid, isRealUser]);
 
+  // ── Load Connected Doctors on Mount (Scoped to User ID) ──
+  useEffect(() => {
+    async function loadConnectedDoctors() {
+      try {
+        const stored = await storageService.getConnectedDoctors(currentUser?.uid || 'patient');
+        if (Array.isArray(stored) && stored.length > 0) {
+          setClinicalDoctors(stored);
+        }
+      } catch (e) {
+        console.warn('[PatientPortal] Error loading connected doctors:', e);
+      }
+    }
+    loadConnectedDoctors();
+  }, [currentUser?.uid]);
+
   const handleDeleteDocument = async (fileId) => {
     const nextFiles = files.filter((f) => f.id !== fileId && f.id !== `${fileId}-json`);
     setFiles(nextFiles);
@@ -1522,6 +1537,64 @@ Guidelines:
 
   // ─── ACTIVE VAULT FILES & FILTERED FILES ──────────────────────────────────
   const activeVaultFiles = currentAccountRole === 'benefactor' ? SOFIA_BENEFICIARY_FILES : files;
+
+  // Filter for real non-json medical files
+  const realActiveFiles = useMemo(() => {
+    return (activeVaultFiles || []).filter((f) => {
+      const name = (f.name || '').toLowerCase();
+      return !name.includes('(structured json)') && !name.endsWith('.json') && f.type !== 'json';
+    });
+  }, [activeVaultFiles]);
+
+  // Aggregate clinical entities strictly from real records
+  const aggregatedClinicalData = useMemo(() => {
+    const conditions = [];
+    const medications = [];
+    const lab_results = [];
+    const allergies = [];
+
+    realActiveFiles.forEach((f) => {
+      const docName = f.name || 'Direct Vault Entry';
+      const ed = f.extractedData || {};
+      const ent = ed.extracted_entities || {};
+
+      if (Array.isArray(ed.conditions)) {
+        ed.conditions.forEach((c) => conditions.push({ ...(typeof c === 'object' ? c : { name: c }), source: docName }));
+      } else if (Array.isArray(ent.conditions)) {
+        ent.conditions.forEach((c) => conditions.push({ ...(typeof c === 'object' ? c : { name: c }), source: docName }));
+      }
+
+      if (Array.isArray(ed.medications)) {
+        ed.medications.forEach((m) => medications.push({ ...(typeof m === 'object' ? m : { name: m }), source: docName }));
+      } else if (Array.isArray(ent.medications)) {
+        ent.medications.forEach((m) => medications.push({ ...(typeof m === 'object' ? m : { name: m }), source: docName }));
+      }
+
+      if (Array.isArray(ed.lab_results)) {
+        ed.lab_results.forEach((l) => lab_results.push({ ...(typeof l === 'object' ? l : { test_name: l }), source: docName }));
+      } else if (Array.isArray(ent.lab_results)) {
+        ent.lab_results.forEach((l) => lab_results.push({ ...(typeof l === 'object' ? l : { test_name: l }), source: docName }));
+      }
+
+      if (Array.isArray(ed.allergies)) {
+        ed.allergies.forEach((a) => allergies.push({ ...(typeof a === 'object' ? a : { substance: a }), source: docName }));
+      } else if (Array.isArray(ent.allergies?.items)) {
+        ent.allergies.items.forEach((a) => allergies.push({ ...(typeof a === 'object' ? a : { substance: a }), source: docName }));
+      }
+    });
+
+    return { conditions, medications, lab_results, allergies };
+  }, [realActiveFiles]);
+
+  // Dynamic universal emergency QR URL
+  const emergencyQrUrl = useMemo(() => {
+    const pName = encodeURIComponent(patientInfo?.name || patientDisplayName || 'Verified Patient');
+    const vId = encodeURIComponent(patientInfo?.vaultId || userVaultId || 'MV-SOVEREIGN');
+    const bType = encodeURIComponent(patientInfo?.bloodType || 'Not documented');
+    const doc = encodeURIComponent(patientInfo?.attendingDoctor || 'Clinical Team');
+    const contact = encodeURIComponent(patientInfo?.emergencyContact || 'Available on request');
+    return `https://medivault-theta.vercel.app/?view=emergency&vaultId=${vId}&patient=${pName}&blood=${bType}&doctor=${doc}&contact=${contact}`;
+  }, [patientInfo?.name, patientDisplayName, patientInfo?.vaultId, userVaultId, patientInfo?.bloodType, patientInfo?.attendingDoctor, patientInfo?.emergencyContact]);
 
   const filteredFiles = useMemo(() => {
     return activeVaultFiles.filter((f) => {
@@ -2759,16 +2832,7 @@ Guidelines:
             {/* High Contrast Dynamic QR Code */}
             <View style={[styles.qrSvgWrap, { padding: 14, backgroundColor: '#FFFFFF', borderRadius: 16 }]}>
               <QRCode
-                value={JSON.stringify({
-                  app: 'MedFlow',
-                  type: 'emergency_summary',
-                  patient: patientInfo.name,
-                  vaultId: patientInfo.vaultId,
-                  bloodType: patientInfo.bloodType,
-                  doctor: patientInfo.attendingDoctor,
-                  emergencyContact: patientInfo.emergencyContact,
-                  timestamp: Date.now(),
-                })}
+                value={emergencyQrUrl}
                 size={160}
                 color="#0F172A"
                 backgroundColor="#FFFFFF"
@@ -2779,8 +2843,22 @@ Guidelines:
               <TouchableOpacity
                 style={styles.qrActionBtnSecondary}
                 onPress={() => {
+                  if (realActiveFiles.length === 0) {
+                    showToastMsg('Cannot generate PDF. Vault contains 0 documents. Please upload or scan a medical document first.');
+                    return;
+                  }
                   setShowQrModal(false);
-                  viewMedicalPdf({ name: 'Emergency Medical Summary', doctor: patientInfo.attendingDoctor });
+                  viewMedicalPdf({
+                    name: `Emergency Medical Summary - ${patientInfo.name}`,
+                    patientName: patientInfo.name,
+                    patientId: patientInfo.vaultId,
+                    doctor: patientInfo.attendingDoctor,
+                    facility: patientInfo.primaryHospital,
+                    reportType: 'emergency',
+                    bloodType: patientInfo.bloodType,
+                    emergencyContact: patientInfo.emergencyContact,
+                    extractedData: aggregatedClinicalData,
+                  });
                 }}
               >
                 <IconEye size={16} color={C.green} />
@@ -2790,8 +2868,22 @@ Guidelines:
               <TouchableOpacity
                 style={styles.qrActionBtnPrimary}
                 onPress={() => {
+                  if (realActiveFiles.length === 0) {
+                    showToastMsg('Cannot generate PDF. Vault contains 0 documents. Please upload or scan a medical document first.');
+                    return;
+                  }
                   setShowQrModal(false);
-                  downloadMedicalPdf({ name: 'Emergency Medical Summary', doctor: patientInfo.attendingDoctor });
+                  downloadMedicalPdf({
+                    name: `Emergency Medical Summary - ${patientInfo.name}`,
+                    patientName: patientInfo.name,
+                    patientId: patientInfo.vaultId,
+                    doctor: patientInfo.attendingDoctor,
+                    facility: patientInfo.primaryHospital,
+                    reportType: 'emergency',
+                    bloodType: patientInfo.bloodType,
+                    emergencyContact: patientInfo.emergencyContact,
+                    extractedData: aggregatedClinicalData,
+                  });
                 }}
               >
                 <IconDownload size={16} color="white" />
@@ -3888,7 +3980,7 @@ Guidelines:
         </View>
       </Modal>
 
-      {/* ── MODAL: SCAN QR TO CONNECT (CARETAKER OR BENEFACTOR) ─────────────── */}
+      {/* ── MODAL: SCAN QR TO CONNECT (DOCTOR, CARETAKER OR BENEFACTOR) ── */}
       <QRScannerModal
         visible={showScanQrModal}
         onClose={() => setShowScanQrModal(false)}
@@ -3897,18 +3989,59 @@ Guidelines:
         accentColor="#4F46E5"
         userName={patientInfo?.name || 'Patient'}
         userSubtitle={`Sovereign Health Pass · ${patientInfo?.vaultId || 'MV-2026'}`}
-        userQrValue={JSON.stringify({
-          app: 'MedFlow',
-          type: 'emergency_summary',
-          patient: patientInfo?.name || 'Patient',
-          vaultId: patientInfo?.vaultId || 'MV-2026',
-          bloodType: patientInfo?.bloodType || 'Unknown',
-          timestamp: Date.now(),
-        })}
+        userQrValue={emergencyQrUrl}
         onScan={(token, parsed) => {
           setShowScanQrModal(false);
-          const code = String(token || 'CAR-4892');
-          showToastMsg(`Connected via QR (${code})!`);
+          let docName = 'Attending Physician';
+          let clinic = 'MedFlow Clinical Partner';
+          let docId = `doc-${Date.now()}`;
+
+          if (parsed && typeof parsed === 'object') {
+            docName = parsed.doctor || parsed.name || docName;
+            clinic = parsed.clinic || clinic;
+            docId = parsed.id || docId;
+          } else if (typeof token === 'string') {
+            if (token.includes('?')) {
+              try {
+                const q = new URLSearchParams(token.split('?')[1]);
+                docName = q.get('doctor') || q.get('name') || docName;
+                clinic = q.get('clinic') || clinic;
+              } catch (e) {}
+            } else {
+              try {
+                const p = JSON.parse(token);
+                docName = p.doctor || p.name || docName;
+                clinic = p.clinic || clinic;
+                docId = p.id || docId;
+              } catch (e) {
+                docName = token.trim();
+              }
+            }
+          }
+
+          const newDoctor = {
+            id: docId,
+            name: docName,
+            role: 'Attending Physician',
+            clinic: clinic,
+            perm: 'Full Sovereign Medical Access',
+            code: `DOC-${Date.now().toString().slice(-4)}`,
+            date: 'Connected Today',
+          };
+
+          setClinicalDoctors((prev) => {
+            const next = [newDoctor, ...prev.filter((d) => d.name !== docName)];
+            storageService.saveConnectedDoctors(currentUser?.uid || 'patient', next);
+            return next;
+          });
+
+          setPatientInfo((prev) => ({
+            ...prev,
+            attendingDoctor: docName,
+            primaryHospital: clinic,
+          }));
+
+          showToastMsg(`Connected with ${docName} as attending physician!`);
         }}
       />
 
