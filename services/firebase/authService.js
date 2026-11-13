@@ -206,7 +206,8 @@ export async function signInWithGoogleFirebase(expectedRole = 'patient') {
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
       friendlyMessage = 'Google Sign-In is not enabled in Firebase Console yet. Please go to Firebase Console -> Authentication -> Sign-in method, click Google, and enable it.';
     } else if (error.code === 'auth/unauthorized-domain') {
-      friendlyMessage = 'This domain is not authorized in Firebase Console. Please add localhost to Authentication -> Settings -> Authorized domains.';
+      const currentDomain = (typeof window !== 'undefined' && window.location?.hostname) ? window.location.hostname : 'this domain';
+      friendlyMessage = `This domain (${currentDomain}) is not authorized for Google Sign-In in Firebase Console. Please add "${currentDomain}" to Firebase Console -> Authentication -> Settings -> Authorized domains. (Alternatively, you can sign in directly using Email & Password or Create Account below).`;
     }
     return { user: null, profile: null, error: { message: friendlyMessage, code: error.code } };
   }
