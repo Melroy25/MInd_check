@@ -131,11 +131,13 @@ const IconBack = ({ size = 20, color = C.textMain }) => (
   </Svg>
 );
 
-export default function CaretakerPortal({ onSignOut, isDesktop }) {
+export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, currentProfile }) {
+  const isRealUser = Boolean(currentUser || currentProfile);
+  const caretakerDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Vikram Almeida');
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'wards' | 'changes' | 'profile'
-  const [wards, setWards] = useState(INITIAL_CARETAKER_WARDS);
-  const [changes, setChanges] = useState(INITIAL_AUDIT_LOGS);
-  const [selectedWardId, setSelectedWardId] = useState('p1');
+  const [wards, setWards] = useState(() => (isRealUser ? [] : INITIAL_CARETAKER_WARDS));
+  const [changes, setChanges] = useState(() => (isRealUser ? [] : INITIAL_AUDIT_LOGS));
+  const [selectedWardId, setSelectedWardId] = useState(() => (isRealUser ? null : 'p1'));
   const [searchQuery, setSearchQuery] = useState('');
   const [openWardVault, setOpenWardVault] = useState(null);
   const [showWardVaultModal, setShowWardVaultModal] = useState(false);
@@ -160,7 +162,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
     loadPersistedData();
   }, []);
 
-  const activeWard = wards.find((w) => w.id === selectedWardId) || wards[0];
+  const activeWard = wards.find((w) => w.id === selectedWardId) || wards[0] || null;
 
   const showToast = (msg) => {
     setToastMsg(msg);
@@ -304,8 +306,12 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
               <Text style={s.proxyBadgeText}>Proxy Active</Text>
             </View>
           </View>
-          <Text style={s.headerName}>Vikram Almeida</Text>
-          <Text style={s.headerSub}>Assisting 3 Assigned Patient Wards</Text>
+          <Text style={s.headerName}>{caretakerDisplayName}</Text>
+          <Text style={s.headerSub}>
+            {wards.length > 0
+              ? `Assisting ${wards.length} Assigned Patient ${wards.length === 1 ? 'Ward' : 'Wards'}`
+              : 'No patient wards connected yet'}
+          </Text>
         </View>
         <TouchableOpacity
           style={s.signOutBtn}
@@ -430,121 +436,140 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
             )}
 
             {/* Ward Quick Selector & Today's Care Plan */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 12 }}>
-              <Text style={s.sectionTitle}>Daily Care Plan</Text>
-              <Text style={s.activeWardText}>{activeWard.name} ({activeWard.relation})</Text>
-            </View>
+            {!activeWard ? (
+              <View style={[s.card, { alignItems: 'center', paddingVertical: 32, marginTop: 14 }]}>
+                <IconUsers size={40} color={C.textSub} />
+                <Text style={[s.cardTitle, { marginTop: 12, textAlign: 'center' }]}>No Patient Wards Connected Yet</Text>
+                <Text style={[s.quickSub, { textAlign: 'center', maxWidth: 280, marginTop: 4 }]}>
+                  Scan a patient QR code or have family members authorize you as their designated caretaker proxy.
+                </Text>
+                <TouchableOpacity
+                  style={[s.primaryActionBtn, { marginTop: 16 }]}
+                  onPress={() => setShowQrModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.primaryActionBtnText}>Scan Patient QR Code</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 12 }}>
+                  <Text style={s.sectionTitle}>Daily Care Plan</Text>
+                  <Text style={s.activeWardText}>{activeWard.name} ({activeWard.relation})</Text>
+                </View>
 
-            {/* Ward Selector Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {wards.map((w) => (
+                {/* Ward Selector Pills */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    {wards.map((w) => (
+                      <TouchableOpacity
+                        key={w.id}
+                        style={[s.wardPill, selectedWardId === w.id && s.wardPillActive]}
+                        onPress={() => setSelectedWardId(w.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[s.wardPillText, selectedWardId === w.id && s.wardPillTextActive]}>
+                          {w.name} ({w.relation})
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {/* Permission Scopes Banner */}
+                <View style={s.permissionBanner}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Text style={s.permissionBannerTitle}>Delegated Permissions for {activeWard.name}:</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    <View style={[s.scopeChip, activeWard.permissions?.viewTimeline && s.scopeChipActive]}>
+                      <Text style={[s.scopeChipText, activeWard.permissions?.viewTimeline && s.scopeChipTextActive]}>
+                        View Records: {activeWard.permissions?.viewTimeline ? 'Granted' : 'Locked'}
+                      </Text>
+                    </View>
+                    <View style={[s.scopeChip, activeWard.permissions?.editMeds && s.scopeChipActive]}>
+                      <Text style={[s.scopeChipText, activeWard.permissions?.editMeds && s.scopeChipTextActive]}>
+                        Edit Meds: {activeWard.permissions?.editMeds ? 'Granted' : 'Read-Only'}
+                      </Text>
+                    </View>
+                    <View style={[s.scopeChip, activeWard.permissions?.uploadDocs && s.scopeChipActive]}>
+                      <Text style={[s.scopeChipText, activeWard.permissions?.uploadDocs && s.scopeChipTextActive]}>
+                        Upload Vault: {activeWard.permissions?.uploadDocs ? 'Granted' : 'Locked'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Medication Checklist Card */}
+                <View style={s.card}>
+                  <View style={s.cardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <IconPill size={18} color={C.purple} />
+                      <Text style={s.cardTitle}>Today's Medication Checklist</Text>
+                    </View>
+                    {!activeWard.permissions?.editMeds && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <IconLock size={12} color={C.textSub} />
+                        <Text style={s.lockNotice}>View Only</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {(activeWard.meds || []).map((med) => (
+                    <View key={med.id} style={s.medRow}>
+                      <TouchableOpacity
+                        style={[
+                          s.checkbox,
+                          med.taken && s.checkboxChecked,
+                          !activeWard.permissions?.editMeds && s.checkboxDisabled,
+                        ]}
+                        onPress={() => handleToggleMed(activeWard.id, med.id)}
+                        activeOpacity={activeWard.permissions?.editMeds ? 0.75 : 1}
+                      >
+                        {med.taken && <IconCheck size={14} color="#FFFFFF" />}
+                      </TouchableOpacity>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[s.medName, med.taken && s.medNameTaken]}>{med.name}</Text>
+                        <Text style={s.medTime}>Scheduled: {med.time} · {med.lastUpdated}</Text>
+                      </View>
+                      <View style={[s.statusPill, med.taken ? s.statusPillTaken : s.statusPillPending]}>
+                        <Text style={[s.statusPillText, med.taken ? s.statusPillTextTaken : s.statusPillTextPending]}>
+                          {med.taken ? 'Logged' : 'Due'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+
                   <TouchableOpacity
-                    key={w.id}
-                    style={[s.wardPill, selectedWardId === w.id && s.wardPillActive]}
-                    onPress={() => setSelectedWardId(w.id)}
+                    style={s.openVaultBtn}
+                    onPress={() => setOpenWardVault(activeWard)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[s.wardPillText, selectedWardId === w.id && s.wardPillTextActive]}>
-                      {w.name} ({w.relation})
-                    </Text>
+                    <Text style={s.openVaultBtnText}>Open {activeWard.name}'s Full Vault →</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+                </View>
 
-            {/* Permission Scopes Banner */}
-            <View style={s.permissionBanner}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <Text style={s.permissionBannerTitle}>Delegated Permissions for {activeWard.name}:</Text>
-              </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <View style={[s.scopeChip, activeWard.permissions.viewTimeline && s.scopeChipActive]}>
-                  <Text style={[s.scopeChipText, activeWard.permissions.viewTimeline && s.scopeChipTextActive]}>
-                    View Records: {activeWard.permissions.viewTimeline ? 'Granted' : 'Locked'}
-                  </Text>
-                </View>
-                <View style={[s.scopeChip, activeWard.permissions.editMeds && s.scopeChipActive]}>
-                  <Text style={[s.scopeChipText, activeWard.permissions.editMeds && s.scopeChipTextActive]}>
-                    Edit Meds: {activeWard.permissions.editMeds ? 'Granted' : 'Read-Only'}
-                  </Text>
-                </View>
-                <View style={[s.scopeChip, activeWard.permissions.uploadDocs && s.scopeChipActive]}>
-                  <Text style={[s.scopeChipText, activeWard.permissions.uploadDocs && s.scopeChipTextActive]}>
-                    Upload Vault: {activeWard.permissions.uploadDocs ? 'Granted' : 'Locked'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Medication Checklist Card */}
-            <View style={s.card}>
-              <View style={s.cardHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <IconPill size={18} color={C.purple} />
-                  <Text style={s.cardTitle}>Today's Medication Checklist</Text>
-                </View>
-                {!activeWard.permissions.editMeds && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <IconLock size={12} color={C.textSub} />
-                    <Text style={s.lockNotice}>View Only</Text>
+                {/* Quick Vitals Overview */}
+                <Text style={[s.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Current Vitals</Text>
+                <View style={s.vitalsGrid}>
+                  <View style={s.vitalBox}>
+                    <Text style={s.vitalLabel}>Blood Pressure</Text>
+                    <Text style={s.vitalVal}>{activeWard.vitals?.bp || '--/--'}</Text>
+                    <Text style={s.vitalStatus}>Normal</Text>
                   </View>
-                )}
-              </View>
-
-              {activeWard.meds.map((med) => (
-                <View key={med.id} style={s.medRow}>
-                  <TouchableOpacity
-                    style={[
-                      s.checkbox,
-                      med.taken && s.checkboxChecked,
-                      !activeWard.permissions.editMeds && s.checkboxDisabled,
-                    ]}
-                    onPress={() => handleToggleMed(activeWard.id, med.id)}
-                    activeOpacity={activeWard.permissions.editMeds ? 0.75 : 1}
-                  >
-                    {med.taken && <IconCheck size={14} color="#FFFFFF" />}
-                  </TouchableOpacity>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[s.medName, med.taken && s.medNameTaken]}>{med.name}</Text>
-                    <Text style={s.medTime}>Scheduled: {med.time} · {med.lastUpdated}</Text>
+                  <View style={s.vitalBox}>
+                    <Text style={s.vitalLabel}>Heart Rate</Text>
+                    <Text style={s.vitalVal}>{activeWard.vitals?.pulse || '-- bpm'}</Text>
+                    <Text style={s.vitalStatus}>Resting</Text>
                   </View>
-                  <View style={[s.statusPill, med.taken ? s.statusPillTaken : s.statusPillPending]}>
-                    <Text style={[s.statusPillText, med.taken ? s.statusPillTextTaken : s.statusPillTextPending]}>
-                      {med.taken ? 'Logged' : 'Due'}
-                    </Text>
+                  <View style={s.vitalBox}>
+                    <Text style={s.vitalLabel}>Blood Sugar</Text>
+                    <Text style={s.vitalVal}>{activeWard.vitals?.glucose || '-- mg/dL'}</Text>
+                    <Text style={s.vitalStatus}>Fasting</Text>
                   </View>
                 </View>
-              ))}
-
-              <TouchableOpacity
-                style={s.openVaultBtn}
-                onPress={() => setOpenWardVault(activeWard)}
-                activeOpacity={0.8}
-              >
-                <Text style={s.openVaultBtnText}>Open {activeWard.name}'s Full Vault →</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Quick Vitals Overview */}
-            <Text style={[s.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Current Vitals</Text>
-            <View style={s.vitalsGrid}>
-              <View style={s.vitalBox}>
-                <Text style={s.vitalLabel}>Blood Pressure</Text>
-                <Text style={s.vitalVal}>{activeWard.vitals.bp}</Text>
-                <Text style={s.vitalStatus}>Normal</Text>
-              </View>
-              <View style={s.vitalBox}>
-                <Text style={s.vitalLabel}>Heart Rate</Text>
-                <Text style={s.vitalVal}>{activeWard.vitals.pulse}</Text>
-                <Text style={s.vitalStatus}>Resting</Text>
-              </View>
-              <View style={s.vitalBox}>
-                <Text style={s.vitalLabel}>Blood Sugar</Text>
-                <Text style={s.vitalVal}>{activeWard.vitals.glucose}</Text>
-                <Text style={s.vitalStatus}>Fasting</Text>
-              </View>
-            </View>
+              </>
+            )}
           </>
         )}
 
@@ -684,16 +709,18 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
           <View style={s.card}>
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
               <View style={[s.avatarCircle, { width: 64, height: 64, borderRadius: 32, backgroundColor: C.purpleBg }]}>
-                <Text style={[s.avatarText, { fontSize: 24, color: C.purple }]}>VA</Text>
+                <Text style={[s.avatarText, { fontSize: 24, color: C.purple }]}>
+                  {caretakerDisplayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </Text>
               </View>
-              <Text style={[s.wardName, { fontSize: 20, marginTop: 10 }]}>Vikram Almeida</Text>
-              <Text style={s.wardSub}>Primary Family Caretaker · Sovereign Proxy</Text>
-              <Text style={s.commitHash}>ID: CAR-9021-ALM</Text>
+              <Text style={[s.wardName, { fontSize: 20, marginTop: 10 }]}>{caretakerDisplayName}</Text>
+              <Text style={s.wardSub}>Designated Caretaker · Sovereign Proxy</Text>
+              <Text style={s.commitHash}>ID: {currentUser?.uid ? `CAR-${currentUser.uid.slice(0, 8).toUpperCase()}` : 'CAR-9021-ALM'}</Text>
             </View>
 
             <View style={{ borderTopWidth: 1, borderTopColor: C.borderLight, marginTop: 14, paddingTop: 14 }}>
               <Text style={s.profileFieldLabel}>BOUND HEALTH IDENTITIES</Text>
-              <Text style={s.profileFieldValue}>3 Active Sovereign Vaults Linked</Text>
+              <Text style={s.profileFieldValue}>{wards.length} Active Sovereign {wards.length === 1 ? 'Vault' : 'Vaults'} Linked</Text>
 
               <Text style={[s.profileFieldLabel, { marginTop: 12 }]}>PERMISSION GOVERNANCE</Text>
               <Text style={s.profileFieldValue}>Zero-Knowledge Client Encryption · Reversible Writes</Text>
@@ -831,14 +858,14 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
       <EmergencySosModal
         visible={showSosModal}
         onClose={() => setShowSosModal(false)}
-        patientName={activeWard.name}
-        bloodType={activeWard.blood}
+        patientName={activeWard?.name || 'Assigned Patient'}
+        bloodType={activeWard?.blood || 'O+'}
         onBroadcastSuccess={(details) => {
           const sosCommit = {
             id: `c_sos_${Date.now()}`,
             commitHash: Math.random().toString(16).substring(2, 9),
-            patientId: activeWard.id,
-            patientName: activeWard.name,
+            patientId: activeWard?.id || 'p-ward',
+            patientName: activeWard?.name || 'Assigned Patient',
             title: `Emergency Beacon Broadcasted`,
             detail: `Telemetry: ${details.gps}. Attending doctor & contacts alerted.`,
             timestamp: 'Just now',
@@ -847,7 +874,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
           const nextLogs = [sosCommit, ...changes];
           setChanges(nextLogs);
           storageService.saveAuditLogs(nextLogs);
-          showToast(`Emergency alert broadcasted for ${activeWard.name}`);
+          showToast(`Emergency alert broadcasted for ${activeWard?.name || 'Assigned Patient'}`);
         }}
       />
     </SafeAreaView>

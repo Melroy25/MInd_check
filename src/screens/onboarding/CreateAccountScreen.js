@@ -5,7 +5,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
-import { signUpWithEmail } from '../../../services/supabase/authService';
+import { signUpWithEmail, signInWithGoogle } from '../../../services/supabase/authService';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -131,6 +131,29 @@ function CheckSquareIcon({ size = 20, color = T.primary, filled = false }) {
   );
 }
 
+function GoogleLogoSvg({ size = 18 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <Path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+        fill="#EA4335"
+      />
+    </Svg>
+  );
+}
+
 function RoleAvatar({ role, cfg }) {
   const Icon = role === 'doctor' ? MedKitIcon : role === 'caretaker' ? ShieldIcon : PersonIcon;
   return (
@@ -149,16 +172,17 @@ export default function CreateAccountScreen({
 }) {
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.patient;
 
-  const [fullName,     setFullName]     = useState('');
-  const [email,        setEmail]        = useState('');
-  const [phone,        setPhone]        = useState('');
-  const [password,     setPassword]     = useState('');
-  const [confirmPass,  setConfirmPass]  = useState('');
-  const [showPass,     setShowPass]     = useState(false);
-  const [showConfirm,  setShowConfirm]  = useState(false);
-  const [agreedTerms,  setAgreedTerms]  = useState(true);
-  const [loading,      setLoading]      = useState(false);
-  const [errorMsg,     setErrorMsg]     = useState('');
+  const [fullName,      setFullName]      = useState('');
+  const [email,         setEmail]         = useState('');
+  const [phone,         setPhone]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [confirmPass,   setConfirmPass]   = useState('');
+  const [showPass,      setShowPass]      = useState(false);
+  const [showConfirm,   setShowConfirm]   = useState(false);
+  const [agreedTerms,   setAgreedTerms]   = useState(true);
+  const [loading,       setLoading]       = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMsg,      setErrorMsg]      = useState('');
 
   const handleSignUpSubmit = async () => {
     setErrorMsg('');
@@ -181,29 +205,52 @@ export default function CreateAccountScreen({
 
     setLoading(true);
     try {
-      const { user, error } = await signUpWithEmail(email.trim(), password, {
+      const { user, profile, error } = await signUpWithEmail(email.trim(), password, {
         fullName: fullName.trim(),
         phone: phone.trim(),
         role,
       });
 
       if (error) {
-        if (error.message && error.message.toLowerCase().includes('rate limit')) {
-          setErrorMsg(
-            "Supabase email rate limit reached. In your open Supabase tab (Sign In / Providers), click Email and turn OFF 'Confirm email', then tap Save. You will be able to register instantly!"
-          );
-        } else {
-          setErrorMsg(error.message || 'Registration failed. Please try again.');
-        }
+        setErrorMsg(error.message || 'Registration failed. Please try again.');
         setLoading(false);
         return;
       }
 
-      onCreateAccount(role, user);
+      const userProfile = profile || {
+        id: user.uid,
+        email: user.email,
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        role,
+      };
+
+      onCreateAccount(role, user, userProfile);
     } catch (err) {
       setErrorMsg(err.message || 'Network error during registration.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setErrorMsg('');
+    setGoogleLoading(true);
+    try {
+      const { user, profile, error } = await signInWithGoogle(role);
+      if (error) {
+        setErrorMsg(error.message || 'Google registration could not be completed.');
+        setGoogleLoading(false);
+        return;
+      }
+      if (user) {
+        const targetRole = profile?.role || role;
+        onCreateAccount(targetRole, user, profile);
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Error initializing Google sign-in.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -250,39 +297,37 @@ export default function CreateAccountScreen({
               <View style={s.inputIcon}><UserIcon size={17} /></View>
               <TextInput
                 style={s.textInput}
-                placeholder="e.g. Melroy Almeida"
+                placeholder="Dr. / Mr. / Ms. Full Name"
                 placeholderTextColor={T.muted}
                 value={fullName}
                 onChangeText={setFullName}
-                autoCapitalize="words"
+                autoCorrect={false}
               />
             </View>
 
-            {/* Email */}
+            {/* Email Address */}
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>Email Address</Text>
             <View style={s.inputRow}>
               <View style={s.inputIcon}><MailIcon size={17} /></View>
               <TextInput
                 style={s.textInput}
-                placeholder="yourname@medflow.org"
+                placeholder="your.email@example.com"
                 placeholderTextColor={T.muted}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
-            {/* Phone */}
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>Phone Number</Text>
+            {/* Phone Number */}
+            <Text style={[s.fieldLabel, { marginTop: 16 }]}>Phone Number (Optional)</Text>
             <View style={s.inputRow}>
-              <View style={s.countryPill}>
-                <Text style={s.countryCode}>+91</Text>
-              </View>
               <View style={s.inputIcon}><PhoneIcon size={17} /></View>
               <TextInput
                 style={s.textInput}
-                placeholder="98765 43210"
+                placeholder="+1 (555) 000-0000"
                 placeholderTextColor={T.muted}
                 value={phone}
                 onChangeText={setPhone}
@@ -296,7 +341,7 @@ export default function CreateAccountScreen({
               <View style={s.inputIcon}><LockIcon size={17} /></View>
               <TextInput
                 style={[s.textInput, { flex: 1 }]}
-                placeholder="Create a strong password"
+                placeholder="At least 6 characters"
                 placeholderTextColor={T.muted}
                 value={password}
                 onChangeText={setPassword}
@@ -348,21 +393,45 @@ export default function CreateAccountScreen({
               </View>
             )}
 
-            {/* CTA in App Green */}
+            {/* CTA in Role Color */}
             <TouchableOpacity
               style={[
                 s.primaryBtn,
                 { backgroundColor: cfg.pillColor },
-                loading && { opacity: 0.7 },
+                (loading || googleLoading) && { opacity: 0.7 },
               ]}
               activeOpacity={0.85}
               onPress={handleSignUpSubmit}
-              disabled={loading}
+              disabled={loading || googleLoading}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={s.primaryBtnText}>Create an Account  →</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={s.dividerRow}>
+              <View style={s.dividerLine} />
+              <Text style={s.dividerText}>or</Text>
+              <View style={s.dividerLine} />
+            </View>
+
+            {/* Google Sign Up CTA */}
+            <TouchableOpacity
+              style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.7 }]}
+              activeOpacity={0.8}
+              onPress={handleGoogleSignUp}
+              disabled={loading || googleLoading}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color={T.slate} size="small" />
+              ) : (
+                <View style={s.googleBtnContent}>
+                  <GoogleLogoSvg size={18} />
+                  <Text style={s.googleBtnText}>Sign up with Google</Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>
@@ -421,20 +490,20 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: T.slate, textAlign: 'center' },
-  heroSub:   { fontSize: 13.5, color: T.muted, marginTop: 4, textAlign: 'center' },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: T.slate, marginBottom: 4 },
+  heroSub:   { fontSize: 13, color: T.muted },
 
   formCard: {
     backgroundColor: T.white,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: T.border,
     shadowColor: '#000',
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 2,
     marginBottom: 20,
   },
 
@@ -444,12 +513,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: T.inputBg,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: T.border,
     paddingHorizontal: 12,
-    paddingVertical: 2,
-    minHeight: 48,
+    minHeight: 46,
   },
   inputIcon: { marginRight: 10 },
   textInput: {
@@ -460,32 +528,75 @@ const s = StyleSheet.create({
   },
   eyeBtn: { padding: 6 },
 
-  countryPill: {
-    backgroundColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 20,
+    gap: 8,
   },
-  countryCode: { fontSize: 12, fontWeight: '700', color: T.slate },
-
-  termsRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 20 },
-  termsText: { fontSize: 12.5, color: T.muted, flex: 1, lineHeight: 18 },
+  termsText: { fontSize: 13, color: T.muted, flex: 1, lineHeight: 18 },
 
   primaryBtn: {
-    borderRadius: 14,
-    paddingVertical: 15,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: {
+    color: T.white,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+
+  googleBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  primaryBtnText: { fontSize: 15, fontWeight: '700', color: T.white },
+  googleBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  googleBtnText: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-  loginRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  loginText: { fontSize: 13.5, color: T.muted },
-  linkText:  { fontSize: 13.5 },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loginText: { fontSize: 13, color: T.muted },
+  linkText:  { fontSize: 13 },
 });

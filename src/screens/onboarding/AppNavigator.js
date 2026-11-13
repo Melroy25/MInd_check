@@ -7,7 +7,8 @@ import PatientPortal       from '../../../components/PatientPortal';
 import DoctorPortal        from '../../../components/DoctorPortal';
 import CaretakerPortal     from '../../../components/CaretakerPortal';
 import { supabase, isSupabaseConfigured } from '../../../services/supabase/supabaseClient';
-import { getCurrentUser, signOutUser } from '../../../services/supabase/authService';
+import { getCurrentUser, signOutUser, isFirebaseConfigured } from '../../../services/supabase/authService';
+import { onFirebaseAuthStateChanged } from '../../../services/firebase/authService';
 
 // ─── Screen IDs ───────────────────────────────────────────────────────────────
 // 'landing' | 'role_select' | 'sign_in' | 'create_account'
@@ -19,45 +20,69 @@ export default function AppNavigator({ isDesktop }) {
   const [currentUser,     setCurrentUser]     = useState(null);
   const [currentProfile,  setCurrentProfile]  = useState(null);
 
-  // Restore authenticated session on mount if Supabase is configured
+  // Restore authenticated session on mount (Firebase Auth primary, Supabase fallback)
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
-
     let isMounted = true;
-    getCurrentUser().then((userData) => {
-      if (isMounted && userData) {
-        setCurrentUser(userData);
-        setCurrentProfile(userData.profile || null);
-        const userRole = userData.profile?.role || 'patient';
-        setSelectedRole(userRole);
-        setScreen(userRole);
-      }
-    });
 
-    // Listen for auth state transitions (login, logout, token refresh)
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const u = await getCurrentUser();
-        if (isMounted && u) {
-          setCurrentUser(u);
-          setCurrentProfile(u.profile || null);
-          const r = u.profile?.role || 'patient';
-          setSelectedRole(r);
-          setScreen(r);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        if (isMounted) {
-          setCurrentUser(null);
-          setCurrentProfile(null);
-          setScreen('landing');
-        }
-      }
-    });
+    // Primary: Firebase Auth state listener
+    if (isFirebaseConfigured()) {
+      try {
+        const unsubscribe = onFirebaseAuthStateChanged((user, profile) => {
+          if (!isMounted) return;
+          if (user) {
+            setCurrentUser(user);
+            setCurrentProfile(profile);
+            const userRole = profile?.role || selectedRole || 'patient';
+            setSelectedRole(userRole);
+            setScreen(userRole);
+          }
+        });
 
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-    };
+        return () => {
+          isMounted = false;
+          if (typeof unsubscribe === 'function') unsubscribe();
+        };
+      } catch (fbErr) {
+        console.warn('[AppNavigator] Firebase auth listener error:', fbErr);
+      }
+    }
+
+    // Fallback: Supabase Auth
+    if (isSupabaseConfigured()) {
+      getCurrentUser().then((userData) => {
+        if (isMounted && userData) {
+          setCurrentUser(userData);
+          setCurrentProfile(userData.profile || null);
+          const userRole = userData.profile?.role || 'patient';
+          setSelectedRole(userRole);
+          setScreen(userRole);
+        }
+      });
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          const u = await getCurrentUser();
+          if (isMounted && u) {
+            setCurrentUser(u);
+            setCurrentProfile(u.profile || null);
+            const r = u.profile?.role || 'patient';
+            setSelectedRole(r);
+            setScreen(r);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          if (isMounted) {
+            setCurrentUser(null);
+            setCurrentProfile(null);
+            setScreen('landing');
+          }
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        authListener?.subscription?.unsubscribe();
+      };
+    }
   }, []);
 
   /** Navigate to a screen, optionally updating the current role */

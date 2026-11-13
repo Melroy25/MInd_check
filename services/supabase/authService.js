@@ -2,7 +2,7 @@
  * services/supabase/authService.js
  * 
  * Unified Authentication Service with Dual Engine:
- * - Primary: Firebase Auth (instant registration, zero email rate limits).
+ * - Primary: Firebase Auth (instant registration, Google Sign-In, zero email rate limits).
  * - Fallback / Sync: Supabase Auth & Database.
  * 
  * Automatically switches to Firebase Auth whenever EXPO_PUBLIC_FIREBASE_API_KEY is defined.
@@ -11,7 +11,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { PROFILES } from '../../constants/mockData';
 
-function isFirebaseConfigured() {
+export function isFirebaseConfigured() {
   const apiKey = typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_FIREBASE_API_KEY : undefined;
   return Boolean(apiKey && apiKey.trim().length > 5 && !apiKey.includes('your_'));
 }
@@ -27,7 +27,7 @@ export async function signInWithEmail(email, password, role = 'patient') {
     }
   }
 
-  // Supabase Auth
+  // Supabase Auth fallback
   if (!isSupabaseConfigured()) {
     return {
       user: { email, role },
@@ -67,7 +67,7 @@ export async function signUpWithEmail(email, password, metadata = {}) {
     }
   }
 
-  // Supabase Auth
+  // Supabase Auth fallback
   if (!isSupabaseConfigured()) {
     return { user: { email, ...metadata }, error: null };
   }
@@ -105,6 +105,36 @@ export async function signUpWithEmail(email, password, metadata = {}) {
   }
 
   return { user: data?.user, session: data?.session, error: null };
+}
+
+/**
+ * Unified Google Sign-In (Firebase Auth primary)
+ */
+export async function signInWithGoogle(role = 'patient') {
+  if (isFirebaseConfigured()) {
+    try {
+      const { signInWithGoogleFirebase } = await import('../firebase/authService');
+      return await signInWithGoogleFirebase(role);
+    } catch (fbErr) {
+      console.warn('[AuthService] Firebase Google sign in error:', fbErr);
+      return { user: null, profile: null, error: { message: fbErr.message } };
+    }
+  }
+
+  // Supabase fallback if Firebase is not configured
+  if (isSupabaseConfigured()) {
+    if (typeof window !== 'undefined') {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      return { data, error };
+    }
+  }
+
+  return { user: null, error: { message: 'Authentication service not configured.' } };
 }
 
 export async function getCurrentUser() {
@@ -153,7 +183,11 @@ export async function signOutUser() {
   }
 
   if (isSupabaseConfigured()) {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore
+    }
   }
 
   return { error: null };

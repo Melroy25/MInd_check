@@ -17,8 +17,17 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Prevent re-initialization during hot-reload
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+let app = null;
+let auth = null;
 
-export const auth = getAuth(app);
+if (firebaseConfig.apiKey && firebaseConfig.apiKey.trim().length > 5 && !firebaseConfig.apiKey.includes('your_')) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+  } catch (err) {
+    console.warn('[Firebase] Client initialization notice:', err.message);
+  }
+}
+
+export { app, auth };
 export default app;

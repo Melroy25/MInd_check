@@ -365,9 +365,13 @@ const buildStructuredJson = (title, file, text, patient) => {
   };
 };
 
-export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient', proxyPatient = null }) {
+export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient', currentUser, currentProfile, proxyPatient = null }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
+
+  const isRealUser = Boolean(currentUser || currentProfile);
+  const patientDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Melroy Almeida');
+  const userVaultId = currentUser?.uid ? `MV-${currentUser.uid.slice(0, 8).toUpperCase()}` : 'MV-2026-PAT-892';
 
   // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
   const [currentAccountRole, setCurrentAccountRole] = useState(() => {
@@ -376,10 +380,21 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   });
   const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
   const [showNoAccountsModal, setShowNoAccountsModal] = useState(false);
-  const [hasOtherAccounts, setHasOtherAccounts] = useState(true);
+  const [hasOtherAccounts, setHasOtherAccounts] = useState(() => !isRealUser);
 
   // Profile Information based on logged in role
   const [patientInfo, setPatientInfo] = useState(() => {
+    if (isRealUser) {
+      return {
+        name: patientDisplayName,
+        vaultId: userVaultId,
+        bloodType: currentProfile?.blood_type || 'O+ (Confirmed)',
+        emergencyContact: currentProfile?.phone || currentUser?.phoneNumber || '+1 (555) 019-2834',
+        primaryHospital: 'MedFlow Health Network',
+        attendingDoctor: 'Clinical Team',
+        roleLabel: 'Patient (Primary)',
+      };
+    }
     if (proxyPatient) {
       return {
         name: proxyPatient.name || 'Melroy Almeida',
@@ -434,13 +449,13 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     notifications: true,
   });
 
-  // Data Collections
-  const [files, setFiles] = useState(INITIAL_FILES);
+  // Data Collections - for real users, start clean with ZERO fake records and ZERO fake caretakers/doctors
+  const [files, setFiles] = useState(() => (isRealUser ? [] : INITIAL_FILES));
   const [folders, setFolders] = useState(INITIAL_FOLDERS);
-  const [benefactors, setBenefactors] = useState(INITIAL_BENEFACTORS);
-  const [caretakers, setCaretakers] = useState(INITIAL_CARETAKERS);
-  const [clinicalDoctors, setClinicalDoctors] = useState(INITIAL_CLINICAL);
-  const [pendingRequests, setPendingRequests] = useState(INITIAL_PENDING_REQUESTS);
+  const [benefactors, setBenefactors] = useState(() => (isRealUser ? [] : INITIAL_BENEFACTORS));
+  const [caretakers, setCaretakers] = useState(() => (isRealUser ? [] : INITIAL_CARETAKERS));
+  const [clinicalDoctors, setClinicalDoctors] = useState(() => (isRealUser ? [] : INITIAL_CLINICAL));
+  const [pendingRequests, setPendingRequests] = useState(() => (isRealUser ? [] : INITIAL_PENDING_REQUESTS));
 
   // ── Load Persisted Vault Records on Mount ──
   useEffect(() => {
@@ -536,8 +551,8 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [newPerm, setNewPerm] = useState('Full Access');
 
   // Chat Bot State
-  const [chatMessages, setChatMessages] = useState([
-    { id: '1', sender: 'bot', text: 'Hello Melroy! I am your MediVault AI Health Assistant. Ask me anything about your uploaded medical records, lab results, or medications.' }
+  const [chatMessages, setChatMessages] = useState(() => [
+    { id: '1', sender: 'bot', text: `Hello ${patientDisplayName}! I am your MedFlow AI Health Assistant. Ask me anything about your uploaded medical records, lab results, or medications.` }
   ]);
   const [chatInput, setChatInput] = useState('');
 

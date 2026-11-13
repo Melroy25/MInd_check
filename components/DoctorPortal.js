@@ -539,17 +539,33 @@ const INITIAL_NOTIFICATIONS = [
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── DOCTOR PORTAL COMPONENT ──────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout }) {
+export default function DoctorPortal({ isDesktop = false, currentUser, currentProfile, onSignOut, onLogout }) {
   const handleSignOut = onSignOut || onLogout || (() => {});
   // Navigation: 4 Pages as specified
   // 1. 'home', 2. 'upload', 3. 'history', 4. 'profile'
   const [activeTab, setActiveTab] = useState('home');
 
-  // Doctor state
-  const [doctorInfo, setDoctorInfo] = useState(INITIAL_DOCTOR_INFO);
-  const [connectedPatients, setConnectedPatients] = useState(INITIAL_CONNECTED_PATIENTS);
-  const [historyList, setHistoryList] = useState(INITIAL_HISTORY);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  // Compute real doctor identity
+  const isRealUser = Boolean(currentUser || currentProfile);
+  const doctorNameRaw = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Dr. Sarah Jenkins');
+  const doctorName = doctorNameRaw.startsWith('Dr.') ? doctorNameRaw : `Dr. ${doctorNameRaw}`;
+
+  const computedDoctorInfo = {
+    name: doctorName,
+    specialty: currentProfile?.specialty || (isRealUser ? 'General Practice & Internal Medicine' : 'Cardiology & Internal Medicine'),
+    clinic: isRealUser ? 'MedFlow Clinical Network' : 'Metro Hospital & Cardiac Wing',
+    license: isRealUser && currentUser?.uid ? `MD-${currentUser.uid.slice(0, 6).toUpperCase()}` : 'MD-849204-CA',
+    npi: isRealUser && currentUser?.uid ? `NPI-${currentUser.uid.slice(0, 10).toUpperCase()}` : 'NPI-1948201948',
+    email: currentProfile?.email || currentUser?.email || 'dr.jenkins@metrohospital.org',
+    phone: currentProfile?.phone || currentUser?.phoneNumber || '+1 (555) 234-5678',
+    hospital: isRealUser ? 'MedFlow Clinical Network' : 'Metro Hospital & Cardiac Wing',
+  };
+
+  // Doctor state - for real users, ZERO fake patients, ZERO fake history, ZERO fake notifications
+  const [doctorInfo, setDoctorInfo] = useState(computedDoctorInfo);
+  const [connectedPatients, setConnectedPatients] = useState(() => (isRealUser ? [] : INITIAL_CONNECTED_PATIENTS));
+  const [historyList, setHistoryList] = useState(() => (isRealUser ? [] : INITIAL_HISTORY));
+  const [notifications, setNotifications] = useState(() => (isRealUser ? [] : INITIAL_NOTIFICATIONS));
 
   // Settings
   const [settings, setSettings] = useState({
@@ -559,7 +575,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
   });
 
   // Target Patient Selection for Upload (CRITICAL REQUIREMENT)
-  const [targetPatient, setTargetPatient] = useState(INITIAL_CONNECTED_PATIENTS[0]); // Defaults to Melroy Almeida
+  const [targetPatient, setTargetPatient] = useState(() => (isRealUser ? null : INITIAL_CONNECTED_PATIENTS[0]));
   const [showPatientPickerModal, setShowPatientPickerModal] = useState(false);
   const [patientPickerSearch, setPatientPickerSearch] = useState('');
 
