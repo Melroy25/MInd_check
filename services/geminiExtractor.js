@@ -16,8 +16,9 @@ export const GEMINI_CONFIG = {
     (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GEMINI_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
     '',
-  primaryModel: 'gemini-2.5-flash-lite',
-  fallbackModel: 'gemini-2.5-flash',
+  primaryModel: 'gemini-3.1-flash-lite',
+  fallbackModel: 'gemini-3.5-flash-lite',
+  tertiaryModel: 'gemini-flash-lite-latest',
   backendUrl: 'http://127.0.0.1:8000',
 };
 
@@ -177,8 +178,10 @@ export function readFileAsBase64(file) {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result;
-      const base64 = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
-      resolve(base64);
+      const base64 = typeof dataUrl === 'string'
+        ? (dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl)
+        : null;
+      resolve(base64 ? base64.trim() : null);
     };
     reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
@@ -216,11 +219,22 @@ export async function extractMedicalDocument({
   const effectiveName = fileName || (file && file.name) || 'medical_document.pdf';
   const effectiveMime = mimeType || (file && file.type) || inferMimeType(effectiveName);
 
-  // If base64 is not passed but file is available
-  let base64 = base64Data;
-  if (!base64 && file && typeof file.slice === 'function') {
+  // If base64 is not passed but file or uri is available
+  let base64 = base64Data || file?.base64;
+  if (!base64 && (file?.fileBlob || file?.file)) {
+    if (onProgress) onProgress('Encoding document contents...');
+    base64 = await readFileAsBase64(file.fileBlob || file.file);
+  } else if (!base64 && file && typeof file.slice === 'function') {
     if (onProgress) onProgress('Encoding document contents...');
     base64 = await readFileAsBase64(file);
+  } else if (!base64 && file?.uri) {
+    if (onProgress) onProgress('Fetching document contents...');
+    base64 = await fetchUriAsBase64(file.uri);
+  }
+
+  // Ensure raw base64 without any data URL prefix
+  if (typeof base64 === 'string') {
+    base64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
   }
 
   // 1. Try local FastAPI backend from JSON project if reachable
@@ -243,7 +257,14 @@ export async function extractMedicalDocument({
   // 2. Direct Gemini Multimodal API Call
   if (onProgress) onProgress('Connecting to Google Gemini Multimodal Engine...');
 
-  const models = [GEMINI_CONFIG.primaryModel, GEMINI_CONFIG.fallbackModel];
+  const models = [
+    GEMINI_CONFIG.primaryModel,
+    GEMINI_CONFIG.fallbackModel,
+    GEMINI_CONFIG.tertiaryModel,
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-flash-lite-latest',
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
   let lastError = null;
 
   for (const model of models) {
@@ -282,10 +303,14 @@ async function callGeminiApi({ model, apiKey, effectiveName, effectiveMime, base
 
   // If we have base64 data for PDF or Image
   if (base64) {
+    const cleanBase64 = typeof base64 === 'string'
+      ? base64.replace(/^data:[^;]+;base64,/, '').trim()
+      : base64;
+
     parts.push({
       inline_data: {
         mime_type: effectiveMime,
-        data: base64,
+        data: cleanBase64,
       },
     });
   }
@@ -346,7 +371,7 @@ Output valid schema-compliant JSON.`;
  * Format and enrich the extraction output
  */
 function formatExtractionResult(raw, fileName) {
-  const metadata = raw.document_metadata || {};
+  const metadata = raw.document_metadata || raw.document || {};
   const conditions = raw.conditions || [];
   const medications = raw.medications || [];
   const labResults = raw.lab_results || [];
@@ -354,27 +379,69 @@ function formatExtractionResult(raw, fileName) {
   const vitals = raw.vitals || [];
   const investigations = raw.investigations || [];
 
+  const patientName =
+    raw.patient?.name?.value ||
+    (typeof raw.patient?.name === 'string' ? raw.patient.name : null) ||
+    metadata.patient_name ||
+    null;
+  const patientAge =
+    (raw.patient?.age?.value_years !== undefined ? `${raw.patient.age.value_years} yrs` : null) ||
+    metadata.patient_age ||
+    null;
+  const patientSex =
+    raw.patient?.sex?.value ||
+    metadata.patient_sex ||
+    null;
+  const doctorName =
+    raw.document?.provider?.name ||
+    raw.provider?.name ||
+    metadata.provider_name ||
+    null;
+  const facilityName =
+    raw.document?.provider?.facility ||
+    raw.facility?.name ||
+    metadata.facility_name ||
+    null;
+  const docDate =
+    raw.document?.document_date ||
+    metadata.document_date_raw ||
+    null;
+
   return {
     source_file: fileName,
     extracted_at: new Date().toISOString(),
-    document_type: metadata.doc_type || 'medical_record',
-    doctor: metadata.provider_name || 'Healthcare Practitioner',
-    patient_name: metadata.patient_name || 'Patient',
-    facility: metadata.facility_name || 'Clinical Center',
-    date: metadata.document_date_raw || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    document_type: metadata.doc_type || raw.document?.doc_type || 'clinical_record',
+    doctor: doctorName,
+    patient_name: patientName,
+    patient_age: patientAge,
+    patient_sex: patientSex,
+    facility: facilityName,
+    date: docDate,
     conditions_count: conditions.length,
     medications_count: medications.length,
     lab_results_count: labResults.length,
     allergies_status: allergies.status || 'not_documented',
     data: {
-      document_metadata: metadata,
+      document_metadata: {
+        ...metadata,
+        provider_name: doctorName,
+        facility_name: facilityName,
+        patient_name: patientName,
+        patient_age: patientAge,
+        patient_sex: patientSex,
+      },
+      patient: {
+        name: patientName,
+        age: patientAge,
+        sex: patientSex,
+      },
       conditions,
       medications,
       allergies,
       lab_results: labResults,
       investigations,
       vitals,
-      summary: raw.summary || `Extracted ${medications.length} medications, ${conditions.length} conditions, and ${labResults.length} lab results with evidence quotes.`,
+      summary: raw.summary || `Extracted ${medications.length} medications, ${conditions.length} conditions, and ${labResults.length} lab results from ${fileName}.`,
     },
     raw_json: JSON.stringify(raw, null, 2),
   };
