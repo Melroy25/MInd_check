@@ -1353,7 +1353,91 @@ body {
   </div>
 </div>
 
-<!-- 5. End Session Modal -->
+<!-- 5. Patient Medical PDF & Comprehensive Dossier Modal -->
+<div class="modal-overlay" id="patientPdfModal">
+  <div class="modal-box" style="max-width:580px;">
+    <button class="modal-close-x" onclick="closeModal('patientPdfModal')">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;border-radius:10px;background:#FFF7ED;display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <div>
+        <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Patient Medical Summary PDF</div>
+        <div style="font-size:12px;color:var(--muted);" id="pdfModalPatientSubtitle">Verified Clinical Dossier</div>
+      </div>
+    </div>
+
+    <div style="max-height:440px;overflow-y:auto;padding-right:4px;">
+      <!-- Top Security Banner -->
+      <div style="background:#F0FDF4;border:1px solid #DCFCE7;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;color:#16A34A;letter-spacing:0.5px;">✓ MEDIVAULT VERIFIED CLINICAL DOSSIER</div>
+        <div style="font-size:10px;font-weight:700;color:#64748B;" id="pdfModalPatientId">MV-2026-PAT-892</div>
+      </div>
+
+      <!-- Hero Patient -->
+      <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #F1F5F9;margin-bottom:14px;">
+        <div class="patient-avatar-circ" id="pdfModalAvatar" style="background:#2563EB;width:48px;height:48px;font-size:16px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;">MA</div>
+        <div>
+          <div style="font-size:17px;font-weight:800;color:var(--charcoal);" id="pdfModalName">Melroy Almeida</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="pdfModalDemographics">32 yrs · Male · Blood: O+</div>
+          <div style="display:inline-block;background:#F0FDF4;color:#16A34A;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;margin-top:4px;" id="pdfModalStatus">Full Access Granted</div>
+        </div>
+      </div>
+
+      <!-- Diagnosis -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;color:#64748B;letter-spacing:0.6px;margin-bottom:6px;">PRIMARY DIAGNOSIS & STATUS</div>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;">
+          <div style="font-size:13px;font-weight:700;color:var(--charcoal);" id="pdfModalCondition">Borderline Hyperglycemia / Pre-diabetes</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Under primary care of Dr. Sarah Jenkins at Metro Hospital & Cardiac Wing.</div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;color:#64748B;letter-spacing:0.6px;margin-bottom:6px;">CLINICAL METRICS & VAULT OVERVIEW</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:10px;">
+            <div style="font-size:14px;font-weight:800;color:var(--charcoal);" id="pdfModalRecordCount">6</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Synced Records</div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:10px;">
+            <div style="font-size:14px;font-weight:800;color:var(--charcoal);" id="pdfModalBlood">O+</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Blood Group</div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:10px;">
+            <div style="font-size:14px;font-weight:800;color:var(--charcoal);" id="pdfModalAge">32 yrs</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Patient Age</div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:10px;">
+            <div style="font-size:14px;font-weight:800;color:var(--charcoal);" id="pdfModalLastVisit">Today</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Last Consultation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Synchronized History Records -->
+      <div>
+        <div style="font-size:10px;font-weight:800;color:#64748B;letter-spacing:0.6px;margin-bottom:6px;">SYNCHRONIZED MEDICAL RECORDS</div>
+        <div id="pdfModalRecordsList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid #F1F5F9;">
+      <button class="btn-primary" style="flex:1;background:#EA580C;padding:10px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="triggerPatientPdfDownload()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Open A4 PDF
+      </button>
+      <button style="flex:1;background:#F0FDF4;color:var(--green);border:1px solid #BBF7D0;padding:10px;font-size:13px;border-radius:999px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="selectTargetPatient(currentPdfPatientId);closeModal('patientPdfModal');switchTab('upload')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Record
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. End Session Modal -->
 <div class="modal-overlay" id="endSessionModal">
   <div class="modal-box" style="text-align:center;">
     <div style="width:56px;height:56px;border-radius:20px;background:#FEF2F2;color:var(--red);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:24px;">⚠️</div>
@@ -1556,13 +1640,123 @@ function renderPatientsPage() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Upload to Vault
         </button>
-        <button style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;font-size:12px;background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;border-radius:999px;font-weight:700;cursor:pointer;" onclick="document.getElementById('historySearchInput').value='${p.name}';filterHistory('${p.name}');switchTab('history');">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          View History
+        <button style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;font-size:12px;background:#FFF7ED;color:#EA580C;border:1px solid #FFEDD5;border-radius:10px;font-weight:700;cursor:pointer;" onclick="openPatientPdfReport('${p.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+          PDF
         </button>
       </div>
     </div>
   `).join('');
+}
+
+let currentPdfPatientId = null;
+
+function openPatientPdfReport(pId) {
+  const p = connectedPatients.find(x => x.id === pId);
+  if (!p) return;
+  currentPdfPatientId = p.id;
+  document.getElementById('pdfModalName').textContent = p.name;
+  document.getElementById('pdfModalPatientSubtitle').textContent = `${p.name} · Verified Clinical Dossier`;
+  document.getElementById('pdfModalPatientId').textContent = p.patientId;
+  document.getElementById('pdfModalAvatar').textContent = p.name.split(' ').map(n=>n[0]).join('');
+  document.getElementById('pdfModalAvatar').style.background = p.color;
+  document.getElementById('pdfModalDemographics').textContent = `${p.age} · ${p.gender} · Blood: ${p.blood}`;
+  document.getElementById('pdfModalStatus').textContent = p.status;
+  document.getElementById('pdfModalCondition').textContent = p.condition;
+  document.getElementById('pdfModalRecordCount').textContent = p.recordsCount;
+  document.getElementById('pdfModalBlood').textContent = p.blood;
+  document.getElementById('pdfModalAge').textContent = p.age;
+  document.getElementById('pdfModalLastVisit').textContent = p.lastVisit;
+
+  const recordsList = document.getElementById('pdfModalRecordsList');
+  const patientRecords = historyList.filter(h => h.patientName === p.name || h.patientId === p.patientId);
+  if (patientRecords.length > 0) {
+    recordsList.innerHTML = patientRecords.map(r => `
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:700;color:var(--charcoal);">${r.title}</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:2px;">${r.details}</div>
+        <div style="color:#94A3B8;font-size:10px;margin-top:2px;">${r.date} · ${r.time}</div>
+      </div>
+    `).join('');
+  } else {
+    recordsList.innerHTML = `
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:700;color:var(--charcoal);">Initial Vault Access Established</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:2px;">Vault sharing permission active with Dr. Sarah Jenkins.</div>
+        <div style="color:#94A3B8;font-size:10px;margin-top:2px;">${p.lastVisit}</div>
+      </div>
+    `;
+  }
+  openModal('patientPdfModal');
+  showToast(`Loaded complete clinical data dossier for ${p.name}`);
+}
+
+function triggerPatientPdfDownload() {
+  const p = connectedPatients.find(x => x.id === currentPdfPatientId);
+  if (p) {
+    showToast(`Generating & opening ISO clinical PDF report for ${p.name}...`);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>MediVault Medical Dossier - ${p.name}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #0F172A; max-width: 800px; margin: 0 auto; }
+            .header-bar { border-top: 6px solid #16A34A; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+            .brand { font-size: 24px; font-weight: 800; color: #16A34A; }
+            .badge { background: #F0FDF4; color: #16A34A; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; border: 1px solid #DCFCE7; }
+            .section { margin-bottom: 20px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; }
+            .sec-title { font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.6px; margin-bottom: 8px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+            .meta-item { font-size: 13px; line-height: 1.5; }
+            .meta-label { font-size: 11px; color: #64748B; font-weight: 600; }
+            .btn-print { margin-top: 20px; padding: 10px 20px; background: #16A34A; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+            @media print { .btn-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header-bar">
+            <div>
+              <div class="brand">MediVault Clinical Dossier</div>
+              <div style="font-size:12px;color:#64748B;margin-top:2px;">Patient-Owned Sovereign Health Records Vault</div>
+            </div>
+            <div style="text-align:right;">
+              <span class="badge">CONFIDENTIAL MEDICAL REPORT</span>
+              <div style="font-size:11px;color:#64748B;margin-top:6px;">Generated: Nov 13, 2026</div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="sec-title">PATIENT INFORMATION</div>
+            <div class="grid">
+              <div class="meta-item"><div class="meta-label">Patient Name</div><strong>${p.name}</strong></div>
+              <div class="meta-item"><div class="meta-label">Patient ID</div>${p.patientId}</div>
+              <div class="meta-item"><div class="meta-label">Age & Gender</div>${p.age} · ${p.gender}</div>
+              <div class="meta-item"><div class="meta-label">Blood Group</div><strong>${p.blood}</strong></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="sec-title">CLINICAL OBSERVATIONS & DIAGNOSIS</div>
+            <div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:6px;">${p.condition}</div>
+            <div style="font-size:12px;color:#64748B;">Attending Physician: Dr. Sarah Jenkins (Cardiology & Internal Medicine)<br/>Facility: Metro Hospital & Cardiac Wing · License MD-849204-CA</div>
+          </div>
+          <div class="section">
+            <div class="sec-title">RECORDS SUMMARY</div>
+            <div class="grid">
+              <div class="meta-item"><div class="meta-label">Total Synced Records</div>${p.recordsCount} Documents</div>
+              <div class="meta-item"><div class="meta-label">Last Consultation Visit</div>${p.lastVisit}</div>
+              <div class="meta-item"><div class="meta-label">Vault Permission Status</div>${p.status}</div>
+              <div class="meta-item"><div class="meta-label">Encryption Integrity</div>AES-256 GCM Patient-Sovereign</div>
+            </div>
+          </div>
+          <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  }
 }
 
 // ── UPLOAD ACTIONS ──

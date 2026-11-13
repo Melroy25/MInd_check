@@ -15,10 +15,10 @@ export async function generateMedicalPdf(record) {
     return new Uint8Array(arrayBuffer);
   }
 
-  const patientName = 'Melroy Almeida';
-  const patientId = 'MV-2026-PAT-892';
+  const patientName = record.patientName || record.patient || 'Melroy Almeida';
+  const patientId = record.patientId || 'MV-2026-PAT-892';
   const doctorName = record.doctor || 'Dr. Sarah Jenkins';
-  const facilityName = 'Metro Hospital & Clinical Diagnostics';
+  const facilityName = record.facility || 'Metro Hospital & Clinical Diagnostics';
   const recordName = record.name || 'Medical Document';
   const recordType = record.type || 'PDF';
   const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' });

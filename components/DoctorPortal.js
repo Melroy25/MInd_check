@@ -561,6 +561,28 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
   // Connected Patients Page Filter & Search
   const [patientPageSearch, setPatientPageSearch] = useState('');
+  const [selectedPatientPdfData, setSelectedPatientPdfData] = useState(null);
+
+  const handleOpenPatientPdf = (patient) => {
+    setSelectedPatientPdfData(patient);
+    showToast(`Opening medical PDF & clinical data for ${patient.name}...`);
+    viewMedicalPdf({
+      name: `Comprehensive Medical Vault Summary - ${patient.name}`,
+      patientName: patient.name,
+      patientId: patient.patientId,
+      age: patient.age,
+      gender: patient.gender,
+      blood: patient.blood,
+      doctor: doctorInfo.name,
+      facility: doctorInfo.hospital,
+      date: patient.lastVisit,
+      type: 'Clinical PDF Summary',
+      size: '2.4 MB',
+      extractedData: {
+        summary: `Complete clinical vault records for ${patient.name} (${patient.patientId}). Age: ${patient.age}, Gender: ${patient.gender}, Blood: ${patient.blood}. Primary diagnosis: ${patient.condition}. Synced records count: ${patient.recordsCount}. Access status: ${patient.status}. Last clinical consultation: ${patient.lastVisit} with ${doctorInfo.name} at ${doctorInfo.hospital}.`,
+      },
+    });
+  };
 
   // History Filter & Search
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all' | 'upload' | 'connection' | 'update'
@@ -1769,16 +1791,12 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.patientFullHistoryBtn}
-                        onPress={() => {
-                          setHistorySearch(p.name);
-                          setActiveTab('history');
-                          showToast(`Showing history for ${p.name}`);
-                        }}
+                        style={styles.patientFullPdfBtn}
+                        onPress={() => handleOpenPatientPdf(p)}
                         activeOpacity={0.8}
                       >
-                        <IconClock size={14} color={C.blue} />
-                        <Text style={styles.patientFullHistoryBtnText}>View History</Text>
+                        <IconPdfDoc size={14} color={C.coral} />
+                        <Text style={styles.patientFullPdfBtnText}>PDF</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2117,6 +2135,181 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                   onPress={() => setShowHistoryDetailModal(null)}
                 >
                   <Text style={styles.auditCloseBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* MODAL 5: PATIENT COMPREHENSIVE MEDICAL PDF & DATA MODAL             */}
+      {/* "when u click on the pdf all datas will be given"                   */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {selectedPatientPdfData && (
+        <Modal
+          visible={selectedPatientPdfData !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setSelectedPatientPdfData(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalContainer, styles.modalContainerLarge]}>
+              <View style={styles.modalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={styles.pdfBadgeCircle}>
+                    <IconPdfDoc size={18} color={C.coral} />
+                  </View>
+                  <View>
+                    <Text style={styles.modalHeading}>Patient Medical Summary PDF</Text>
+                    <Text style={styles.modalSubheading}>
+                      {selectedPatientPdfData.name} · Verified Clinical Dossier
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalCloseBtnCircle}
+                  onPress={() => setSelectedPatientPdfData(null)}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false}>
+                <View style={styles.patientPdfReportDoc}>
+                  {/* Security Flag */}
+                  <View style={styles.pdfReportTopSecurity}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <IconCheck size={12} color={C.green} />
+                      <Text style={styles.pdfSecurityText}>MEDIVAULT VERIFIED CLINICAL DOSSIER</Text>
+                    </View>
+                    <Text style={styles.pdfSecurityId}>{selectedPatientPdfData.patientId}</Text>
+                  </View>
+
+                  {/* Patient Info Card */}
+                  <View style={styles.pdfPatientHero}>
+                    <View style={[styles.patientAvatarMedium, { backgroundColor: selectedPatientPdfData.avatarColor }]}>
+                      <Text style={styles.patientAvatarMediumText}>
+                        {selectedPatientPdfData.name.split(' ').map((n) => n[0]).join('')}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, paddingLeft: 12 }}>
+                      <Text style={styles.pdfHeroName}>{selectedPatientPdfData.name}</Text>
+                      <Text style={styles.pdfHeroSub}>
+                        {selectedPatientPdfData.patientId} · {selectedPatientPdfData.age} · {selectedPatientPdfData.gender}
+                      </Text>
+                      <View style={styles.pdfHeroBadges}>
+                        <View style={styles.pdfBloodBadge}>
+                          <Text style={styles.pdfBloodBadgeText}>Blood: {selectedPatientPdfData.blood}</Text>
+                        </View>
+                        <View style={styles.pdfStatusBadge}>
+                          <Text style={styles.pdfStatusBadgeText}>{selectedPatientPdfData.status}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Diagnosis & Care Plan */}
+                  <View style={styles.pdfDataSection}>
+                    <Text style={styles.pdfSectionTitle}>PRIMARY DIAGNOSIS & STATUS</Text>
+                    <View style={styles.pdfDataCard}>
+                      <Text style={styles.pdfDiagnosisText}>{selectedPatientPdfData.condition}</Text>
+                      <Text style={styles.pdfMetaNote}>
+                        Under care of {doctorInfo.name} at {doctorInfo.hospital}.
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Metrics Grid */}
+                  <View style={styles.pdfDataSection}>
+                    <Text style={styles.pdfSectionTitle}>CLINICAL METRICS & VAULT OVERVIEW</Text>
+                    <View style={styles.pdfMetricsGrid}>
+                      <View style={styles.pdfMetricBox}>
+                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.recordsCount}</Text>
+                        <Text style={styles.pdfMetricLbl}>Synced Records</Text>
+                      </View>
+                      <View style={styles.pdfMetricBox}>
+                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.blood}</Text>
+                        <Text style={styles.pdfMetricLbl}>Blood Group</Text>
+                      </View>
+                      <View style={styles.pdfMetricBox}>
+                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.age}</Text>
+                        <Text style={styles.pdfMetricLbl}>Age</Text>
+                      </View>
+                      <View style={styles.pdfMetricBox}>
+                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.lastVisit}</Text>
+                        <Text style={styles.pdfMetricLbl}>Last Consultation</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Synced Records in Dossier */}
+                  <View style={styles.pdfDataSection}>
+                    <Text style={styles.pdfSectionTitle}>SYNCHRONIZED MEDICAL RECORDS</Text>
+                    {historyList
+                      .filter((h) => h.patientName === selectedPatientPdfData.name || h.patientId === selectedPatientPdfData.patientId)
+                      .slice(0, 5)
+                      .map((rec) => (
+                        <View key={rec.id} style={styles.pdfRecordRow}>
+                          <View style={styles.pdfRecordBullet} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.pdfRecordTitle}>{rec.title}</Text>
+                            <Text style={styles.pdfRecordDetails}>{rec.details}</Text>
+                            <Text style={styles.pdfRecordTimestamp}>{rec.date} · {rec.time}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    {historyList.filter((h) => h.patientName === selectedPatientPdfData.name || h.patientId === selectedPatientPdfData.patientId).length === 0 && (
+                      <View style={styles.pdfRecordRow}>
+                        <View style={styles.pdfRecordBullet} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pdfRecordTitle}>Initial Vault Access Established</Text>
+                          <Text style={styles.pdfRecordDetails}>Vault sharing permission active with Dr. Sarah Jenkins.</Text>
+                          <Text style={styles.pdfRecordTimestamp}>{selectedPatientPdfData.lastVisit}</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={styles.pdfModalActions}>
+                <TouchableOpacity
+                  style={styles.pdfModalPrimaryBtn}
+                  onPress={() => {
+                    viewMedicalPdf({
+                      name: `Comprehensive Medical Vault Summary - ${selectedPatientPdfData.name}`,
+                      patientName: selectedPatientPdfData.name,
+                      patientId: selectedPatientPdfData.patientId,
+                      age: selectedPatientPdfData.age,
+                      gender: selectedPatientPdfData.gender,
+                      blood: selectedPatientPdfData.blood,
+                      doctor: doctorInfo.name,
+                      facility: doctorInfo.hospital,
+                      date: selectedPatientPdfData.lastVisit,
+                      type: 'Clinical PDF Summary',
+                      size: '2.4 MB',
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <IconPdfDoc size={16} color="#FFFFFF" />
+                  <Text style={styles.pdfModalPrimaryBtnText}>Open A4 PDF</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pdfModalSecondaryBtn}
+                  onPress={() => {
+                    setTargetPatient(selectedPatientPdfData);
+                    setSelectedPatientPdfData(null);
+                    setActiveTab('upload');
+                    showToast(`Selected ${selectedPatientPdfData.name} for upload`);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <IconUpload size={15} color={C.green} />
+                  <Text style={styles.pdfModalSecondaryBtnText}>Upload to Vault</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2716,20 +2909,227 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  patientFullHistoryBtn: {
+  patientFullPdfBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FFF7ED',
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#FFEDD5',
   },
-  patientFullHistoryBtnText: {
+  patientFullPdfBtnText: {
+    color: C.coral,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pdfBadgeCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  patientPdfReportDoc: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 8,
+  },
+  pdfReportTopSecurity: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    marginBottom: 14,
+  },
+  pdfSecurityText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#16A34A',
+    letterSpacing: 0.5,
+  },
+  pdfSecurityId: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  pdfPatientHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 14,
+  },
+  pdfHeroName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.textMain,
+  },
+  pdfHeroSub: {
+    fontSize: 12,
+    color: C.textSub,
+    marginTop: 2,
+  },
+  pdfHeroBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  pdfBloodBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pdfBloodBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: C.blue,
+  },
+  pdfStatusBadge: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pdfStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.green,
+  },
+  pdfDataSection: {
+    marginBottom: 16,
+  },
+  pdfSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  pdfDataCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pdfDiagnosisText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  pdfMetaNote: {
+    fontSize: 11,
+    color: C.textSub,
+    marginTop: 4,
+  },
+  pdfMetricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pdfMetricBox: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pdfMetricVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.textMain,
+  },
+  pdfMetricLbl: {
+    fontSize: 10,
+    color: C.textSub,
+    marginTop: 2,
+  },
+  pdfRecordRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  pdfRecordBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.coral,
+    marginTop: 6,
+  },
+  pdfRecordTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  pdfRecordDetails: {
+    fontSize: 11,
+    color: C.textSub,
+    marginTop: 1,
+  },
+  pdfRecordTimestamp: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  pdfModalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  pdfModalPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: C.coral,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  pdfModalPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pdfModalSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  pdfModalSecondaryBtnText: {
+    color: C.green,
     fontSize: 12,
     fontWeight: '700',
   },
