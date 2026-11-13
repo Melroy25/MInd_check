@@ -1053,12 +1053,11 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               </TouchableOpacity>
 
               {/* ── STEP 1: MANDATORY TARGET PATIENT SELECTION ─────────────── */}
-              {/* "before uploading the patient has to be finalized where is it getting uploaded" */}
               <View style={styles.targetPatientContainer}>
                 <View style={styles.targetPatientHeaderRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <IconUser size={16} color={C.blue} />
-                    <Text style={styles.targetPatientLabel}>TARGET PATIENT (FINALIZED DESTINATION)</Text>
+                    <IconUser size={15} color={C.green} />
+                    <Text style={styles.targetPatientLabel}>Target Patient</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.changePatientChip}
@@ -1076,20 +1075,12 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                         {targetPatient.name.split(' ').map((n) => n[0]).join('')}
                       </Text>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.targetPatientName}>{targetPatient.name}</Text>
-                        <View style={styles.finalizedBadge}>
-                          <IconCheck size={10} color={C.green} />
-                          <Text style={styles.finalizedBadgeText}>FINALIZED</Text>
-                        </View>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={styles.targetPatientName}>{targetPatient.name}</Text>
+                      <View style={styles.finalizedBadge}>
+                        <IconCheck size={10} color={C.green} />
+                        <Text style={styles.finalizedBadgeText}>FINALIZED</Text>
                       </View>
-                      <Text style={styles.targetPatientMeta}>
-                        {targetPatient.patientId} · {targetPatient.age} · {targetPatient.gender} · Blood {targetPatient.blood}
-                      </Text>
-                      <Text style={styles.targetPatientCondition}>
-                        Diagnosis: {targetPatient.condition}
-                      </Text>
                     </View>
                   </View>
                 ) : (
@@ -1201,29 +1192,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                         </View>
                         <Text style={styles.chooseFileActionTitle}>Use Camera</Text>
                         <Text style={styles.chooseFileActionSub}>Direct capture</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Quick Demo Pre-fill Chips */}
-                    <View style={styles.demoSampleRow}>
-                      <Text style={styles.demoSampleLabel}>Quick Samples:</Text>
-                      <TouchableOpacity
-                        style={styles.demoSampleChip}
-                        onPress={() => handleUseSample('lab')}
-                      >
-                        <Text style={styles.demoSampleChipText}>Metabolic Lab</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.demoSampleChip}
-                        onPress={() => handleUseSample('echo')}
-                      >
-                        <Text style={styles.demoSampleChipText}>2D Echo</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.demoSampleChip}
-                        onPress={() => handleUseSample('rx')}
-                      >
-                        <Text style={styles.demoSampleChipText}>Prescription</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2793,14 +2761,14 @@ const styles = StyleSheet.create({
     backgroundColor: C.white,
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1.5,
-    borderColor: C.blueBorder,
+    borderWidth: 1,
+    borderColor: C.border,
     marginBottom: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   targetPatientHeaderRow: {
     flexDirection: 'row',
@@ -2809,30 +2777,32 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   targetPatientLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: C.blue,
-    letterSpacing: 0.6,
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.textMain,
+    letterSpacing: 0.2,
   },
   changePatientChip: {
-    backgroundColor: C.blueBg,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   changePatientChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: C.blue,
+    color: C.textMain,
   },
   targetPatientActiveCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.blueBg,
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: C.blueBorder,
+    borderColor: '#E2E8F0',
   },
   targetPatientAvatar: {
     width: 44,

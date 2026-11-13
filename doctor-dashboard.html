@@ -373,9 +373,9 @@ body {
   background: var(--white);
   border-radius: 16px;
   padding: 16px;
-  border: 1.5px solid #DBEAFE;
+  border: 1px solid var(--border);
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
 }
 .target-header-row {
   display: flex;
@@ -384,16 +384,16 @@ body {
   margin-bottom: 12px;
 }
 .target-patient-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--blue);
-  letter-spacing: 0.6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+  letter-spacing: -0.1px;
 }
 .switch-patient-btn {
-  background: #EFF6FF;
-  color: var(--blue);
-  border: none;
-  padding: 4px 10px;
+  background: #F1F5F9;
+  color: var(--charcoal);
+  border: 1px solid #E2E8F0;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
@@ -402,10 +402,10 @@ body {
 .target-patient-card-active {
   display: flex;
   align-items: center;
-  background: #EFF6FF;
+  background: #F8FAFC;
   border-radius: 12px;
   padding: 12px 14px;
-  border: 1px solid #DBEAFE;
+  border: 1px solid #E2E8F0;
   gap: 12px;
 }
 .finalized-pill {
@@ -1039,21 +1039,15 @@ body {
     <!-- Step 1: Target Patient (Finalized Destination) -->
     <div class="target-patient-box">
       <div class="target-header-row">
-        <div class="target-patient-label">TARGET PATIENT (FINALIZED DESTINATION)</div>
+        <div class="target-patient-label">Target Patient</div>
         <button class="switch-patient-btn" onclick="openModal('patientPickerModal')">Switch Patient ▾</button>
       </div>
 
       <div class="target-patient-card-active" id="selectedTargetPatientCard">
         <div class="patient-avatar-circ" id="targetPatientAvatar" style="background:#2563EB;">MA</div>
-        <div class="patient-info-col">
-          <div style="display:flex;align-items:center;">
-            <span class="patient-name-txt" id="targetPatientName">Melroy Almeida</span>
-            <span class="finalized-pill">✓ FINALIZED</span>
-          </div>
-          <div class="patient-sub-txt" id="targetPatientMeta">MV-2026-PAT-892 · 32 yrs · Male · Blood O+</div>
-          <div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:2px;" id="targetPatientCondition">
-            Borderline Hyperglycemia / Pre-diabetes
-          </div>
+        <div class="patient-info-col" style="flex-direction:row;align-items:center;justify-content:space-between;width:100%;">
+          <span class="patient-name-txt" id="targetPatientName">Melroy Almeida</span>
+          <span class="finalized-pill">✓ FINALIZED</span>
         </div>
       </div>
     </div>
@@ -1095,13 +1089,6 @@ body {
           <div class="dual-title">Use Camera</div>
           <div class="dual-sub">Direct scan capture</div>
         </button>
-      </div>
-
-      <div class="demo-samples-row">
-        <span style="font-size:11px;color:var(--muted);font-weight:600;">Quick Samples:</span>
-        <button class="sample-chip" onclick="loadSampleDoc('Metabolic_Report.pdf', 'Lab Report', 'Comprehensive Metabolic Panel')">Metabolic Lab</button>
-        <button class="sample-chip" onclick="loadSampleDoc('2D_Echo_Study.pdf', 'Cardiology', 'Resting 2D Echocardiogram')">2D Echo</button>
-        <button class="sample-chip" onclick="loadSampleDoc('Active_Rx_Order.pdf', 'Prescription', 'Active Prescription Plan')">Prescription</button>
       </div>
     </div>
 
@@ -1494,8 +1481,10 @@ function selectTargetPatient(pId) {
   if (p) {
     targetPatient = p;
     document.getElementById('targetPatientName').textContent = p.name;
-    document.getElementById('targetPatientMeta').textContent = `${p.patientId} · ${p.age} · ${p.gender} · Blood ${p.blood}`;
-    document.getElementById('targetPatientCondition').textContent = p.condition;
+    const metaEl = document.getElementById('targetPatientMeta');
+    if (metaEl) metaEl.textContent = `${p.patientId} · ${p.age} · ${p.gender} · Blood ${p.blood}`;
+    const condEl = document.getElementById('targetPatientCondition');
+    if (condEl) condEl.textContent = p.condition;
     document.getElementById('targetPatientAvatar').textContent = p.name.split(' ').map(n=>n[0]).join('');
     document.getElementById('targetPatientAvatar').style.background = p.color;
     document.getElementById('uploadSaveBtn').textContent = `Upload to ${p.name}'s Vault`;
