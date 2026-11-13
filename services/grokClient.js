@@ -68,17 +68,18 @@ export function getGrokApiKeys() {
 export function getGrokModel(key = '') {
   let model = 'openai/gpt-oss-120b';
   if (typeof process !== 'undefined') {
-    model = (
-      process.env?.EXPO_PUBLIC_GROK_MODEL ||
-      process.env?.GROK_MODEL ||
+    const raw = (
+      process.env.EXPO_PUBLIC_GROK_MODEL ||
+      process.env.GROK_MODEL ||
       'openai/gpt-oss-120b'
     );
+    model = typeof raw === 'string' ? raw.trim() : 'openai/gpt-oss-120b';
   }
   // If Groq key (gsk_...) is used with a grok- named model, adapt to Groq's high-performance LLM
   if ((!key || key.startsWith('gsk_')) && model.startsWith('grok-')) {
     return 'openai/gpt-oss-120b';
   }
-  return model;
+  return typeof model === 'string' ? model.trim() : 'openai/gpt-oss-120b';
 }
 
 /**
@@ -86,10 +87,11 @@ export function getGrokModel(key = '') {
  */
 export function getWhisperModel() {
   if (typeof process !== 'undefined') {
-    return (
-      process.env?.EXPO_PUBLIC_GROK_WHISPER_MODEL ||
+    const raw = (
+      process.env.EXPO_PUBLIC_GROK_WHISPER_MODEL ||
       'whisper-large-v3-turbo'
     );
+    return typeof raw === 'string' ? raw.trim() : 'whisper-large-v3-turbo';
   }
   return 'whisper-large-v3-turbo';
 }
@@ -172,7 +174,8 @@ export async function callGrok(messages, options = {}) {
 
   while (attempts < totalKeys) {
     const currentKey = keys[currentIndex];
-    const model = options.model || getGrokModel(currentKey);
+    const rawModel = options.model || getGrokModel(currentKey) || 'openai/gpt-oss-120b';
+    const model = typeof rawModel === 'string' ? rawModel.trim() : 'openai/gpt-oss-120b';
 
     // If key is on cooldown, check next key
     if (isGrokKeyOnCooldown(currentKey)) {
