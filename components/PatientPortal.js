@@ -3834,7 +3834,7 @@ const styles = StyleSheet.create({
   },
   viewSection: {
     width: '100%',
-    paddingTop: 12,
+    paddingTop: 18,
   },
   profileViewSection: {
     flex: 1,

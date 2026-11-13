@@ -2163,7 +2163,7 @@ const styles = StyleSheet.create({
 
   /* Top Header */
   topCurveContainer: {
-    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingTop: Platform.OS === 'ios' ? 52 : 40,
     paddingBottom: 24,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,
@@ -2236,7 +2236,7 @@ const styles = StyleSheet.create({
   },
   viewSection: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
     maxWidth: 960,
     alignSelf: 'center',
     width: '100%',

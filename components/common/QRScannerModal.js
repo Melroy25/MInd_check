@@ -290,8 +290,7 @@ const s = StyleSheet.create({
     backgroundColor: '#000000',
   },
   cameraStyle: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
   },
   reticleOverlay: {
     position: 'absolute',
