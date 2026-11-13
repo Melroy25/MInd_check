@@ -185,9 +185,13 @@ export async function callGrok(messages, options = {}) {
       const payload = {
         model,
         messages,
-        temperature: options.temperature !== undefined ? options.temperature : 0.1,
-        response_format: options.response_format || { type: 'json_object' },
+        temperature: options.temperature !== undefined ? options.temperature : 0.6,
       };
+      if (options.response_format) {
+        payload.response_format = options.response_format;
+      } else if (options.json) {
+        payload.response_format = { type: 'json_object' };
+      }
 
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
