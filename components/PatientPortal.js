@@ -14,6 +14,8 @@ import { callGrok } from '../services/grokClient';
 import { updateUserProfile } from '../services/supabase/authService';
 import AiHealthChatbot from './AiHealthChatbot';
 import PdfReportStudio from './PdfReportStudio';
+import ClinicalConflictModal from './ClinicalConflictModal';
+import { checkCrossRecordConflicts, applyConflictResolutions } from '../services/conflictService';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -527,7 +529,8 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [inviteName, setInviteName] = useState('');
   const [inviteRelation, setInviteRelation] = useState('');
   const [inviteCode, setInviteCode] = useState('BEN-8924');
-  const [saveResultModalData, setSaveResultModalData] = useState(null);
+  const [conflictModalData, setConflictModalData] = useState(null);
+  const [isVerifyingConflict, setIsVerifyingConflict] = useState(false);
 
   // Caretaker Granular Permissions & Expiry State
   const [caretakerStep, setCaretakerStep] = useState('configure'); // 'configure' | 'code'
@@ -591,7 +594,6 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [uploadTitle, setUploadTitle] = useState('');
   const [enteredText, setEnteredText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
-  const [showRagSampleFlags, setShowRagSampleFlags] = useState(false);
   const [liveExtractedJson, setLiveExtractedJson] = useState(null);
   const [extractionError, setExtractionError] = useState(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
@@ -1358,7 +1360,33 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       extractedData: structuredClinicalPayload,
     };
 
-    const nextFiles = [newDoc, newJsonDoc, ...files];
+    setIsVerifyingConflict(true);
+    try {
+      const conflictResult = await checkCrossRecordConflicts(newDoc, files);
+      if (conflictResult.hasConflicts && conflictResult.conflicts.length > 0) {
+        // Discrepancy detected: Prompt user with conflict resolution modal
+        setConflictModalData({
+          conflicts: conflictResult.conflicts,
+          newDoc,
+          newJsonDoc,
+          structuredClinicalPayload,
+          title,
+        });
+        return;
+      }
+
+      // No conflict detected: "just if no conflict save"
+      commitSaveDocument(newDoc, newJsonDoc);
+    } catch (confErr) {
+      console.warn('Conflict verification fallback:', confErr);
+      commitSaveDocument(newDoc, newJsonDoc);
+    } finally {
+      setIsVerifyingConflict(false);
+    }
+  };
+
+  const commitSaveDocument = (docToSave, jsonDocToSave, successMsg = '✅ Document verified & saved to vault') => {
+    const nextFiles = [docToSave, jsonDocToSave, ...files];
     setFiles(nextFiles);
     storageService.saveFiles(nextFiles, currentUser?.uid);
     setFolders((prev) =>
@@ -1370,14 +1398,40 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     setUploadTitle('');
     setEnteredText('');
     setLiveExtractedJson(null);
+    setConflictModalData(null);
+    showToastMsg(successMsg);
+    setActiveTab('documents');
+  };
 
-    // Open Save Result Popup with RAG Check & Extracted JSON
-    setSaveResultModalData({
-      title,
-      jsonData: structuredClinicalPayload,
-      savedDoc: newDoc,
-    });
-    showToastMsg('Saved & Analyzed!');
+  const handleSaveResolvedConflicts = (resolvedEdits) => {
+    if (!conflictModalData) return;
+    setIsVerifyingConflict(true);
+    try {
+      const updatedPayload = applyConflictResolutions(
+        conflictModalData.structuredClinicalPayload,
+        resolvedEdits
+      );
+      const updatedDoc = {
+        ...conflictModalData.newDoc,
+        extractedData: updatedPayload,
+      };
+      const updatedJsonDoc = {
+        ...conflictModalData.newJsonDoc,
+        extractedData: updatedPayload,
+      };
+      commitSaveDocument(updatedDoc, updatedJsonDoc, '✅ Document saved with corrected clinical values!');
+    } finally {
+      setIsVerifyingConflict(false);
+    }
+  };
+
+  const handleSaveConflictAnyway = () => {
+    if (!conflictModalData) return;
+    commitSaveDocument(
+      conflictModalData.newDoc,
+      conflictModalData.newJsonDoc,
+      '✅ Document saved to vault with clinical variance notes.'
+    );
   };
 
   // ─── CHAT BOT HANDLER (POWERED BY REAL GROK AI) ───────────────────────────
@@ -2134,7 +2188,7 @@ Guidelines:
                 style={styles.cleanSaveBtn}
                 onPress={() => handleSaveUploadedRecord(false)}
                 activeOpacity={0.8}
-                disabled={isExtracting}
+                disabled={isExtracting || isVerifyingConflict}
               >
                 <LinearGradient
                   colors={[C.green, C.greenDark]}
@@ -2142,8 +2196,13 @@ Guidelines:
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  {isExtracting ? (
-                    <ActivityIndicator color="white" size="small" />
+                  {isExtracting || isVerifyingConflict ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="white" size="small" />
+                      <Text style={styles.cleanSaveBtnText}>
+                        {isVerifyingConflict ? 'Verifying Records...' : 'Extracting...'}
+                      </Text>
+                    </View>
                   ) : (
                     <Text style={styles.cleanSaveBtnText}>Save</Text>
                   )}
@@ -3299,159 +3358,15 @@ Guidelines:
         </View>
       </Modal>
 
-      {/* ── SAVE RESULT & CLINICAL EXTRACTION MODAL ──────────────────────── */}
-      <Modal
-        visible={!!saveResultModalData}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setSaveResultModalData(null);
-          setActiveTab('documents');
-        }}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, { maxHeight: '88%' }]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeaderRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={styles.saveSuccessDot}>
-                  <IconCheck size={12} color="white" />
-                </View>
-                <Text style={styles.modalTitle}>Saved & Analyzed</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSaveResultModalData(null);
-                  setActiveTab('documents');
-                }}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
-              {/* Document Title Header */}
-              <Text style={styles.saveModalDocName} numberOfLines={1}>
-                {saveResultModalData?.title}
-              </Text>
-
-              {/* 1. Cross-Record Conflict & RAG Status */}
-              <View style={styles.saveConflictBox}>
-                <View style={styles.conflictHeaderRow}>
-                  <Text style={styles.cleanFieldLabel}>CROSS-RECORD CONFLICT & RAG CHECK</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowRagSampleFlags(!showRagSampleFlags)}
-                    style={styles.toggleRagSampleBtn}
-                  >
-                    <Text style={styles.toggleRagSampleText}>
-                      {showRagSampleFlags ? 'Hide Flags ▴' : 'Preview RAG Flags ▾'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Default Clean State: No Flags Occurred */}
-                {!showRagSampleFlags ? (
-                  <View style={styles.noConflictCard}>
-                    <View style={styles.noConflictIconWrap}>
-                      <IconShield size={20} color={C.green} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={styles.noConflictTitle}>No flags occurred</Text>
-                        <View style={styles.zeroConflictPill}>
-                          <Text style={styles.zeroConflictPillText}>0 Conflicts</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.noConflictSub}>
-                        Checked with existing records in Sovereign Vault. No dosage contradictions, allergy conflicts, or information gaps detected.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  /* Expanded RAG Flag Specification from user */
-                  <View style={styles.ragFlagsContainer}>
-                    {/* Flag 1 */}
-                    <View style={styles.ragFlagItem}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>🚩</Text>
-                          <Text style={styles.ragFlagName}>Flag 1: Medication Contradiction (Dosage Change)</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeRed}>
-                          <Text style={styles.ragFlagBadgeRedText}>Contradiction</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Conflicting Dosage for Amlodipine</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record (Oct 2025): <Text style={styles.ragBold}>5mg daily.</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={[styles.ragBold, { color: C.blue }]}>10mg daily.</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> Both are saved. The system highlights the difference so the doctor or patient can manually verify if the dose was intentionally doubled or if the new doctor made a typo.
-                      </Text>
-                    </View>
-
-                    {/* Flag 2 */}
-                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>🚩</Text>
-                          <Text style={styles.ragFlagName}>Flag 2: Critical Allergy Conflict</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeRed}>
-                          <Text style={styles.ragFlagBadgeRedText}>Critical Safety</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Missing Allergy Warning for Penicillin</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record (Jan 2023): <Text style={[styles.ragBold, { color: '#B91C1C' }]}>"Severe allergic reaction to Penicillin."</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record (Nov 2026): <Text style={styles.ragBold}>"No Known Allergies."</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> The system flags this as a highly dangerous contradiction. It explicitly warns you that the new clinic might not know about your allergy, so you can remind them before they prescribe anything.
-                      </Text>
-                    </View>
-
-                    {/* Flag 3 */}
-                    <View style={[styles.ragFlagItem, { marginTop: 10 }]}>
-                      <View style={styles.ragFlagTopRow}>
-                        <View style={styles.ragFlagTitleWrap}>
-                          <Text style={styles.ragFlagEmoji}>⚠️</Text>
-                          <Text style={styles.ragFlagName}>Flag 3: Information Gap (Missing Data)</Text>
-                        </View>
-                        <View style={styles.ragFlagBadgeAmber}>
-                          <Text style={styles.ragFlagBadgeAmberText}>Info Gap</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.ragAlertText}>Alert: Missing Condition Status</Text>
-                      <View style={styles.ragComparisonBox}>
-                        <Text style={styles.ragRecordText}>• Previous Record: <Text style={styles.ragBold}>"Type 2 Diabetes - Active."</Text></Text>
-                        <Text style={styles.ragRecordText}>• Newly Uploaded Record: <Text style={styles.ragBold}>Type 2 Diabetes is not mentioned at all.</Text></Text>
-                      </View>
-                      <Text style={styles.ragActionText}>
-                        <Text style={styles.ragBold}>System Action:</Text> Instead of guessing that you are cured, the system explicitly flags that the status of your Diabetes in the new document is "not documented".
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-
-            {/* Modal Bottom Actions: Done Button Only (Conflict & RAG Results) */}
-            <View style={[styles.saveModalActionRow, { justifyContent: 'flex-end' }]}>
-              <TouchableOpacity
-                style={[styles.saveModalDoneBtn, { flex: 1 }]}
-                onPress={() => {
-                  setSaveResultModalData(null);
-                  setActiveTab('documents');
-                }}
-              >
-                <Text style={styles.saveModalDoneBtnText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* ── CLINICAL CONFLICT RESOLUTION MODAL (POWERED BY GROK AI) ── */}
+      <ClinicalConflictModal
+        visible={!!conflictModalData}
+        conflicts={conflictModalData?.conflicts || []}
+        onSaveCorrected={handleSaveResolvedConflicts}
+        onSaveAnyway={handleSaveConflictAnyway}
+        onCancel={() => setConflictModalData(null)}
+        isSaving={isVerifyingConflict}
+      />
 
       {/* ── SHARE CONNECTION CODE & ONE-TIME QR MODAL ─────────────────────── */}
       <Modal
@@ -4325,147 +4240,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
-  },
-  toggleRagSampleBtn: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  toggleRagSampleText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.blue,
-  },
-  noConflictCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: C.white,
-    borderWidth: 1.5,
-    borderColor: C.greenBorder,
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: C.green,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  noConflictIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: C.greenBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noConflictTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: C.textMain,
-  },
-  zeroConflictPill: {
-    backgroundColor: C.greenBg,
-    borderWidth: 1,
-    borderColor: C.greenBorder,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  zeroConflictPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: C.green,
-  },
-  noConflictSub: {
-    fontSize: 11.5,
-    color: C.textSub,
-    marginTop: 3,
-    lineHeight: 16,
-  },
-  ragFlagsContainer: {
-    gap: 10,
-  },
-  ragFlagItem: {
-    backgroundColor: C.white,
-    borderRadius: 14,
-    padding: 13,
-    borderWidth: 1.5,
-    borderColor: '#FEE2E2',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  ragFlagTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  ragFlagTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  ragFlagEmoji: {
-    fontSize: 14,
-  },
-  ragFlagName: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: C.textMain,
-    flex: 1,
-  },
-  ragFlagBadgeRed: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  ragFlagBadgeRedText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: C.red,
-  },
-  ragFlagBadgeAmber: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  ragFlagBadgeAmberText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: C.amber,
-  },
-  ragAlertText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.red,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  ragComparisonBox: {
-    backgroundColor: C.bg,
-    borderRadius: 8,
-    padding: 8,
-    gap: 3,
-    marginBottom: 6,
-  },
-  ragRecordText: {
-    fontSize: 11,
-    color: C.textMain,
-  },
-  ragBold: {
-    fontWeight: '700',
-  },
-  ragActionText: {
-    fontSize: 11,
-    color: C.textSub,
-    lineHeight: 16,
   },
   sectionTitle: {
     fontSize: 20,

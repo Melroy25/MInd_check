@@ -13,6 +13,8 @@ import MyMedicinesModal from './doctor/MyMedicinesModal';
 import { storageService } from '../services/storageService';
 import { updateUserProfile } from '../services/supabase/authService';
 import AiHealthChatbot from './AiHealthChatbot';
+import ClinicalConflictModal from './ClinicalConflictModal';
+import { checkCrossRecordConflicts, applyConflictResolutions } from '../services/conflictService';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -608,6 +610,8 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   const [enteredText, setEnteredText] = useState('');
   const [liveExtractedJson, setLiveExtractedJson] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [conflictModalData, setConflictModalData] = useState(null);
+  const [isVerifyingConflict, setIsVerifyingConflict] = useState(false);
 
   // Modals
   const [showQrScanModal, setShowQrScanModal] = useState(false);
@@ -926,7 +930,29 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   };
 
   // ─── SAVE & UPLOAD TO PATIENT'S VAULT (AND RECORD IN HISTORY) ───────────────
-  const handleSaveUploadedRecord = () => {
+  const commitSaveDoctorRecord = (historyItem, successMsg) => {
+    // Prepend to history log
+    setHistoryList([historyItem, ...historyList]);
+
+    // Update patient's record count
+    setConnectedPatients((prev) =>
+      prev.map((p) =>
+        p.id === targetPatient.id ? { ...p, recordsCount: p.recordsCount + 1, lastVisit: 'Today' } : p
+      )
+    );
+
+    // Reset upload form
+    setUploadTitle('');
+    setPickedFile(null);
+    setEnteredText('');
+    setLiveExtractedJson(null);
+    setConflictModalData(null);
+
+    // Feedback
+    showToast(successMsg || `✅ Successfully uploaded to ${targetPatient.name}'s Vault & logged in History!`);
+  };
+
+  const handleSaveUploadedRecord = async () => {
     if (!targetPatient) {
       showToast('⚠️ Please select a target patient first!');
       setShowPatientPickerModal(true);
@@ -937,7 +963,6 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
     const now = new Date();
     const formattedDate = `Today, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const fullTimestamp = `${formattedDate} · ${formattedTime}`;
 
     // Create new history log item
     const newHistoryItem = {
@@ -957,26 +982,76 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
       size: pickedFile?.size || '1.6 MB',
       badgeColor: C.green,
       badgeBg: C.greenBg,
+      extractedData: liveExtractedJson,
     };
 
-    // Prepend to history log
-    setHistoryList([newHistoryItem, ...historyList]);
+    const newDocToVerify = {
+      id: newHistoryItem.id,
+      name: docName,
+      title: docName,
+      extractedData: liveExtractedJson,
+      notes: enteredText.trim(),
+    };
 
-    // Update patient's record count
-    setConnectedPatients((prev) =>
-      prev.map((p) =>
-        p.id === targetPatient.id ? { ...p, recordsCount: p.recordsCount + 1, lastVisit: 'Today' } : p
-      )
+    // Filter patient's historical records
+    const existingPatientRecords = historyList
+      .filter((h) => h.patientId === targetPatient.patientId || h.patientName === targetPatient.name)
+      .map((h) => ({
+        id: h.id,
+        name: h.title,
+        date: h.date,
+        notes: h.details,
+        extractedData: h.extractedData || { notes: h.details },
+      }));
+
+    setIsVerifyingConflict(true);
+    try {
+      const conflictResult = await checkCrossRecordConflicts(newDocToVerify, existingPatientRecords);
+      if (conflictResult.hasConflicts && conflictResult.conflicts.length > 0) {
+        setConflictModalData({
+          conflicts: conflictResult.conflicts,
+          newHistoryItem,
+          newDocToVerify,
+          structuredClinicalPayload: liveExtractedJson,
+        });
+        return;
+      }
+
+      // No conflict detected: "just if no conflict save"
+      commitSaveDoctorRecord(newHistoryItem);
+    } catch (err) {
+      console.warn('Doctor conflict check fallback:', err);
+      commitSaveDoctorRecord(newHistoryItem);
+    } finally {
+      setIsVerifyingConflict(false);
+    }
+  };
+
+  const handleSaveResolvedConflictsDoctor = (resolvedEdits) => {
+    if (!conflictModalData) return;
+    setIsVerifyingConflict(true);
+    try {
+      const updatedPayload = applyConflictResolutions(
+        conflictModalData.structuredClinicalPayload,
+        resolvedEdits
+      );
+      const updatedHistoryItem = {
+        ...conflictModalData.newHistoryItem,
+        extractedData: updatedPayload,
+        details: `${conflictModalData.newHistoryItem.details} [Clinical values verified & adjusted by attending physician]`,
+      };
+      commitSaveDoctorRecord(updatedHistoryItem, `✅ Successfully saved to ${targetPatient.name}'s Vault with corrected values!`);
+    } finally {
+      setIsVerifyingConflict(false);
+    }
+  };
+
+  const handleSaveConflictAnywayDoctor = () => {
+    if (!conflictModalData) return;
+    commitSaveDoctorRecord(
+      conflictModalData.newHistoryItem,
+      `✅ Saved to ${targetPatient.name}'s Vault with clinical variance notes.`
     );
-
-    // Reset upload form
-    setUploadTitle('');
-    setPickedFile(null);
-    setEnteredText('');
-    setLiveExtractedJson(null);
-
-    // Feedback
-    showToast(`✅ Successfully uploaded to ${targetPatient.name}'s Vault & logged in History!`);
   };
 
   // ─── HANDLE QR CODE SCAN / LINK PATIENT ──────────────────────────────────────
@@ -1573,7 +1648,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                 style={[styles.cleanSaveBtn, !targetPatient && { opacity: 0.7 }]}
                 onPress={handleSaveUploadedRecord}
                 activeOpacity={0.8}
-                disabled={isExtracting}
+                disabled={isExtracting || isVerifyingConflict}
               >
                 <LinearGradient
                   colors={[C.green, C.greenDark]}
@@ -1581,8 +1656,13 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  {isExtracting ? (
-                    <ActivityIndicator color="white" size="small" />
+                  {isExtracting || isVerifyingConflict ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="white" size="small" />
+                      <Text style={styles.cleanSaveBtnText}>
+                        {isVerifyingConflict ? 'Verifying Records...' : 'Extracting...'}
+                      </Text>
+                    </View>
                   ) : (
                     <Text style={styles.cleanSaveBtnText}>
                       {targetPatient ? `Upload to ${targetPatient.name}'s Vault` : 'Select Target Patient First'}
@@ -2098,6 +2178,16 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
           setShowQrScanModal(false);
           handleProcessQrScan(String(token || 'Patient'));
         }}
+      />
+
+      {/* ── CLINICAL CONFLICT RESOLUTION MODAL (POWERED BY GROK AI) ── */}
+      <ClinicalConflictModal
+        visible={!!conflictModalData}
+        conflicts={conflictModalData?.conflicts || []}
+        onSaveCorrected={handleSaveResolvedConflictsDoctor}
+        onSaveAnyway={handleSaveConflictAnywayDoctor}
+        onCancel={() => setConflictModalData(null)}
+        isSaving={isVerifyingConflict}
       />
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
