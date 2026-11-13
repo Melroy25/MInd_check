@@ -8,6 +8,7 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react
 import { pickMedicalDocument, extractMedicalDocument } from './services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from './services/pdfService';
 import PatientPortal from './components/PatientPortal';
+import AppNavigator   from './src/screens/onboarding/AppNavigator';
 
 // ─── TOKENS ──────────────────────────────────────────────────────────────────
 const G = {
@@ -632,76 +633,10 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
 export default function App() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
-  const [screen, setScreen] = useState('landing'); // 'landing' | 'patient'
-  const [modal, setModal] = useState({ open: false, type: 'signup' });
-  const [notice, setNotice] = useState(null);
-
-  const open  = (type) => setModal({ open: true, type });
-  const close = ()     => setModal((m) => ({ ...m, open: false }));
-
-  const handleSelectRole = (role) => {
-    if (role === 'patient') {
-      setScreen('patient');
-    } else {
-      setNotice(`${role.charAt(0).toUpperCase() + role.slice(1)} portal coming soon! Opening Patient experience.`);
-      setTimeout(() => setNotice(null), 3500);
-      setScreen('patient');
-    }
-  };
-
-  const handleSignIn = () => {
-    setScreen('patient');
-  };
-
-  if (screen === 'patient') {
-    return (
-      <PatientPortal
-        isDesktop={isDesktop}
-        onSignOut={() => setScreen('landing')}
-      />
-    );
-  }
-
   return (
-    <View style={{ flex: 1, backgroundColor: G.bg }}>
-      <StatusBar barStyle="dark-content" backgroundColor={G.bg}/>
-
-      {notice && (
-        <View style={pStyles.noticeBar}>
-          <Text style={pStyles.noticeBarText}>{notice}</Text>
-        </View>
-      )}
-
-      <Navbar
-        onLogin={() => open('login')}
-        onSignup={() => open('signup')}
-        onOpenPatient={() => setScreen('patient')}
-        isDesktop={isDesktop}
-      />
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <Hero
-          onSignup={() => open('signup')}
-          onLogin={() => open('login')}
-          onOpenPatient={() => setScreen('patient')}
-          isDesktop={isDesktop}
-        />
-        <RolesSection
-          isDesktop={isDesktop}
-          onOpenPatient={() => setScreen('patient')}
-          onShowNotice={(msg) => {
-            setNotice(msg);
-            setTimeout(() => setNotice(null), 3500);
-          }}
-        />
-        <Footer/>
-      </ScrollView>
-      <AppModal
-        visible={modal.open}
-        type={modal.type}
-        onClose={close}
-        onSelectRole={handleSelectRole}
-        onSignIn={handleSignIn}
-      />
+    <View style={{ flex: 1 }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <AppNavigator isDesktop={isDesktop} />
     </View>
   );
 }
