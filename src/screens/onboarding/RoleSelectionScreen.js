@@ -8,14 +8,14 @@ import Svg, { Path, Circle, Rect } from 'react-native-svg';
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
   bg:      '#F8FAFC',
-  primary: '#0F6E7A',
-  accent:  '#E0F2F4',
+  primary: '#16A34A',
+  accent:  '#F0FDF4',
   slate:   '#0F172A',
   muted:   '#64748B',
   white:   '#FFFFFF',
   border:  '#CBD5E1',
-  borderA: '#0F6E7A',
-  success: '#059669',
+  borderA: '#16A34A',
+  success: '#16A34A',
 };
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -73,8 +73,8 @@ const ROLES = [
     label: 'Patient',
     description: 'Manage personal health history & approvals',
     features: ['Smart Timeline', 'Consent Management', 'Instant QR Share'],
-    iconColor: T.primary,
-    bgColor: '#E0F2F4',
+    iconColor: '#16A34A',
+    bgColor: '#F0FDF4',
     Icon: PatientIcon,
   },
   {
@@ -82,7 +82,7 @@ const ROLES = [
     label: 'Doctor',
     description: 'Clinical timelines & verified consultations',
     features: ['Drug Interactions', 'Verified Consults', 'Fast Triage Mode'],
-    iconColor: '#1D4ED8',
+    iconColor: '#2563EB',
     bgColor: '#EFF6FF',
     Icon: DoctorIcon,
   },

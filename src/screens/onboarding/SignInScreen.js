@@ -9,8 +9,8 @@ import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
   bg:      '#F8FAFC',
-  primary: '#0F6E7A',
-  accent:  '#E0F2F4',
+  primary: '#16A34A',
+  accent:  '#F0FDF4',
   slate:   '#0F172A',
   muted:   '#64748B',
   white:   '#FFFFFF',
@@ -23,17 +23,17 @@ const T = {
 const ROLE_CONFIG = {
   patient: {
     label:        'Patient',
-    pillColor:    T.primary,
-    iconBg:       '#E0F2F4',
-    iconColor:    T.primary,
+    pillColor:    '#16A34A',
+    iconBg:       '#F0FDF4',
+    iconColor:    '#16A34A',
     emailPlaceholder: 'sarah.jenkins@medflow.org',
     passPlaceholder:  'Enter your password',
   },
   doctor: {
     label:        'Doctor',
-    pillColor:    '#1D4ED8',
+    pillColor:    '#2563EB',
     iconBg:       '#EFF6FF',
-    iconColor:    '#1D4ED8',
+    iconColor:    '#2563EB',
     emailPlaceholder: 'dr.sharma@medflow.org',
     passPlaceholder:  'Enter your password',
   },
@@ -162,6 +162,11 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
   const [showPass,    setShowPass]    = useState(false);
   const [rememberMe,  setRememberMe]  = useState(false);
 
+  const handleAutoFillDemo = () => {
+    setEmail(cfg.emailPlaceholder);
+    setPassword('demo123');
+  };
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
@@ -199,6 +204,26 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
 
           {/* ── Form Card ── */}
           <View style={s.formCard}>
+            {/* Demo Testing Callout */}
+            <View style={[s.demoCallout, { borderColor: cfg.pillColor + '40', backgroundColor: cfg.iconBg }]}>
+              <View style={s.demoCalloutHeader}>
+                <Text style={[s.demoCalloutTitle, { color: cfg.pillColor }]}>🧪 DEMO TEST ACCESS</Text>
+                <TouchableOpacity
+                  style={[s.demoFillBtn, { backgroundColor: cfg.pillColor }]}
+                  onPress={handleAutoFillDemo}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.demoFillBtnText}>⚡ Auto-Fill</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={s.demoCredsText}>
+                Email: <Text style={s.demoCredsCode}>{cfg.emailPlaceholder}</Text>
+              </Text>
+              <Text style={s.demoCredsText}>
+                Password: <Text style={s.demoCredsCode}>demo123</Text>
+              </Text>
+            </View>
+
             {/* Email */}
             <Text style={s.fieldLabel}>Username or Email</Text>
             <View style={s.inputRow}>
@@ -244,17 +269,17 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
                 onPress={() => setRememberMe((v) => !v)}
                 activeOpacity={0.7}
               >
-                <CheckSquareIcon size={20} color={T.primary} filled={rememberMe} />
+                <CheckSquareIcon size={20} color={cfg.pillColor} filled={rememberMe} />
                 <Text style={s.rememberText}>Remember me</Text>
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7}>
-                <Text style={[s.linkText, { color: T.primary }]}>Forgot Password?</Text>
+                <Text style={[s.linkText, { color: cfg.pillColor }]}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
 
             {/* Login CTA */}
             <TouchableOpacity
-              style={[s.primaryBtn, { backgroundColor: T.primary }]}
+              style={[s.primaryBtn, { backgroundColor: cfg.pillColor }]}
               activeOpacity={0.85}
               onPress={() => onLogin(role)}
             >
@@ -346,6 +371,43 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
     marginBottom: 20,
+  },
+
+  demoCallout: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 18,
+  },
+  demoCalloutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  demoCalloutTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  demoFillBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+  },
+  demoFillBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  demoCredsText: {
+    fontSize: 12.5,
+    color: T.slate,
+    marginBottom: 2,
+  },
+  demoCredsCode: {
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 
   fieldLabel: { fontSize: 13, fontWeight: '600', color: T.slate, marginBottom: 8 },
