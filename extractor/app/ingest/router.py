@@ -46,6 +46,14 @@ def ingest_file(file_bytes: bytes, filename: str) -> IngestionResult:
         except Exception as e:
             raise ValueError(f"Corrupt or invalid PDF file: {e}") from e
 
+        if is_scanned and images:
+            ocr_text_parts = []
+            for p_idx, p_img in enumerate(images):
+                p_text, _, _, _ = read_image(p_img, f"{filename}_page_{p_idx+1}.png")
+                ocr_text_parts.append(p_text)
+                page_texts[p_idx + 1] = p_text
+            raw_text = "\n\n".join(ocr_text_parts)
+
         source_type = "pdf_scanned" if is_scanned else "pdf_text"
         return IngestionResult(
             source_file=filename,

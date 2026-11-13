@@ -1,21 +1,36 @@
-"""Image ingestion and OCR handler using Pillow and optional pytesseract."""
+"""Image ingestion and deep-learning OCR handler using EasyOCR (CRAFT + CRNN) and Pillow."""
 
 import io
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
 from PIL import Image
+
+_EASYOCR_READER: Optional[object] = None
+
+
+def get_ocr_reader():
+    """Lazily initialize and cache the EasyOCR Reader in memory."""
+    global _EASYOCR_READER
+    if _EASYOCR_READER is None:
+        try:
+            import easyocr  # type: ignore
+            # Uses CRAFT for text detection and ResNet-BiLSTM-CTC for text recognition
+            _EASYOCR_READER = easyocr.Reader(['en'], gpu=False, verbose=False)
+        except Exception as e:
+            print(f"[ImageReader] Could not load EasyOCR: {e}")
+            _EASYOCR_READER = None
+    return _EASYOCR_READER
 
 
 def read_image(file_bytes: bytes, filename: str = "image.png") -> Tuple[str, Dict[int, str], int, List[bytes]]:
-    """Ingest image, extracting embedded text metadata or performing OCR if available.
+    """Ingest image, extracting embedded text metadata or performing deep-learning OCR with EasyOCR.
 
     Returns:
         raw_text: Page-tagged text
         page_texts: Dict mapping page number to text
         page_count: 1
-        image_bytes_list: Original image bytes for multimodal LLM vision ingestion
+        image_bytes_list: Original image bytes for archival
     """
     img = Image.open(io.BytesIO(file_bytes))
-    # Ensure RGB for JPEG saving and resize if longest side > 1600px
     img_rgb = img.convert("RGB")
     max_side = 1600
     w, h = img_rgb.size
@@ -34,28 +49,29 @@ def read_image(file_bytes: bytes, filename: str = "image.png") -> Tuple[str, Dic
     image_bytes_list = [optimized_bytes]
     text = ""
 
-    # Check for embedded RawText metadata in PNG/TIFF/JPEG info
+    # 1. Check for embedded RawText metadata in PNG/TIFF/JPEG info
     if hasattr(img, "info") and isinstance(img.info, dict):
         if "RawText" in img.info:
             text = str(img.info["RawText"]).strip()
         elif "Comment" in img.info:
             text = str(img.info["Comment"]).strip()
 
-    # Optional pytesseract or EasyOCR if text not yet found
+    # 2. EasyOCR Deep-Learning Engine (CRAFT + ResNet-BiLSTM-CTC)
+    if not text:
+        reader = get_ocr_reader()
+        if reader is not None:
+            try:
+                import numpy as np
+                results = reader.readtext(np.array(img_rgb), detail=0)
+                text = "\n".join(results).strip()
+            except Exception as ocr_err:
+                print(f"[ImageReader] EasyOCR inference error: {ocr_err}")
+
+    # 3. Optional fallback to pytesseract if present
     if not text:
         try:
             import pytesseract  # type: ignore
             text = pytesseract.image_to_string(img).strip()
-        except (ImportError, Exception):
-            pass
-
-    if not text:
-        try:
-            import easyocr  # type: ignore
-            import numpy as np
-            reader = easyocr.Reader(['en'], gpu=False, verbose=False)
-            results = reader.readtext(np.array(img_rgb), detail=0)
-            text = "\n".join(results).strip()
         except (ImportError, Exception):
             pass
 

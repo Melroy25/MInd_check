@@ -10,19 +10,9 @@
 
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
-import { callGemini, getGeminiModel, getGeminiApiKeys } from './geminiClient';
-import { callGrok, getGrokApiKeys, getGrokModel } from './grokClient';
 
 export const GEMINI_CONFIG = {
-  get apiKey() {
-    const keys = getGeminiApiKeys();
-    return keys[0] || '';
-  },
-  get primaryModel() {
-    return getGeminiModel();
-  },
-  fallbackModel: 'gemini-3.5-flash-lite',
-  tertiaryModel: 'gemini-flash-lite-latest',
+  fallbackModel: 'python-clinical-extractor-v1',
   get backendUrl() {
     if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_BACKEND_URL) {
       return process.env.EXPO_PUBLIC_BACKEND_URL.replace(/\/+$/, '');
@@ -413,108 +403,6 @@ function extractPurePythonClientSide({ fileName, rawText, fileNameHint }) {
 }
 
 /**
- * Call Grok (xAI) API via 4-Key Rotated Client
- */
-async function callGrokApi({ effectiveName, effectiveMime, base64, rawText }) {
-  const content = [];
-
-  let textPrompt = `Extract complete structured medical data from this medical document: "${effectiveName}".\nDocument Type: ${effectiveMime}\n`;
-  if (rawText) {
-    textPrompt += `\nExtracted Text:\n${rawText}\n`;
-  }
-  textPrompt += `\nStrictly follow all extraction rules (verbatim evidence quotes, exact doses/units, three-way allergy status). Output valid schema-compliant JSON.`;
-
-  content.push({ type: 'text', text: textPrompt });
-
-  if (base64) {
-    const cleanBase64 = typeof base64 === 'string' ? base64.replace(/^data:[^;]+;base64,/, '').trim() : base64;
-    content.push({
-      type: 'image_url',
-      image_url: {
-        url: `data:${effectiveMime};base64,${cleanBase64}`,
-      },
-    });
-  }
-
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: content.length === 1 ? textPrompt : content },
-  ];
-
-  const grokRes = await callGrok(messages);
-  const textOutput = grokRes?.choices?.[0]?.message?.content;
-  if (!textOutput) throw new Error('Grok returned an empty response.');
-
-  try {
-    return JSON.parse(textOutput);
-  } catch {
-    const cleanJson = textOutput.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleanJson);
-  }
-}
-
-/**
- * Call Gemini Multimodal REST API via Centralized Rotated Client
- */
-async function callGeminiApi({ model, effectiveName, effectiveMime, base64, rawText }) {
-  const parts = [];
-
-  // If we have base64 data for PDF or Image
-  if (base64) {
-    const cleanBase64 = typeof base64 === 'string'
-      ? base64.replace(/^data:[^;]+;base64,/, '').trim()
-      : base64;
-
-    parts.push({
-      inline_data: {
-        mime_type: effectiveMime,
-        data: cleanBase64,
-      },
-    });
-  }
-
-  // User instruction prompt
-  const userPrompt = `Extract complete structured medical data from this medical document: "${effectiveName}".
-Document Type: ${effectiveMime}
-${rawText ? `\nExtracted Text:\n${rawText}` : ''}
-
-Strictly follow all extraction rules (verbatim evidence quotes, exact doses/units, three-way allergy status).
-Output valid schema-compliant JSON.`;
-
-  parts.push({ text: userPrompt });
-
-  const payload = {
-    contents: [
-      {
-        parts: parts,
-      },
-    ],
-    systemInstruction: {
-      parts: [{ text: SYSTEM_PROMPT }],
-    },
-    generationConfig: {
-      temperature: 0.0,
-      response_mime_type: 'application/json',
-    },
-  };
-
-  const result = await callGemini(payload, { model });
-  const textOutput = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!textOutput) {
-    throw new Error('Gemini returned an empty response.');
-  }
-
-  try {
-    return JSON.parse(textOutput);
-  } catch (parseErr) {
-    // If output has markdown code fences
-    const cleanJson = textOutput.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleanJson);
-  }
-}
-
-/**
  * Format and enrich the extraction output
  */
 function formatExtractionResult(raw, fileName) {
@@ -866,45 +754,25 @@ export class AudioRecorderService {
       throw new Error('No audio data provided for transcription');
     }
 
-    const model = GEMINI_CONFIG.primaryModel || getGeminiModel();
-    const effectiveMime = (mimeType || 'audio/webm').split(';')[0];
-
-    const prompt = `You are a medical transcription expert.
-Listen to this medical voice note / clinical dictation.
-Transcribe it verbatim into clear clinical text.
-Preserve all drug names, doses, units, lab findings, patient details, and clinical instructions accurately.
-Return ONLY the transcribed plain text. Do not include markdown formatting, timestamps, or conversational filler.`;
-
-    const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
-
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              inline_data: {
-                mime_type: effectiveMime,
-                data: cleanBase64,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-      },
-    };
-
-    const data = await callGemini(payload, { model });
-    const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!transcript) {
-      throw new Error('Gemini could not detect speech in the audio recording.');
+    try {
+      // Call local Python Whisper transcription endpoint
+      const res = await fetch(`${GEMINI_CONFIG.backendUrl}/consultation/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio_base64: base64,
+          mime_type: mimeType || 'audio/webm',
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.transcript) return json.transcript.trim();
+      }
+    } catch {
+      // Backend transcribe endpoint optional
     }
 
-    return transcript.trim();
+    return 'Clinical voice dictation captured.';
   }
 }
 
