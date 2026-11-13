@@ -5,6 +5,7 @@ import SignInScreen         from './SignInScreen';
 import CreateAccountScreen from './CreateAccountScreen';
 import PatientPortal       from '../../../components/PatientPortal';
 import DoctorPortal        from '../../../components/DoctorPortal';
+import CaretakerPortal     from '../../../components/CaretakerPortal';
 
 // ─── Screen IDs ───────────────────────────────────────────────────────────────
 // 'landing' | 'role_select' | 'sign_in' | 'create_account'
@@ -77,9 +78,8 @@ export default function AppNavigator({ isDesktop }) {
 
     case 'caretaker':
       return (
-        <PatientPortal
+        <CaretakerPortal
           isDesktop={isDesktop}
-          userRole={screen}
           onSignOut={() => goTo('landing', null)}
         />
       );
