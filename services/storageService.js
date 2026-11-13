@@ -43,24 +43,40 @@ export const storageService = {
   },
 
   /**
-   * Load patient health records / documents (Real documents only, no fake mock documents)
+   * Load patient health records / documents scoped to a specific user.
+   * If userId is provided, returns ONLY files uploaded by that specific user.
    */
-  async getFiles() {
+  async getFiles(userId = null) {
     try {
+      if (userId) {
+        const userKey = `${KEYS.FILES}_${userId}`;
+        const data = await AsyncStorage.getItem(userKey);
+        if (!data) return [];
+        const list = JSON.parse(data);
+        return Array.isArray(list) ? list : [];
+      }
+
+      // Guest / unauthenticated fallback - filter out legacy test files
       const data = await AsyncStorage.getItem(KEYS.FILES);
       if (!data) return [];
       const list = JSON.parse(data);
       if (!Array.isArray(list)) return [];
-      // Filter out any legacy fake/mock documents
-      const FAKE_NAMES = [
-        'Comprehensive Metabolic Panel',
-        'Comprehensive Metabolic Panel (Structured JSON)',
-        'Resting ECG & 2D Echo Report',
-        'Chest X-Ray PA & Lateral View',
-        'Atorvastatin & Lisinopril Active Rx',
-        'Cardiology Consultation & Diet Notes',
+
+      const FAKE_PATTERNS = [
+        '3b807ae7',
+        'comprehensive medical summary',
+        'comprehensive metabolic panel',
+        'resting ecg',
+        'chest x-ray',
+        'atorvastatin',
+        'cardiology consultation',
       ];
-      const realOnly = list.filter((f) => !FAKE_NAMES.includes(f.name) && !['1', '1-json', '2', '3', '4', '5'].includes(f.id));
+      const realOnly = list.filter((f) => {
+        const nameLower = (f.name || '').toLowerCase();
+        const isFake = FAKE_PATTERNS.some((p) => nameLower.includes(p));
+        const isFakeId = ['1', '1-json', '2', '3', '4', '5'].includes(f.id);
+        return !isFake && !isFakeId;
+      });
       return realOnly;
     } catch (e) {
       console.warn('[storageService] Failed to load files from storage:', e);
@@ -69,14 +85,30 @@ export const storageService = {
   },
 
   /**
-   * Save documents (e.g. after newly extracted PDF/images)
+   * Save documents scoped to a specific user
    */
-  async saveFiles(files) {
+  async saveFiles(files, userId = null) {
     try {
-      await AsyncStorage.setItem(KEYS.FILES, JSON.stringify(files));
+      const key = userId ? `${KEYS.FILES}_${userId}` : KEYS.FILES;
+      await AsyncStorage.setItem(key, JSON.stringify(files));
       return true;
     } catch (e) {
       console.warn('[storageService] Failed to save files to storage:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Clear all documents for a specific user or global demo
+   */
+  async clearFiles(userId = null) {
+    try {
+      if (userId) {
+        await AsyncStorage.removeItem(`${KEYS.FILES}_${userId}`);
+      }
+      await AsyncStorage.removeItem(KEYS.FILES);
+      return true;
+    } catch (e) {
       return false;
     }
   },

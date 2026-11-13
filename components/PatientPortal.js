@@ -457,18 +457,39 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [clinicalDoctors, setClinicalDoctors] = useState(() => (isRealUser ? [] : INITIAL_CLINICAL));
   const [pendingRequests, setPendingRequests] = useState(() => (isRealUser ? [] : INITIAL_PENDING_REQUESTS));
 
-  // ── Load Persisted Vault Records on Mount ──
+  // ── Load Persisted Vault Records on Mount (Scoped to User ID) ──
   useEffect(() => {
     async function loadStoredFiles() {
       try {
-        const stored = await storageService.getFiles();
-        if (stored && stored.length > 0) setFiles(stored);
+        const uid = currentUser?.uid;
+        if (isRealUser && uid) {
+          const stored = await storageService.getFiles(uid);
+          setFiles(stored || []);
+        } else if (!isRealUser) {
+          const stored = await storageService.getFiles(null);
+          setFiles(stored || []);
+        } else {
+          setFiles([]);
+        }
       } catch (e) {
         console.warn('[PatientPortal] Error loading stored files:', e);
       }
     }
     loadStoredFiles();
-  }, []);
+  }, [currentUser?.uid, isRealUser]);
+
+  const handleDeleteDocument = async (fileId) => {
+    const nextFiles = files.filter((f) => f.id !== fileId && f.id !== `${fileId}-json`);
+    setFiles(nextFiles);
+    await storageService.saveFiles(nextFiles, currentUser?.uid);
+    showToastMsg('Document removed from vault');
+  };
+
+  const handleClearAllDocuments = async () => {
+    setFiles([]);
+    await storageService.clearFiles(currentUser?.uid);
+    showToastMsg('Vault cleared');
+  };
   const [connectSubView, setConnectSubView] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
   const [shareCodeCategory, setShareCodeCategory] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
   const [inviteName, setInviteName] = useState('');
@@ -1064,7 +1085,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
 
     const nextFiles = [newDoc, newJsonDoc, ...files];
     setFiles(nextFiles);
-    storageService.saveFiles(nextFiles);
+    storageService.saveFiles(nextFiles, currentUser?.uid);
     setFolders((prev) =>
       prev.map((f) => (f.id === 'labs' ? { ...f, count: f.count + 2, date: 'Just now' } : f))
     );
@@ -1344,6 +1365,22 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                 <Text style={[styles.bigCardBtnText, { color: '#1E293B' }]}>Download</Text>
               </TouchableOpacity>
             )}
+
+            {/* Delete Button */}
+            <TouchableOpacity
+              style={[
+                styles.bigCardBtn,
+                { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1 },
+              ]}
+              onPress={(e) => {
+                e.stopPropagation && e.stopPropagation();
+                handleDeleteDocument(file.id);
+              }}
+              activeOpacity={0.75}
+            >
+              <IconTrash size={13} color="#DC2626" />
+              <Text style={[styles.bigCardBtnText, { color: '#DC2626' }]}>Delete</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -1714,11 +1751,33 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'documents' && (
           <View style={styles.viewSection}>
-            {/* Top Row: Documents text only */}
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>Documents</Text>
-            </TouchableOpacity>
+            {/* Top Row: Documents text with Clear Vault option */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
+                <IconArrowLeft size={22} color={C.textMain} />
+                <Text style={styles.subPageTitle}>Documents</Text>
+              </TouchableOpacity>
+              {files.length > 0 && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 8,
+                    backgroundColor: '#FEE2E2',
+                    borderWidth: 1,
+                    borderColor: '#FECACA',
+                  }}
+                  onPress={handleClearAllDocuments}
+                  activeOpacity={0.75}
+                >
+                  <IconTrash size={12} color="#DC2626" />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>Clear Vault</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Search Input with Side Date Option */}
             <View style={styles.searchAndDateRow}>
