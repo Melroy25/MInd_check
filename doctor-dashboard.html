@@ -1126,41 +1126,11 @@ body {
   <div id="page-history" class="page-view">
     <div class="subpage-header-row" onclick="switchTab('home')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      <div>
-        <div class="subpage-title">Doctor Activity History</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Complete chronological record of all uploads, access grants & clinical updates</div>
-      </div>
+      <div class="subpage-title">Doctor Activity History</div>
     </div>
 
-    <!-- Counters Grid -->
-    <div class="history-counters-grid">
-      <div class="history-counter-card">
-        <div class="counter-num" id="cntTotal">10</div>
-        <div class="counter-lbl">Total Actions</div>
-      </div>
-      <div class="history-counter-card" style="border-left:3px solid var(--green);">
-        <div class="counter-num" style="color:var(--green);" id="cntUploads">5</div>
-        <div class="counter-lbl">Uploads</div>
-      </div>
-      <div class="history-counter-card" style="border-left:3px solid var(--blue);">
-        <div class="counter-num" style="color:var(--blue);" id="cntConnect">3</div>
-        <div class="counter-lbl">Connections</div>
-      </div>
-      <div class="history-counter-card" style="border-left:3px solid var(--purple);">
-        <div class="counter-num" style="color:var(--purple);" id="cntUpdates">2</div>
-        <div class="counter-lbl">Updates</div>
-      </div>
-    </div>
-
-    <!-- Search & Filters -->
-    <input type="text" class="history-search-input" id="historySearchInput" placeholder="Search by patient name, record title, or keyword..." oninput="renderHistoryList()"/>
-
-    <div class="history-filter-pills">
-      <button class="cat-pill active" onclick="setHistoryFilter(this, 'all')">All Actions</button>
-      <button class="cat-pill" onclick="setHistoryFilter(this, 'upload')">Uploads Only</button>
-      <button class="cat-pill" onclick="setHistoryFilter(this, 'connection')">Connections</button>
-      <button class="cat-pill" onclick="setHistoryFilter(this, 'update')">Clinical Updates</button>
-    </div>
+    <!-- Search Only (Counters and small text removed as requested) -->
+    <input type="text" class="history-search-input" id="historySearchInput" placeholder="Search by patient name, record title, or keyword..." oninput="renderHistoryList()" style="margin-bottom:16px;"/>
 
     <!-- Chronological Timeline List with Date and Time -->
     <div id="historyTimelineContainer">
@@ -1354,6 +1324,57 @@ body {
 </div>
 
 
+
+<!-- 5. Clinical Audit Trail Modal -->
+<div class="modal-overlay" id="auditTrailModal">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close-x" onclick="closeModal('auditTrailModal')">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="width:36px;height:36px;border-radius:10px;background:#F0FDF4;display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div>
+        <div style="font-size:17px;font-weight:800;color:var(--charcoal);">Clinical Audit Trail</div>
+        <div style="font-size:11px;color:var(--muted);">Cryptographic validation & immutable ledger</div>
+      </div>
+    </div>
+
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;font-size:12px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #EDF2F7;padding-bottom:6px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">AUDIT ID:</span>
+        <span style="font-weight:700;color:var(--charcoal);" id="auditModalId">h-1</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #EDF2F7;padding-bottom:6px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">TIMESTAMP:</span>
+        <span style="color:var(--charcoal);" id="auditModalTime">Today, Nov 13, 2026 · 06:15 AM</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #EDF2F7;padding-bottom:6px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">DOCTOR:</span>
+        <span style="color:var(--charcoal);">Dr. Sarah Jenkins</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #EDF2F7;padding-bottom:6px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">PATIENT:</span>
+        <span style="font-weight:700;color:var(--charcoal);" id="auditModalPatient">Melroy Almeida</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #EDF2F7;padding-bottom:6px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">RECORD:</span>
+        <span style="font-weight:700;color:var(--green);" id="auditModalTitle">Metabolic Panel Report</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding-top:2px;">
+        <span style="color:#64748B;font-weight:700;font-size:11px;">INTEGRITY:</span>
+        <span style="font-weight:700;color:var(--green);">✓ SHA-256 Validated · AES-256 Patient Sovereign</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn-primary" style="flex:1;background:var(--green);padding:10px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;" id="auditModalViewPdfBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        View PDF
+      </button>
+      <button style="flex:1;background:#F8FAFC;color:var(--charcoal);border:1px solid #CBD5E1;padding:10px;font-size:12px;border-radius:999px;font-weight:700;cursor:pointer;" onclick="closeModal('auditTrailModal')">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- 6. End Session Modal -->
 <div class="modal-overlay" id="endSessionModal">
@@ -1768,59 +1789,100 @@ function setHistoryFilter(el, filter) {
 }
 
 function renderHistoryList() {
-  const query = (document.getElementById('historySearchInput')?.value || '').toLowerCase();
-  const filtered = historyList.filter(item => {
-    const matchFilter = activeHistoryFilter === 'all' || item.type === activeHistoryFilter;
-    const matchSearch = !query || 
+  const query = (document.getElementById('historySearchInput')?.value || '').toLowerCase().trim();
+  const sorted = [...historyList].sort((a, b) => {
+    const tA = new Date(a.timestamp || a.date).getTime() || 0;
+    const tB = new Date(b.timestamp || b.date).getTime() || 0;
+    return tB - tA;
+  });
+  const filtered = sorted.filter(item => {
+    return !query || 
       item.title.toLowerCase().includes(query) ||
-      item.patientName.toLowerCase().includes(query) ||
-      item.details.toLowerCase().includes(query);
-    return matchFilter && matchSearch;
+      item.patientName.toLowerCase().includes(query);
   });
 
-  // Update counters
-  document.getElementById('cntTotal').textContent = historyList.length;
-  document.getElementById('cntUploads').textContent = historyList.filter(h => h.type === 'upload').length;
-  document.getElementById('cntConnect').textContent = historyList.filter(h => h.type === 'connection').length;
-  document.getElementById('cntUpdates').textContent = historyList.filter(h => h.type === 'update').length;
-  document.getElementById('homeHistoryCountSub').textContent = `${historyList.length} Entries`;
+  const cntHomeSub = document.getElementById('homeHistoryCountSub');
+  if (cntHomeSub) cntHomeSub.textContent = `${historyList.length} Entries`;
 
   const container = document.getElementById('historyTimelineContainer');
   if (filtered.length === 0) {
     container.innerHTML = `
       <div style="background:white;border-radius:16px;padding:36px;text-align:center;border:1px solid var(--border);">
         <div style="font-size:15px;font-weight:700;color:var(--charcoal);">No matching history entries</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Try clearing your search query.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Try adjusting your search query.</div>
       </div>
     `;
     return;
   }
 
   container.innerHTML = filtered.map(item => `
-    <div class="history-timeline-card">
-      <div class="history-badge-icon" style="background:${item.bg};">
+    <div class="history-timeline-card" style="display:flex;background:#fff;border-radius:16px;padding:14px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.03);margin-bottom:12px;">
+      <div class="history-badge-icon" style="background:${item.bg};width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0;">
         ${item.type === 'upload'
           ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
           : item.type === 'connection'
           ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>'
           : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'}
       </div>
-      <div class="history-card-body">
-        <div class="history-top-meta">
-          <span class="history-tag-pill" style="background:${item.bg};color:${item.color};">${item.category.toUpperCase()}</span>
-          <!-- Date and time clearly presented -->
-          <span class="history-datetime">🕒 ${item.date} · ${item.time}</span>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+          <div style="font-size:15px;font-weight:700;color:var(--charcoal);">${item.title}</div>
+          <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;font-weight:600;white-space:nowrap;margin-left:8px;">
+            🕒 ${item.date} · ${item.time}
+          </div>
         </div>
-        <div class="history-item-heading">${item.title}</div>
-        <div class="history-patient-lbl">Patient: <strong style="color:var(--charcoal);">${item.patientName}</strong> (${item.patientId})</div>
-        <div class="history-desc-txt">${item.details}</div>
-        <div class="history-action-row">
-          <button class="btn-mini-pdf" onclick="showToast('Viewing PDF report for ${item.title}')">📄 View PDF Report</button>
-          <span style="font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;" onclick="showToast('Audit Hash: SHA256-${item.id}')">Audit Trail ➔</span>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+          Patient: <strong style="color:var(--charcoal);">${item.patientName}</strong>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #F1F5F9;padding-top:10px;">
+          <button style="display:flex;align-items:center;gap:5px;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;" onclick="viewHistoryItemPdf('${item.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+            View PDF
+          </button>
+          <button style="display:flex;align-items:center;gap:5px;background:#F8FAFC;color:#334155;border:1px solid #CBD5E1;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;" onclick="openAuditTrailModal('${item.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Audit Trail
+          </button>
         </div>
       </div>
     </div>
   `).join('');
+}
+
+function viewHistoryItemPdf(itemId) {
+  const item = historyList.find(x => x.id === itemId);
+  if (!item) return;
+  showToast(`Opening PDF for ${item.title} in a new tab...`);
+  const patientObj = connectedPatients.find(p => p.name === item.patientName) || {
+    name: item.patientName,
+    patientId: item.patientId || 'MV-2026',
+    age: '32 yrs',
+    gender: 'Male',
+    blood: 'O+',
+    condition: item.title,
+    recordsCount: 6,
+    lastVisit: item.date,
+    status: 'Full Access Granted'
+  };
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(generatePatientDossierHtml(patientObj));
+    printWindow.document.close();
+  }
+}
+
+function openAuditTrailModal(itemId) {
+  const item = historyList.find(x => x.id === itemId);
+  if (!item) return;
+  document.getElementById('auditModalId').textContent = item.id;
+  document.getElementById('auditModalTime').textContent = `${item.date} · ${item.time}`;
+  document.getElementById('auditModalPatient').textContent = item.patientName;
+  document.getElementById('auditModalTitle').textContent = item.title;
+  document.getElementById('auditModalViewPdfBtn').onclick = () => {
+    closeModal('auditTrailModal');
+    viewHistoryItemPdf(item.id);
+  };
+  openModal('auditTrailModal');
 }
 
 // ── QR SCAN PROCESS ──

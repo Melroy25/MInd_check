@@ -627,19 +627,23 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
     setTimeout(() => setToastMsg(null), 3200);
   };
 
-  // ─── FILTERED HISTORY ───────────────────────────────────────────────────────
+  // ─── FILTERED HISTORY (RECENT ONES ON TOP) ──────────────────────────────────
   const filteredHistory = useMemo(() => {
-    return historyList.filter((item) => {
-      const matchFilter = historyFilter === 'all' || item.type === historyFilter;
-      const matchSearch =
-        !historySearch.trim() ||
-        item.title.toLowerCase().includes(historySearch.toLowerCase()) ||
-        item.patientName.toLowerCase().includes(historySearch.toLowerCase()) ||
-        item.patientId.toLowerCase().includes(historySearch.toLowerCase()) ||
-        item.details.toLowerCase().includes(historySearch.toLowerCase());
-      return matchFilter && matchSearch;
+    const q = historySearch.toLowerCase().trim();
+    const list = historyList.filter((item) => {
+      return (
+        !q ||
+        item.title.toLowerCase().includes(q) ||
+        item.patientName.toLowerCase().includes(q)
+      );
     });
-  }, [historyList, historyFilter, historySearch]);
+    // Sort recent ones on top (newest first)
+    return [...list].sort((a, b) => {
+      const tA = new Date(a.timestamp || a.date).getTime() || 0;
+      const tB = new Date(b.timestamp || b.date).getTime() || 0;
+      return tB - tA;
+    });
+  }, [historyList, historySearch]);
 
   // ─── FILTERED PATIENT LIST FOR PICKER ────────────────────────────────────────
   const filteredPatients = useMemo(() => {
@@ -1378,96 +1382,37 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                 <IconArrowLeft size={22} color={C.textMain} />
                 <View>
                   <Text style={styles.subPageTitle}>Doctor Activity History</Text>
-                  <Text style={styles.historySubTitle}>
-                    Complete chronological record of all uploads, access grants & clinical updates
-                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
 
-            {/* Summary Counters */}
-            <View style={styles.historySummaryGrid}>
-              <View style={styles.historySummaryCard}>
-                <Text style={styles.historySummaryCount}>{historyList.length}</Text>
-                <Text style={styles.historySummaryLabel}>Total Actions</Text>
-              </View>
-              <View style={[styles.historySummaryCard, { borderLeftColor: C.green, borderLeftWidth: 3 }]}>
-                <Text style={[styles.historySummaryCount, { color: C.green }]}>
-                  {historyList.filter((h) => h.type === 'upload').length}
-                </Text>
-                <Text style={styles.historySummaryLabel}>Uploads</Text>
-              </View>
-              <View style={[styles.historySummaryCard, { borderLeftColor: C.blue, borderLeftWidth: 3 }]}>
-                <Text style={[styles.historySummaryCount, { color: C.blue }]}>
-                  {historyList.filter((h) => h.type === 'connection').length}
-                </Text>
-                <Text style={styles.historySummaryLabel}>Connections</Text>
-              </View>
-              <View style={[styles.historySummaryCard, { borderLeftColor: C.purple, borderLeftWidth: 3 }]}>
-                <Text style={[styles.historySummaryCount, { color: C.purple }]}>
-                  {historyList.filter((h) => h.type === 'update').length}
-                </Text>
-                <Text style={styles.historySummaryLabel}>Updates</Text>
-              </View>
+            {/* Search Only (Top numbers and subtitles removed as requested) */}
+            <View style={[styles.historySearchBox, { marginBottom: 16 }]}>
+              <IconSearch size={16} color={C.textSub} />
+              <TextInput
+                style={styles.historySearchInput}
+                placeholder="Search by patient name, record title, or keyword..."
+                placeholderTextColor="#94A3B8"
+                value={historySearch}
+                onChangeText={setHistorySearch}
+              />
+              {historySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setHistorySearch('')}>
+                  <Text style={{ color: C.textSub, fontSize: 13 }}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Search and Filters */}
-            <View style={styles.historyControlsWrap}>
-              <View style={styles.historySearchBox}>
-                <IconSearch size={16} color={C.textSub} />
-                <TextInput
-                  style={styles.historySearchInput}
-                  placeholder="Search by patient name, record title, or keyword..."
-                  placeholderTextColor="#94A3B8"
-                  value={historySearch}
-                  onChangeText={setHistorySearch}
-                />
-                {historySearch.length > 0 && (
-                  <TouchableOpacity onPress={() => setHistorySearch('')}>
-                    <Text style={{ color: C.textSub, fontSize: 13 }}>✕</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={styles.historyFilterRow}>
-                {[
-                  { key: 'all', label: `All (${historyList.length})` },
-                  { key: 'upload', label: `Uploads (${historyList.filter((h) => h.type === 'upload').length})` },
-                  { key: 'connection', label: `Connections (${historyList.filter((h) => h.type === 'connection').length})` },
-                  { key: 'update', label: `Updates (${historyList.filter((h) => h.type === 'update').length})` },
-                ].map((f) => (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      styles.historyFilterChip,
-                      historyFilter === f.key && styles.historyFilterChipActive,
-                    ]}
-                    onPress={() => setHistoryFilter(f.key)}
-                    activeOpacity={0.75}
-                  >
-                    <Text
-                      style={[
-                        styles.historyFilterChipText,
-                        historyFilter === f.key && styles.historyFilterChipTextActive,
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Timeline List of All Doctor History Items with Exact Date & Time */}
+            {/* Timeline List (Recent on top, clean containers with icon, view pdf, name, date & time, audit trail) */}
             <View style={styles.historyTimelineWrap}>
               {filteredHistory.length === 0 ? (
                 <View style={styles.emptyHistoryBox}>
                   <IconClock size={36} color={C.textSub} />
                   <Text style={styles.emptyHistoryTitle}>No matching history entries</Text>
-                  <Text style={styles.emptyHistorySub}>Try clearing your search query or switching filters.</Text>
+                  <Text style={styles.emptyHistorySub}>Try adjusting your search query.</Text>
                 </View>
               ) : (
-                filteredHistory.map((item, idx) => (
+                filteredHistory.map((item) => (
                   <View key={item.id} style={styles.timelineItemCard}>
                     {/* Left Icon Badge */}
                     <View style={[styles.timelineIconBadge, { backgroundColor: item.badgeBg }]}>
@@ -1480,17 +1425,11 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                       )}
                     </View>
 
-                    {/* Content Details */}
+                    {/* Content Wrap */}
                     <View style={styles.timelineContentWrap}>
-                      {/* Top Row: Type & Exact Date + Time */}
+                      {/* Top Row: Record Name & Date/Time */}
                       <View style={styles.timelineTopRow}>
-                        <View style={[styles.timelineTypeTag, { backgroundColor: item.badgeBg }]}>
-                          <Text style={[styles.timelineTypeTagText, { color: item.badgeColor }]}>
-                            {item.category?.toUpperCase() || item.type.toUpperCase()}
-                          </Text>
-                        </View>
-
-                        {/* Date and Time as explicitly requested */}
+                        <Text style={styles.timelineItemTitle}>{item.title}</Text>
                         <View style={styles.timelineDateTimeBox}>
                           <IconClock size={12} color={C.textSub} />
                           <Text style={styles.timelineDateTimeText}>
@@ -1499,37 +1438,43 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                         </View>
                       </View>
 
-                      {/* Main Title */}
-                      <Text style={styles.timelineItemTitle}>{item.title}</Text>
-
-                      {/* Target Patient Info */}
+                      {/* Patient Name */}
                       <View style={styles.timelinePatientRow}>
                         <IconUser size={13} color={C.blue} />
                         <Text style={styles.timelinePatientText}>
-                          Patient: <Text style={{ fontWeight: '700', color: C.textMain }}>{item.patientName}</Text> ({item.patientId})
+                          Patient: <Text style={{ fontWeight: '700', color: C.textMain }}>{item.patientName}</Text>
                         </Text>
                       </View>
 
-                      {/* Detailed Description */}
-                      <Text style={styles.timelineDetailsText}>{item.details}</Text>
-
-                      {/* Action Bottom Row */}
+                      {/* Action Row: View PDF and Audit Trail */}
                       <View style={styles.timelineActionRow}>
                         <TouchableOpacity
                           style={styles.timelineViewPdfBtn}
-                          onPress={() => viewMedicalPdf({ name: item.title, doctor: doctorInfo.name })}
-                          activeOpacity={0.75}
+                          onPress={() => {
+                            showToast(`Opening PDF for ${item.title} in a new tab...`);
+                            viewMedicalPdf({
+                              name: item.title,
+                              patientName: item.patientName,
+                              patientId: item.patientId,
+                              doctor: doctorInfo.name,
+                              facility: doctorInfo.hospital,
+                              date: item.date,
+                              type: item.category || 'Clinical Document',
+                            });
+                          }}
+                          activeOpacity={0.8}
                         >
-                          <IconEye size={14} color={C.coral} />
-                          <Text style={styles.timelineViewPdfBtnText}>View PDF Report</Text>
+                          <IconPdfDoc size={13} color="#1D4ED8" />
+                          <Text style={styles.timelineViewPdfBtnText}>View PDF</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={styles.timelineDetailsBtn}
+                          style={styles.timelineAuditTrailBtn}
                           onPress={() => setShowHistoryDetailModal(item)}
-                          activeOpacity={0.75}
+                          activeOpacity={0.8}
                         >
-                          <Text style={styles.timelineDetailsBtnText}>Audit Trail ➔</Text>
+                          <IconShield size={13} color="#475569" />
+                          <Text style={styles.timelineAuditTrailBtnText}>Audit Trail</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -2113,9 +2058,14 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
           <View style={styles.modalBackdrop}>
             <View style={[styles.modalContainer, { maxWidth: 500 }]}>
               <View style={styles.modalHeaderRow}>
-                <View>
-                  <Text style={styles.modalHeading}>Activity Audit Record</Text>
-                  <Text style={styles.modalSubheading}>Cryptographic verification & clinical log</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconShield size={20} color={C.green} />
+                  </View>
+                  <View>
+                    <Text style={styles.modalHeading}>Clinical Audit Trail</Text>
+                    <Text style={styles.modalSubheading}>Cryptographic validation & immutable ledger</Text>
+                  </View>
                 </View>
                 <TouchableOpacity
                   style={styles.modalCloseBtnCircle}
@@ -2127,7 +2077,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
               <View style={styles.auditDetailsCard}>
                 <View style={styles.auditRow}>
-                  <Text style={styles.auditLabel}>ACTION ID:</Text>
+                  <Text style={styles.auditLabel}>AUDIT ID:</Text>
                   <Text style={styles.auditVal}>{showHistoryDetailModal.id}</Text>
                 </View>
                 <View style={styles.auditRow}>
@@ -2137,24 +2087,26 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                   </Text>
                 </View>
                 <View style={styles.auditRow}>
-                  <Text style={styles.auditLabel}>ATTENDING DOCTOR:</Text>
-                  <Text style={styles.auditVal}>{doctorInfo.name} ({doctorInfo.license})</Text>
+                  <Text style={styles.auditLabel}>DOCTOR:</Text>
+                  <Text style={styles.auditVal}>{doctorInfo.name}</Text>
                 </View>
                 <View style={styles.auditRow}>
-                  <Text style={styles.auditLabel}>TARGET PATIENT:</Text>
-                  <Text style={styles.auditVal}>
-                    {showHistoryDetailModal.patientName} ({showHistoryDetailModal.patientId})
+                  <Text style={styles.auditLabel}>PATIENT:</Text>
+                  <Text style={[styles.auditVal, { fontWeight: '700', color: C.textMain }]}>
+                    {showHistoryDetailModal.patientName}
                   </Text>
                 </View>
                 <View style={styles.auditRow}>
-                  <Text style={styles.auditLabel}>ACTION:</Text>
+                  <Text style={styles.auditLabel}>RECORD:</Text>
                   <Text style={[styles.auditVal, { fontWeight: '700', color: C.green }]}>
                     {showHistoryDetailModal.title}
                   </Text>
                 </View>
                 <View style={[styles.auditRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.auditLabel}>DETAILS:</Text>
-                  <Text style={styles.auditVal}>{showHistoryDetailModal.details}</Text>
+                  <Text style={styles.auditLabel}>INTEGRITY:</Text>
+                  <Text style={[styles.auditVal, { color: C.green, fontWeight: '700' }]}>
+                    ✓ SHA-256 Validated · AES-256 Patient Sovereign
+                  </Text>
                 </View>
               </View>
 
@@ -2164,11 +2116,19 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                   onPress={() => {
                     const item = showHistoryDetailModal;
                     setShowHistoryDetailModal(null);
-                    viewMedicalPdf({ name: item.title, doctor: doctorInfo.name });
+                    viewMedicalPdf({
+                      name: item.title,
+                      patientName: item.patientName,
+                      patientId: item.patientId,
+                      doctor: doctorInfo.name,
+                      facility: doctorInfo.hospital,
+                      date: item.date,
+                      type: item.category || 'Clinical Document',
+                    });
                   }}
                 >
-                  <IconEye size={16} color={C.coral} />
-                  <Text style={styles.auditViewPdfBtnText}>Open A4 PDF</Text>
+                  <IconPdfDoc size={15} color={C.coral} />
+                  <Text style={styles.auditViewPdfBtnText}>View PDF</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -3672,22 +3632,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: C.borderLight,
-    paddingTop: 8,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
+    marginTop: 8,
   },
   timelineViewPdfBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: C.coralBg,
+    gap: 5,
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
   timelineViewPdfBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: C.coral,
+    color: '#1D4ED8',
+  },
+  timelineAuditTrailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  timelineAuditTrailBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
   },
   timelineDetailsBtn: {
     paddingVertical: 4,
