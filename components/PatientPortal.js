@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
+import QRCode from 'react-native-qrcode-svg';
 import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64, audioRecorder } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 
@@ -2371,33 +2372,23 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
               Scan this QR code with any smartphone or hospital scanner to instantly open Melroy Almeida's verified Emergency Medical Summary PDF.
             </Text>
 
-            {/* High Contrast QR Code SVG */}
-            <View style={styles.qrSvgWrap}>
-              <Svg width={180} height={180} viewBox="0 0 100 100">
-                <Rect x="0" y="0" width="100" height="100" fill="white" />
-                <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
-                <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                <Rect x="67" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                <Rect x="71" y="9" width="20" height="20" fill="white" rx="2" />
-                <Rect x="75" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                <Rect x="5" y="67" width="28" height="28" fill="#0F172A" rx="4" />
-                <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
-                <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
-
-                <Rect x="42" y="8" width="6" height="18" fill="#16A34A" />
-                <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
-                <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
-                <Rect x="40" y="40" width="20" height="20" fill="#16A34A" rx="4" />
-                <Rect x="45" y="45" width="10" height="10" fill="white" rx="2" />
-                <Rect x="68" y="42" width="14" height="6" fill="#0F172A" />
-                <Rect x="42" y="68" width="6" height="18" fill="#0F172A" />
-                <Rect x="54" y="72" width="14" height="8" fill="#16A34A" />
-                <Rect x="74" y="68" width="18" height="6" fill="#0F172A" />
-                <Rect x="78" y="78" width="12" height="12" fill="#0F172A" />
-              </Svg>
+            {/* High Contrast Dynamic QR Code */}
+            <View style={[styles.qrSvgWrap, { padding: 14, backgroundColor: '#FFFFFF', borderRadius: 16 }]}>
+              <QRCode
+                value={JSON.stringify({
+                  app: 'MedFlow',
+                  type: 'emergency_summary',
+                  patient: patientInfo.name,
+                  vaultId: patientInfo.vaultId,
+                  bloodType: patientInfo.bloodType,
+                  doctor: patientInfo.attendingDoctor,
+                  emergencyContact: patientInfo.emergencyContact,
+                  timestamp: Date.now(),
+                })}
+                size={160}
+                color="#0F172A"
+                backgroundColor="#FFFFFF"
+              />
             </View>
 
             <View style={styles.qrActionBtnRow}>
@@ -3244,33 +3235,24 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                       {inviteCode}
                     </Text>
 
-                    {/* One-Time QR Code SVG */}
-                    <View style={styles.oneTimeQrWrap}>
-                      <Svg width={130} height={130} viewBox="0 0 100 100">
-                        <Rect x="0" y="0" width="100" height="100" fill="white" />
-                        <Rect x="5" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                        <Rect x="9" y="9" width="20" height="20" fill="white" rx="2" />
-                        <Rect x="13" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                        <Rect x="67" y="5" width="28" height="28" fill="#0F172A" rx="4" />
-                        <Rect x="71" y="9" width="20" height="20" fill="white" rx="2" />
-                        <Rect x="75" y="13" width="12" height="12" fill="#0F172A" rx="1" />
-
-                        <Rect x="5" y="67" width="28" height="28" fill="#0F172A" rx="4" />
-                        <Rect x="9" y="71" width="20" height="20" fill="white" rx="2" />
-                        <Rect x="13" y="75" width="12" height="12" fill="#0F172A" rx="1" />
-
-                        <Rect x="42" y="8" width="6" height="18" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} />
-                        <Rect x="52" y="14" width="8" height="8" fill="#0F172A" />
-                        <Rect x="8" y="42" width="18" height="6" fill="#0F172A" />
-                        <Rect x="40" y="40" width="20" height="20" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} rx="4" />
-                        <Rect x="45" y="45" width="10" height="10" fill="white" rx="2" />
-                        <Rect x="68" y="42" width="14" height="6" fill="#0F172A" />
-                        <Rect x="42" y="68" width="6" height="18" fill="#0F172A" />
-                        <Rect x="54" y="72" width="14" height="8" fill={shareCodeCategory === 'caretaker' ? C.green : (shareCodeCategory === 'clinical' ? C.purple : '#2563EB')} />
-                        <Rect x="74" y="68" width="18" height="6" fill="#0F172A" />
-                        <Rect x="78" y="78" width="12" height="12" fill="#0F172A" />
-                      </Svg>
+                    {/* Dynamic One-Time QR Code */}
+                    <View style={[styles.oneTimeQrWrap, { padding: 12, backgroundColor: '#FFFFFF', borderRadius: 16 }]}>
+                      <QRCode
+                        value={JSON.stringify({
+                          app: 'MedFlow',
+                          type: 'consent_token',
+                          token: inviteCode,
+                          category: shareCodeCategory,
+                          patientId: 'p1',
+                          patientName: patientInfo.name,
+                          scopes: shareCodeCategory === 'caretaker' ? caretakerPerms : ['view_records'],
+                          expiry: shareCodeCategory === 'caretaker' ? caretakerExpiry : '30 Days',
+                          timestamp: Date.now(),
+                        })}
+                        size={130}
+                        color="#0F172A"
+                        backgroundColor="#FFFFFF"
+                      />
                       <View style={styles.oneTimeQrBadge}>
                         <Text style={styles.oneTimeQrBadgeText}>One-Time QR · Single Use Only</Text>
                       </View>
