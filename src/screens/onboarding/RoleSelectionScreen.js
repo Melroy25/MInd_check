@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Image, SafeAreaView,
 } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ const T = {
   primary: '#16A34A',
   accent:  '#F0FDF4',
   slate:   '#0F172A',
-  muted:   '#64748B',
+  muted:   '#475569',
   white:   '#FFFFFF',
   border:  '#CBD5E1',
   borderLight: '#F1F5F9',
@@ -45,7 +45,7 @@ function ArrowRightIcon({ size = 18, color = T.white }) {
   );
 }
 
-// ─── Role Definitions ─────────────────────────────────────────────────────────
+// ─── Role Definitions (Concise, punchy content) ──────────────────────────────
 const ROLES = [
   {
     id: 'patient',
@@ -55,7 +55,7 @@ const ROLES = [
     borderCol: '#DCFCE7',
     image: require('../../../assets/role_patient.png'),
     description:
-      'Take full sovereign ownership of your lifelong clinical history. Securely upload lab reports, record voice notes, and grant temporary QR access to healthcare providers on your terms.',
+      'Sovereign health vault to upload records and share one-time QR access with doctors.',
   },
   {
     id: 'doctor',
@@ -65,7 +65,7 @@ const ROLES = [
     borderCol: '#DBEAFE',
     image: require('../../../assets/role_doctor.png'),
     description:
-      'Instantly inspect patient-approved health timelines and Gemini-extracted clinical panels. Verify drug interactions and review lab biomarkers with high accuracy and zero paperwork friction.',
+      'Inspect verified patient health records, lab panels, and consult history instantly.',
   },
   {
     id: 'caretaker',
@@ -75,7 +75,7 @@ const ROLES = [
     borderCol: '#EDE9FE',
     image: require('../../../assets/role_caretaker.png'),
     description:
-      'Stay connected with daily medication checklists, emergency SOS alerts, and vital medical history access for elderly parents or family members under your continuous care.',
+      'Track medication schedules, receive care alerts, and access emergency records.',
   },
 ];
 
@@ -96,7 +96,7 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Top Header with Back Button (ad back option on top) ── */}
+        {/* ── Top Header with Back Button ── */}
         <View style={s.topNavRow}>
           <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.75}>
             <BackIcon size={20} color={T.slate} />
@@ -117,7 +117,7 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
           <Text style={s.promptSub}>Select your primary access mode to continue</Text>
         </View>
 
-        {/* ── Role Cards with Image Banner & Descriptive Text (No Keywords) ── */}
+        {/* ── Role Cards with Fixed Picture & Bigger Text ── */}
         <View style={s.cardsContainer}>
           {ROLES.map((role) => {
             const isSelected = selected === role.id;
@@ -128,11 +128,11 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
                 activeOpacity={0.88}
                 onPress={() => setSelected(role.id)}
               >
-                {/* Banner Image inside box header */}
+                {/* Banner Image inside box with generous height */}
                 <View style={s.roleBannerWrap}>
                   <Image source={role.image} style={s.roleBannerImg} resizeMode="cover" />
                   <LinearGradient
-                    colors={['transparent', 'rgba(15,23,42,0.45)']}
+                    colors={['transparent', 'rgba(15,23,42,0.4)']}
                     style={StyleSheet.absoluteFillObject}
                   />
 
@@ -149,7 +149,7 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
                   )}
                 </View>
 
-                {/* Card Content with explanatory sentence */}
+                {/* Card Content with bigger font and concise description */}
                 <View style={s.cardBody}>
                   <Text style={[s.roleLabel, { color: role.color }]}>
                     {role.label} Portal
@@ -186,7 +186,14 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.bg },
   scroll: { flex: 1 },
-  container: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxWidth: 520,
+    width: '100%',
+    alignSelf: 'center',
+  },
 
   /* Top Nav with Back Option */
   topNavRow: {
@@ -213,13 +220,13 @@ const s = StyleSheet.create({
 
   promptBlock: { alignItems: 'center', marginBottom: 20 },
   promptTitle: { fontSize: 24, fontWeight: '800', color: T.slate, textAlign: 'center' },
-  promptSub: { fontSize: 13.5, color: T.muted, marginTop: 4, textAlign: 'center' },
+  promptSub: { fontSize: 14, color: T.muted, marginTop: 4, textAlign: 'center' },
 
   cardsContainer: { gap: 16, marginBottom: 24 },
 
   card: {
     backgroundColor: T.white,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: T.border,
     overflow: 'hidden',
@@ -239,7 +246,7 @@ const s = StyleSheet.create({
 
   roleBannerWrap: {
     width: '100%',
-    height: 130,
+    height: 180,
     position: 'relative',
     backgroundColor: '#F1F5F9',
   },
@@ -278,17 +285,19 @@ const s = StyleSheet.create({
   },
 
   cardBody: {
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
   roleLabel: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     marginBottom: 6,
   },
   roleDesc: {
-    fontSize: 13,
+    fontSize: 15,
     color: T.muted,
-    lineHeight: 19.5,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 
   ctaBtn: {
@@ -311,5 +320,5 @@ const s = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
-  ctaBtnText: { fontSize: 15.5, fontWeight: '700', color: T.white },
+  ctaBtnText: { fontSize: 16, fontWeight: '700', color: T.white },
 });

@@ -17,7 +17,7 @@ const C = {
   bg:         '#F8FAFC',
   white:      '#FFFFFF',
   slate:      '#0F172A',
-  muted:      '#64748B',
+  muted:      '#475569',
   mutedLight: '#94A3B8',
   border:     '#E2E8F0',
   borderLight:'#F1F5F9',
@@ -36,24 +36,24 @@ const IcArrowRight = ({ s = 16, c = '#fff' }) => (
     <Path d="M5 12h14M12 5l7 7-7 7"/>
   </Svg>
 );
-const IcUser = ({ s = 16, c = '#fff' }) => (
+const IcUser = ({ s = 15, c = '#fff' }) => (
   <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><Circle cx="12" cy="7" r="4"/>
   </Svg>
 );
-const IcPulse = ({ s = 16, c = '#fff' }) => (
+const IcPulse = ({ s = 15, c = '#fff' }) => (
   <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
   </Svg>
 );
-const IcGroup = ({ s = 16, c = '#fff' }) => (
+const IcGroup = ({ s = 15, c = '#fff' }) => (
   <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><Circle cx="9" cy="7" r="4"/>
     <Path d="M23 21v-2a4 4 0 0 0-3-3.87"/><Path d="M16 3.13a4 4 0 0 1 0 7.75"/>
   </Svg>
 );
 
-// ─── ROLE CARDS DATA ──────────────────────────────────────────────────────────
+// ─── ROLE CARDS DATA (Concise, punchy content) ──────────────────────────────
 const ROLES = [
   {
     Icon: IcUser,
@@ -62,7 +62,7 @@ const ROLES = [
     lightBg: '#F0FDF4',
     image: require('../../../assets/role_patient.png'),
     description:
-      'Take full sovereign ownership of your lifelong clinical history. Securely upload lab reports, record audio notes, and grant temporary QR access to healthcare providers on your terms.',
+      'Sovereign health vault to upload records and share one-time QR access with doctors.',
   },
   {
     Icon: IcPulse,
@@ -71,7 +71,7 @@ const ROLES = [
     lightBg: '#EFF6FF',
     image: require('../../../assets/role_doctor.png'),
     description:
-      'Instantly inspect patient-approved health timelines and Gemini-extracted clinical panels. Verify drug interactions and review lab biomarkers with high accuracy and zero paperwork friction.',
+      'Inspect verified patient health records, lab panels, and consult history instantly.',
   },
   {
     Icon: IcGroup,
@@ -80,7 +80,7 @@ const ROLES = [
     lightBg: '#F5F3FF',
     image: require('../../../assets/role_caretaker.png'),
     description:
-      'Stay connected with daily medication checklists, emergency SOS alerts, and vital medical history access for elderly parents or family members under your continuous care.',
+      'Track medication schedules, receive care alerts, and access emergency records.',
   },
 ];
 
@@ -151,7 +151,7 @@ export default function LandingScreen({ onExplore, onSignIn }) {
                 <View style={st.roleBannerWrap}>
                   <Image source={r.image} style={st.roleBannerImg} resizeMode="cover" />
                   <LinearGradient
-                    colors={['transparent', 'rgba(15,23,42,0.45)']}
+                    colors={['transparent', 'rgba(15,23,42,0.4)']}
                     style={StyleSheet.absoluteFillObject}
                   />
                   <View style={[st.roleBannerBadge, { backgroundColor: r.color }]}>
@@ -160,7 +160,7 @@ export default function LandingScreen({ onExplore, onSignIn }) {
                   </View>
                 </View>
 
-                {/* Card Content with Full Explanatory Sentences (No keywords) */}
+                {/* Card Content with bigger font and concise description */}
                 <View style={st.roleCardBody}>
                   <Text style={[st.roleName, { color: r.color }]}>{r.title} Portal</Text>
                   <Text style={st.roleDescriptionSentence}>{r.description}</Text>
@@ -317,7 +317,7 @@ const st = StyleSheet.create({
 
   roleCard: {
     backgroundColor: C.white,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1.5,
     borderColor: C.border,
     overflow: 'hidden',
@@ -332,7 +332,7 @@ const st = StyleSheet.create({
   },
   roleBannerWrap: {
     width: '100%',
-    height: 140,
+    height: 180,
     position: 'relative',
     backgroundColor: '#F1F5F9',
   },
@@ -358,17 +358,19 @@ const st = StyleSheet.create({
   },
 
   roleCardBody: {
-    padding: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
   roleName: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   roleDescriptionSentence: {
-    fontSize: 13.5,
+    fontSize: 15,
     color: C.muted,
-    lineHeight: 21,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 
   /* Footer */
