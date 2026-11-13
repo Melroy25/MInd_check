@@ -3063,40 +3063,90 @@ Guidelines:
         </View>
       </Modal>
 
-      {/* ── STRUCTURED JSON VIEWER MODAL ─────────────────────────────────── */}
+      {/* ── STRUCTURED JSON VIEWER MODAL (EXPANDED & HIGH LEGIBILITY) ─────── */}
       <Modal visible={!!selectedJsonModal} transparent animationType="fade" onRequestClose={() => setSelectedJsonModal(null)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
+          <View style={styles.jsonModalContainer}>
             <View style={styles.modalHeaderRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <IconJson size={18} color={C.amber} />
-                <Text style={styles.modalTitle}>Structured Clinical JSON</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconJson size={20} color="#D97706" />
+                </View>
+                <View>
+                  <Text style={[styles.modalTitle, { fontSize: 18, fontWeight: '800' }]}>Structured Clinical JSON</Text>
+                  <Text style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>Verified clinical schema payload</Text>
+                </View>
               </View>
-              <TouchableOpacity onPress={() => setSelectedJsonModal(null)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#F1F5F9',
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                  }}
+                  onPress={() => {
+                    const str = JSON.stringify(selectedJsonModal, null, 2);
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(str);
+                    }
+                    showToastMsg('JSON copied to clipboard!');
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: C.textMain }}>Copy JSON</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: '#F1F5F9',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onPress={() => setSelectedJsonModal(null)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSub }}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
               {selectedJsonModal?.summary && (
-                <Text style={styles.extractedSummaryText}>{selectedJsonModal.summary}</Text>
+                <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: C.textSub, textTransform: 'uppercase', marginBottom: 4 }}>Clinical Summary</Text>
+                  <Text style={{ fontSize: 13, color: C.textMain, lineHeight: 18 }}>{selectedJsonModal.summary}</Text>
+                </View>
               )}
 
-              {selectedJsonModal?.lab_results && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={styles.findingHeading}>Lab Results</Text>
+              {selectedJsonModal?.lab_results && Array.isArray(selectedJsonModal.lab_results) && selectedJsonModal.lab_results.length > 0 && (
+                <View style={{ marginBottom: 12, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: C.textSub, textTransform: 'uppercase', marginBottom: 6 }}>Extracted Lab Findings ({selectedJsonModal.lab_results.length})</Text>
                   {selectedJsonModal.lab_results.map((l, idx) => (
                     <View key={idx} style={styles.jsonLabRow}>
-                      <Text style={styles.jsonLabName}>{l.test_name}</Text>
-                      <Text style={styles.jsonLabVal}>{l.value} {l.unit} ({l.flag || 'normal'})</Text>
+                      <Text style={[styles.jsonLabName, { fontSize: 13, fontWeight: '600' }]}>{l.test_name}</Text>
+                      <Text style={[styles.jsonLabVal, { fontSize: 13, fontWeight: '700', color: l.flag === 'High' ? '#DC2626' : l.flag === 'Low' ? '#D97706' : '#16A34A' }]}>
+                        {l.value} {l.unit} [{l.flag || 'Normal'}]
+                      </Text>
                     </View>
                   ))}
                 </View>
               )}
 
-              <Text style={[styles.findingHeading, { marginTop: 14 }]}>Raw Schema Payload</Text>
-              <ScrollView style={styles.rawJsonBox} horizontal>
-                <Text style={styles.rawJsonCode}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 8 }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  RAW SCHEMA PAYLOAD
+                </Text>
+                <Text style={{ fontSize: 11.5, color: '#94A3B8' }}>
+                  Formatted JSON
+                </Text>
+              </View>
+              <ScrollView style={styles.rawJsonBox} horizontal showsHorizontalScrollIndicator={true}>
+                <Text style={styles.rawJsonCode} selectable={true}>
                   {JSON.stringify(selectedJsonModal, null, 2)}
                 </Text>
               </ScrollView>
@@ -5513,16 +5563,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.textSub,
   },
+  jsonModalContainer: {
+    width: '94%',
+    maxWidth: 820,
+    maxHeight: '92%',
+    backgroundColor: C.white,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 36,
+    elevation: 16,
+  },
   rawJsonBox: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 10,
-    maxHeight: 160,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 18,
+    minHeight: 320,
+    maxHeight: 520,
   },
   rawJsonCode: {
     color: '#38BDF8',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 11,
+    fontSize: 13.5,
+    lineHeight: 22,
+    letterSpacing: 0.3,
   },
 
   /* Toast */
