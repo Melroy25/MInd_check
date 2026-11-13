@@ -13,6 +13,7 @@ import { storageService } from '../services/storageService';
 import { callGrok } from '../services/grokClient';
 import { updateUserProfile } from '../services/supabase/authService';
 import AiHealthChatbot from './AiHealthChatbot';
+import PdfReportStudio from './PdfReportStudio';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -2355,87 +2356,16 @@ Guidelines:
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 5: PDF REPORT (INSTANT A4 MEDICAL SUMMARY)                    */}
+        {/* VIEW 5: PDF REPORT (CLINICAL REPORT STUDIO & PRIVACY REDACTION)    */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'pdf-report' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>PDF Report</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.pageSub}>Official MediVault ISO-standard PDF 1.4 clinical summary.</Text>
-
-            {/* Report Card Preview */}
-            <View style={styles.reportPreviewCard}>
-              <View style={styles.reportCardTop}>
-                <View style={styles.reportIconCircle}>
-                  <IconPdfDoc size={32} color={C.coral} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.reportDocTitle}>Consolidated Sovereign Health Record</Text>
-                  <Text style={styles.reportDocSub}>
-                    {currentAccountRole === 'benefactor'
-                      ? 'Sofia Almeida · Dependent Vault: MV-2026-DEP-304'
-                      : `Melroy Almeida · ID: ${patientInfo.vaultId}`}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.reportDetailsBox}>
-                <View style={styles.reportGridRow}>
-                  <View style={styles.reportGridItem}>
-                    <Text style={styles.reportGridLabel}>Blood Group</Text>
-                    <Text style={[styles.reportGridVal, { color: C.red }]}>
-                      {currentAccountRole === 'benefactor' ? 'B+ (Positive)' : patientInfo.bloodType}
-                    </Text>
-                  </View>
-                  <View style={styles.reportGridItem}>
-                    <Text style={styles.reportGridLabel}>Attending Physician</Text>
-                    <Text style={styles.reportGridVal}>
-                      {currentAccountRole === 'benefactor' ? 'Dr. Sarah Jenkins' : patientInfo.attendingDoctor}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[styles.reportGridRow, { marginTop: 12 }]}>
-                  <View style={styles.reportGridItem}>
-                    <Text style={styles.reportGridLabel}>Total Records</Text>
-                    <Text style={styles.reportGridVal}>{activeVaultFiles.length} Verified Documents</Text>
-                  </View>
-                  <View style={styles.reportGridItem}>
-                    <Text style={styles.reportGridLabel}>Encryption</Text>
-                    <Text style={[styles.reportGridVal, { color: C.green }]}>AES-256 GCM Sovereign</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={styles.reportActionRow}>
-                <TouchableOpacity
-                  style={styles.viewPdfActionBtn}
-                  onPress={() => viewMedicalPdf({ name: 'Consolidated Medical Record', doctor: patientInfo.attendingDoctor })}
-                >
-                  <IconEye size={18} color={C.coral} />
-                  <Text style={styles.viewPdfActionBtnText}>View A4 PDF</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.downloadPdfActionBtn}
-                  onPress={() => downloadMedicalPdf({ name: 'Consolidated Medical Record', doctor: patientInfo.attendingDoctor })}
-                >
-                  <LinearGradient
-                    colors={[C.coral, '#C2410C']}
-                    style={styles.gradientBtnInner}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <IconDownload size={18} color="white" />
-                    <Text style={styles.btnTextWhite}>Download PDF</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <PdfReportStudio
+              patientInfo={patientInfo}
+              files={activeVaultFiles}
+              onBack={() => setActiveTab('home')}
+              onViewSourceDoc={(doc) => handleViewDocument(doc)}
+            />
           </View>
         )}
 

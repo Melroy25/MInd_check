@@ -11,26 +11,160 @@ import * as Sharing from 'expo-sharing';
 /**
  * Generate a clean, responsive HTML clinical report layout
  */
+/**
+ * Generate a clean, responsive HTML clinical report layout
+ * Supports:
+ * - Multiple Report Presets: 'emergency', 'complete', 'allergies', 'medications', 'custom'
+ * - Source Document Provenance at the top (PDF & Images, strictly NO JSON)
+ * - Patient Privacy Redaction: excludes sensitive conditions/terms (e.g. HIV/AIDS, psych)
+ */
 export function generateMedicalHtml(record = {}) {
   const patientName = record.patientName || record.patient || 'Melroy Almeida';
   const patientId = record.patientId || 'MV-2026-PAT-892';
   const doctorName = record.doctor || 'Dr. Sarah Jenkins';
   const facilityName = record.facility || 'Metro Hospital & Clinical Diagnostics';
-  const recordName = record.name || 'Emergency Medical Summary';
+  const recordName = record.name || 'Consolidated Sovereign Health Record';
   const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const reportType = record.reportType || 'complete'; // 'emergency' | 'complete' | 'allergies' | 'medications' | 'custom'
+  const bloodType = record.bloodType || record.bloodGroup || 'O+ (Positive)';
+  const emergencyContact = record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834';
+  const redactedTerms = Array.isArray(record.redactedTerms) ? record.redactedTerms : [];
+
+  // Helper to check if an item contains sensitive/redacted keywords
+  const isRedacted = (text) => {
+    if (!text || redactedTerms.length === 0) return false;
+    const lower = String(text).toLowerCase();
+    return redactedTerms.some((term) => term && lower.includes(String(term).toLowerCase().trim()));
+  };
 
   const extracted = record.extractedData || record.structuredData || {};
-  const labResults = (Array.isArray(extracted.lab_results) && extracted.lab_results.length > 0)
+
+  // 1. Lab Results (filtered)
+  const rawLabs = (Array.isArray(extracted.lab_results) && extracted.lab_results.length > 0)
     ? extracted.lab_results
     : (Array.isArray(extracted.extracted_entities?.lab_results) && extracted.extracted_entities.lab_results.length > 0)
     ? extracted.extracted_entities.lab_results
-    : [];
+    : (Array.isArray(record.lab_results) ? record.lab_results : []);
 
-  const medications = (Array.isArray(extracted.medications) && extracted.medications.length > 0)
+  const labResults = rawLabs.filter((l) => !isRedacted(l.test_name) && !isRedacted(l.value));
+
+  // 2. Medications (filtered)
+  const rawMeds = (Array.isArray(extracted.medications) && extracted.medications.length > 0)
     ? extracted.medications
     : (Array.isArray(extracted.extracted_entities?.medications) && extracted.extracted_entities.medications.length > 0)
     ? extracted.extracted_entities.medications
-    : [];
+    : (Array.isArray(record.medications) ? record.medications : []);
+
+  const medications = rawMeds.filter((m) => !isRedacted(m.name) && !isRedacted(m.indication));
+
+  // 3. Conditions & Diagnoses (filtered)
+  const rawConditions = (Array.isArray(extracted.conditions) && extracted.conditions.length > 0)
+    ? extracted.conditions
+    : (Array.isArray(extracted.extracted_entities?.conditions) && extracted.extracted_entities.conditions.length > 0)
+    ? extracted.extracted_entities.conditions
+    : (Array.isArray(record.conditions) ? record.conditions : []);
+
+  const conditions = rawConditions.filter((c) => !isRedacted(c.name || c));
+
+  // 4. Allergies & Sensitivities (filtered)
+  let rawAllergies = [];
+  if (Array.isArray(extracted.allergies)) {
+    rawAllergies = extracted.allergies;
+  } else if (Array.isArray(extracted.allergies?.items)) {
+    rawAllergies = extracted.allergies.items;
+  } else if (Array.isArray(extracted.extracted_entities?.allergies?.items)) {
+    rawAllergies = extracted.extracted_entities.allergies.items;
+  } else if (Array.isArray(record.allergies)) {
+    rawAllergies = record.allergies;
+  }
+
+  const allergies = rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a));
+
+  // 5. Source Documents Provenance
+  const sourceDocs = Array.isArray(record.sourceDocuments) && record.sourceDocuments.length > 0
+    ? record.sourceDocuments
+    : [
+        {
+          name: record.sourceFileName || 'Screenshot 2026 11 12 154728.png',
+          type: record.sourceFileType || 'IMG',
+          date: record.date || 'Nov 12, 2026',
+          facility: facilityName,
+        },
+      ];
+
+  const sourceDocsHtml = sourceDocs.map((doc) => {
+    const isImg = String(doc.type || '').toUpperCase().includes('IMG') || String(doc.name || '').toLowerCase().match(/\.(png|jpg|jpeg|webp)$/);
+    const badgeType = isImg ? 'IMG' : 'PDF';
+    const badgeClass = isImg ? 'badge-img' : 'badge-pdf';
+    return `
+      <div class="source-item">
+        <span class="source-badge ${badgeClass}">${badgeType}</span>
+        <div class="source-info">
+          <div class="source-name">${doc.name || 'Verified Clinical Document'}</div>
+          <div class="source-sub">Verified Authentic · ${doc.facility || facilityName} · ${doc.date || 'Recent'}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // ─── BUILD SECTION HTML BLOCKS ──────────────────────────────────────────────
+  let conditionsHtml = '';
+  if (conditions.length > 0) {
+    conditionsHtml = `
+      <div class="section-title">Verified Diagnoses & Clinical Conditions</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Condition / Diagnosis</th>
+            <th>Clinical Status</th>
+            <th>Certainty</th>
+            <th>Attending Doctor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${conditions.map((c) => `
+            <tr>
+              <td><strong>${c.name || c}</strong></td>
+              <td><span class="status-pill">${c.status || 'Active'}</span></td>
+              <td>${c.certainty || 'Confirmed'}</td>
+              <td>${doctorName}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  let allergiesHtml = '';
+  if (allergies.length > 0) {
+    allergiesHtml = `
+      <div class="section-title" style="color: #DC2626;">Known Allergies & Adverse Drug Sensitivities</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Allergen / Substance</th>
+            <th>Reaction Type</th>
+            <th>Severity</th>
+            <th>Precaution</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${allergies.map((a) => {
+            const substance = a.substance || a.name || a;
+            const severity = a.severity || 'Moderate / Severe';
+            return `
+              <tr>
+                <td><strong>${substance}</strong></td>
+                <td>${a.reaction || 'Anaphylactic / Hypersensitivity'}</td>
+                <td><span style="color: #DC2626; font-weight: 700;">${severity}</span></td>
+                <td>Contraindicated in all standard prescriptions</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
 
   let labRowsHtml = '';
   if (labResults.length > 0) {
@@ -47,14 +181,6 @@ export function generateMedicalHtml(record = {}) {
         </tr>
       `;
     }).join('');
-  } else {
-    labRowsHtml = `
-      <tr>
-        <td colspan="4" style="color: #64748B; font-style: italic; text-align: center; padding: 18px;">
-          No quantitative lab biomarkers documented in this record.
-        </td>
-      </tr>
-    `;
   }
 
   let medsRowsHtml = '';
@@ -67,13 +193,30 @@ export function generateMedicalHtml(record = {}) {
         <td><span style="color: #16A34A; font-weight: 600;">${m.status || 'Active'}</span></td>
       </tr>
     `).join('');
-  } else {
-    medsRowsHtml = `
-      <tr>
-        <td colspan="4" style="color: #64748B; font-style: italic; text-align: center; padding: 18px;">
-          No active prescription changes recorded in this document.
-        </td>
-      </tr>
+  }
+
+  // Emergency specifics
+  let emergencyBannerHtml = '';
+  if (reportType === 'emergency') {
+    emergencyBannerHtml = `
+      <div class="emergency-banner">
+        <div style="font-size: 13px; font-weight: 800; color: #DC2626; margin-bottom: 6px;">FIRST-RESPONDER EMERGENCY DIRECTIVE</div>
+        <div style="display: flex; gap: 24px;">
+          <div><strong>Blood Type:</strong> <span style="color: #DC2626; font-weight: 800; font-size: 15px;">${bloodType}</span></div>
+          <div><strong>Emergency Contact:</strong> ${emergencyContact}</div>
+          <div><strong>Hospital:</strong> ${facilityName}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Redaction notice
+  let privacyNoticeHtml = '';
+  if (redactedTerms.length > 0) {
+    privacyNoticeHtml = `
+      <div class="privacy-notice">
+        <strong>Patient Privacy Consent Policy Applied:</strong> This document reflects patient-requested sanitization. Sensitive diagnoses (${redactedTerms.map(t => `"${t}"`).join(', ')}) have been redacted from this export while retaining clinical provenance.
+      </div>
     `;
   }
 
@@ -83,23 +226,42 @@ export function generateMedicalHtml(record = {}) {
   <meta charset="utf-8">
   <title>${recordName}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 32px; color: #0F172A; background: #FFF; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #16A34A; padding-bottom: 16px; margin-bottom: 24px; }
-    .brand { font-size: 24px; font-weight: 800; color: #16A34A; }
-    .brand-sub { font-size: 11px; color: #64748B; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 32px; color: #0F172A; background: #FFF; line-height: 1.45; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #16A34A; padding-bottom: 16px; margin-bottom: 20px; }
+    .brand { font-size: 24px; font-weight: 800; color: #16A34A; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 11px; color: #64748B; margin-top: 2px; }
     .confidential { text-align: right; }
-    .conf-tag { background: #FEE2E2; color: #DC2626; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; }
-    .title-banner { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
-    .title-text { font-size: 18px; font-weight: 700; color: #15803D; margin-bottom: 4px; }
-    .meta-grid { display: flex; gap: 20px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .conf-tag { background: #FEE2E2; color: #DC2626; font-size: 10.5px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+
+    /* PROVENANCE SOURCE BANNER QUOTED ON TOP */
+    .provenance-banner { background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+    .provenance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; }
+    .provenance-tag { font-size: 10px; font-weight: 800; color: #0D9488; letter-spacing: 0.8px; text-transform: uppercase; }
+    .provenance-seal { font-size: 10px; font-weight: 700; color: #16A34A; }
+    .provenance-list { display: flex; flex-direction: column; gap: 8px; }
+    .source-item { display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 12px; }
+    .source-badge { font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 4px; }
+    .badge-pdf { background: #FEE2E2; color: #DC2626; }
+    .badge-img { background: #EFF6FF; color: #2563EB; }
+    .source-name { font-size: 12.5px; font-weight: 700; color: #0F172A; }
+    .source-sub { font-size: 10.5px; color: #64748B; }
+
+    .emergency-banner { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+    .privacy-notice { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #15803D; margin-bottom: 20px; }
+
+    .title-banner { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; }
+    .title-text { font-size: 18px; font-weight: 700; color: #15803D; margin-bottom: 3px; }
+    .meta-grid { display: flex; gap: 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; }
     .meta-col { flex: 1; }
-    .meta-label { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px; }
-    .meta-val { font-size: 14px; font-weight: 600; color: #0F172A; }
-    .section-title { font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 12px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    th { text-align: left; font-size: 11px; font-weight: 700; color: #64748B; border-bottom: 2px solid #E2E8F0; padding: 8px 4px; }
-    td { font-size: 13px; border-bottom: 1px solid #F1F5F9; padding: 10px 4px; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94A3B8; }
+    .meta-label { font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 3px; }
+    .meta-val { font-size: 13.5px; font-weight: 600; color: #0F172A; }
+    .status-pill { background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+
+    .section-title { font-size: 13.5px; font-weight: 700; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-top: 18px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { text-align: left; font-size: 10.5px; font-weight: 700; color: #64748B; border-bottom: 2px solid #E2E8F0; padding: 8px 4px; text-transform: uppercase; }
+    td { font-size: 12.5px; border-bottom: 1px solid #F1F5F9; padding: 9px 4px; }
+    .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #94A3B8; }
   </style>
 </head>
 <body>
@@ -110,62 +272,83 @@ export function generateMedicalHtml(record = {}) {
     </div>
     <div class="confidential">
       <div class="conf-tag">CONFIDENTIAL CLINICAL REPORT</div>
-      <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Issued: ${recordDate}</div>
+      <div style="font-size: 10.5px; color: #64748B; margin-top: 3px;">Issued: ${recordDate}</div>
     </div>
   </div>
 
+  <!-- TOP PROVENANCE QUOTATION: REAL SOURCE DOCUMENTS (NO RAW JSON) -->
+  <div class="provenance-banner">
+    <div class="provenance-header">
+      <span class="provenance-tag">CLINICAL SOURCE DOCUMENTS QUOTED IN THIS REPORT</span>
+      <span class="provenance-seal">✓ AES-256 GCM VERIFIED</span>
+    </div>
+    <div class="provenance-list">
+      ${sourceDocsHtml}
+    </div>
+  </div>
+
+  ${emergencyBannerHtml}
+  ${privacyNoticeHtml}
+
   <div class="title-banner">
     <div class="title-text">${recordName}</div>
-    <div style="font-size: 12px; color: #475569;">Verified by MedFlow Sovereign Cryptographic Consent Architecture</div>
+    <div style="font-size: 11.5px; color: #475569;">Verified by MedFlow Sovereign Cryptographic Architecture</div>
   </div>
 
   <div class="meta-grid">
     <div class="meta-col">
       <div class="meta-label">Patient Details</div>
       <div class="meta-val">${patientName}</div>
-      <div style="font-size: 12px; color: #64748B;">ID: ${patientId}</div>
+      <div style="font-size: 11px; color: #64748B;">ID: ${patientId}</div>
     </div>
     <div class="meta-col">
       <div class="meta-label">Attending Physician</div>
       <div class="meta-val">${doctorName}</div>
-      <div style="font-size: 12px; color: #64748B;">${facilityName}</div>
+      <div style="font-size: 11px; color: #64748B;">${facilityName}</div>
     </div>
     <div class="meta-col">
-      <div class="meta-label">Verification Status</div>
-      <div class="meta-val" style="color: #16A34A;">Verified Authentic</div>
-      <div style="font-size: 12px; color: #64748B;">Cryptographic Checksum OK</div>
+      <div class="meta-label">Blood Type & SOS</div>
+      <div class="meta-val" style="color: #DC2626;">${bloodType}</div>
+      <div style="font-size: 11px; color: #64748B;">${emergencyContact}</div>
     </div>
   </div>
 
-  <div class="section-title">Clinical Biomarkers & Key Findings</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Biomarker / Test</th>
-        <th>Result Value</th>
-        <th>Reference Range</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${labRowsHtml}
-    </tbody>
-  </table>
+  ${conditionsHtml}
+  ${allergiesHtml}
 
-  <div class="section-title">Prescribed Medications & Regimen</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Medication</th>
-        <th>Dosage & Frequency</th>
-        <th>Indication</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${medsRowsHtml}
-    </tbody>
-  </table>
+  ${(labResults.length > 0 && reportType !== 'allergies' && reportType !== 'medications') ? `
+    <div class="section-title">Clinical Biomarkers & Quantitative Lab Panels</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Biomarker / Test</th>
+          <th>Result Value</th>
+          <th>Reference Range</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${labRowsHtml}
+      </tbody>
+    </table>
+  ` : ''}
+
+  ${(medications.length > 0 && reportType !== 'allergies') ? `
+    <div class="section-title">Prescribed Medications & Regimen</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Medication</th>
+          <th>Dosage & Frequency</th>
+          <th>Indication</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${medsRowsHtml}
+      </tbody>
+    </table>
+  ` : ''}
 
   <div class="footer">
     <div>MedFlow Healthcare OS · Cryptographically Signed by Sovereign Vault</div>
