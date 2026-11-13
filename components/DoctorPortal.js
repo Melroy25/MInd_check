@@ -561,7 +561,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
   // Connected Patients Page Filter & Search
   const [patientPageSearch, setPatientPageSearch] = useState('');
-  const [patientPageFilterTag, setPatientPageFilterTag] = useState('all');
 
   // History Filter & Search
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all' | 'upload' | 'connection' | 'update'
@@ -602,34 +601,15 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
   // ─── FILTERED PATIENT LIST FOR CONNECTED PATIENTS PAGE ─────────────────────
   const filteredPagePatients = useMemo(() => {
-    return connectedPatients.filter((p) => {
-      const q = patientPageSearch.trim().toLowerCase();
-      const matchSearch =
-        !q ||
+    if (!patientPageSearch.trim()) return connectedPatients;
+    const q = patientPageSearch.toLowerCase().trim();
+    return connectedPatients.filter(
+      (p) =>
         p.name.toLowerCase().includes(q) ||
         p.patientId.toLowerCase().includes(q) ||
-        (p.condition && p.condition.toLowerCase().includes(q));
-
-      if (!matchSearch) return false;
-
-      if (patientPageFilterTag === 'cardio') {
-        return (
-          (p.condition || '').toLowerCase().includes('cardiac') ||
-          (p.condition || '').toLowerCase().includes('coronary') ||
-          (p.condition || '').toLowerCase().includes('echo') ||
-          (p.condition || '').toLowerCase().includes('hypertension')
-        );
-      }
-      if (patientPageFilterTag === 'recent') {
-        return (
-          (p.lastVisit || '').toLowerCase().includes('today') ||
-          (p.lastVisit || '').toLowerCase().includes('nov 12') ||
-          (p.lastVisit || '').toLowerCase().includes('nov 11')
-        );
-      }
-      return true;
-    });
-  }, [connectedPatients, patientPageSearch, patientPageFilterTag]);
+        (p.condition && p.condition.toLowerCase().includes(q))
+    );
+  }, [connectedPatients, patientPageSearch]);
 
   // ─── UPLOAD ACTION: CHOOSE FILE ──────────────────────────────────────────────
   const handlePickDocument = async () => {
@@ -1749,7 +1729,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* SEPARATE PAGE: CONNECTED PATIENTS DIRECTORY (DEDICATED FULL VIEW)   */}
-        {/* "make this in a seperate page like when i click on it sepeate page shpuld open like when i click on ipload it opens sepearte page ryt same thing" */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'patients' && (
           <View style={[styles.viewSection, styles.patientsViewSection]}>
@@ -1762,31 +1741,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               <IconArrowLeft size={22} color={C.textMain} />
               <View>
                 <Text style={styles.subPageTitle}>Connected Patients</Text>
-                <Text style={styles.subPageSubTitle}>
-                  {connectedPatients.length} active patients sharing clinical access
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Quick Action Banner: Scan QR to Connect New Patient */}
-            <TouchableOpacity
-              style={styles.patientsPageBanner}
-              onPress={() => setShowQrScanModal(true)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.patientsPageBannerLeft}>
-                <View style={styles.patientsPageBannerIconWrap}>
-                  <IconQrCode size={22} color={C.purple} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.patientsPageBannerTitle}>Connect New Patient</Text>
-                  <Text style={styles.patientsPageBannerSub}>
-                    Scan patient QR code to establish vault access
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.patientsPageBannerBtn}>
-                <Text style={styles.patientsPageBannerBtnText}>Scan QR</Text>
               </View>
             </TouchableOpacity>
 
@@ -1795,7 +1749,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               <IconSearch size={18} color={C.textSub} />
               <TextInput
                 style={styles.patientsSearchInput}
-                placeholder="Search patient by name, ID, or condition..."
+                placeholder="Search patient by name or ID..."
                 placeholderTextColor={C.textSub}
                 value={patientPageSearch}
                 onChangeText={setPatientPageSearch}
@@ -1807,33 +1761,13 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               )}
             </View>
 
-            {/* Filter Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patientsFilterRow}>
-              {[
-                { id: 'all', label: `All (${connectedPatients.length})` },
-                { id: 'cardio', label: 'Cardiology' },
-                { id: 'recent', label: 'Recent Visit' },
-              ].map((f) => (
-                <TouchableOpacity
-                  key={f.id}
-                  style={[styles.patientsFilterPill, patientPageFilterTag === f.id && styles.patientsFilterPillActive]}
-                  onPress={() => setPatientPageFilterTag(f.id)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.patientsFilterPillText, patientPageFilterTag === f.id && styles.patientsFilterPillTextActive]}>
-                    {f.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
             {/* Patients List Cards */}
             <View style={styles.patientsPageListWrap}>
               {filteredPagePatients.length === 0 ? (
                 <View style={styles.emptyPatientsPageBox}>
                   <IconUsers size={36} color={C.textSub} />
                   <Text style={styles.emptyPatientsTitle}>No Patients Found</Text>
-                  <Text style={styles.emptyPatientsSub}>Try adjusting your search query or filter</Text>
+                  <Text style={styles.emptyPatientsSub}>Try adjusting your search query</Text>
                 </View>
               ) : (
                 filteredPagePatients.map((p) => (
@@ -1844,14 +1778,8 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                           {p.name.split(' ').map((n) => n[0]).join('')}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                      <View style={{ flex: 1, paddingHorizontal: 12 }}>
                         <Text style={styles.patientFullCardName}>{p.name}</Text>
-                        <Text style={styles.patientFullCardId}>
-                          {p.patientId} · {p.age} · Blood: {p.blood} · {p.gender}
-                        </Text>
-                        <View style={styles.patientConditionBadge}>
-                          <Text style={styles.patientConditionBadgeText}>{p.condition}</Text>
-                        </View>
                         <Text style={styles.patientFullCardMeta}>
                           Synced Records: {p.recordsCount} · Last Visit: {p.lastVisit}
                         </Text>

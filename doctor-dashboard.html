@@ -1008,42 +1008,19 @@ body {
 
   <!-- ════════════════════════════════════════════════════════════════════════ -->
   <!-- PAGE: CONNECTED PATIENTS DIRECTORY (DEDICATED FULL PAGE VIEW)          -->
-  <!-- "make this in a seperate page like when i click on it sepeate page shpuld open like when i click on ipload it opens sepearte page ryt same thing" -->
   <!-- ════════════════════════════════════════════════════════════════════════ -->
   <div id="page-patients" class="page-view">
     <div class="subpage-header-row" onclick="switchTab('home')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       <div>
         <div class="subpage-title">Connected Patients</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="patientsPageCountSub">8 active patients sharing clinical vault access</div>
       </div>
-    </div>
-
-    <!-- Banner to Connect New Patient -->
-    <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        </div>
-        <div>
-          <div style="font-size:13px;font-weight:800;color:#6D28D9;">Connect New Patient</div>
-          <div style="font-size:11px;color:#7C3AED;">Scan patient QR code to establish vault access</div>
-        </div>
-      </div>
-      <button class="btn-primary" style="padding:6px 14px;font-size:12px;background:#7C3AED;" onclick="openModal('qrModal')">Scan QR</button>
     </div>
 
     <!-- Search Input -->
-    <div class="search-box" style="margin-bottom:14px;">
+    <div class="search-box" style="margin-bottom:16px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Search patient by name, ID, or condition..." id="patientsPageSearch" oninput="filterPatientsPage(this.value)" style="border:none;outline:none;width:100%;font-size:13px;background:transparent;"/>
-    </div>
-
-    <!-- Patient Filter Pills -->
-    <div class="category-pills" style="margin-bottom:16px;">
-      <button class="cat-pill active" id="patFilterAll" onclick="setPatientPageFilter('all')">All Patients</button>
-      <button class="cat-pill" id="patFilterCardio" onclick="setPatientPageFilter('cardio')">Cardiology</button>
-      <button class="cat-pill" id="patFilterRecent" onclick="setPatientPageFilter('recent')">Recent Visit</button>
+      <input type="text" placeholder="Search patient by name or ID..." id="patientsPageSearch" oninput="filterPatientsPage(this.value)" style="border:none;outline:none;width:100%;font-size:13px;background:transparent;"/>
     </div>
 
     <!-- Patients List -->
@@ -1545,17 +1522,7 @@ function renderPickerPatients(query = '') {
   }).join('');
 }
 
-let activePatientFilter = 'all';
 let patientPageQuery = '';
-
-function setPatientPageFilter(filter) {
-  activePatientFilter = filter;
-  document.querySelectorAll('#page-patients .category-pills .cat-pill').forEach(b => b.classList.remove('active'));
-  const btnId = filter === 'all' ? 'patFilterAll' : filter === 'cardio' ? 'patFilterCardio' : 'patFilterRecent';
-  const el = document.getElementById(btnId);
-  if (el) el.classList.add('active');
-  renderPatientsPage();
-}
 
 function filterPatientsPage(val) {
   patientPageQuery = (val || '').toLowerCase().trim();
@@ -1566,36 +1533,18 @@ function renderPatientsPage() {
   const list = document.getElementById('patientsPageList');
   if (!list) return;
 
-  const countEl = document.getElementById('patientsPageCountSub');
-  if (countEl) countEl.textContent = `${connectedPatients.length} active patients sharing clinical vault access`;
-
   const filtered = connectedPatients.filter(p => {
-    const matchesSearch = !patientPageQuery ||
+    return !patientPageQuery ||
       p.name.toLowerCase().includes(patientPageQuery) ||
       p.patientId.toLowerCase().includes(patientPageQuery) ||
       (p.condition && p.condition.toLowerCase().includes(patientPageQuery));
-
-    if (!matchesSearch) return false;
-
-    if (activePatientFilter === 'cardio') {
-      return (p.condition || '').toLowerCase().includes('cardiac') ||
-             (p.condition || '').toLowerCase().includes('coronary') ||
-             (p.condition || '').toLowerCase().includes('echo') ||
-             (p.condition || '').toLowerCase().includes('hypertension');
-    }
-    if (activePatientFilter === 'recent') {
-      return (p.lastVisit || '').toLowerCase().includes('today') ||
-             (p.lastVisit || '').toLowerCase().includes('nov 12') ||
-             (p.lastVisit || '').toLowerCase().includes('nov 11');
-    }
-    return true;
   });
 
   if (filtered.length === 0) {
     list.innerHTML = `
       <div style="text-align:center;padding:40px 10px;color:var(--muted);">
         <div style="font-weight:700;color:var(--charcoal);font-size:15px;margin-bottom:4px;">No Patients Found</div>
-        <div style="font-size:12px;">Try adjusting your search query or filter</div>
+        <div style="font-size:12px;">Try adjusting your search query</div>
       </div>
     `;
     return;
@@ -1609,8 +1558,6 @@ function renderPatientsPage() {
         </div>
         <div style="flex:1;padding-left:12px;">
           <div style="font-size:15px;font-weight:800;color:var(--charcoal);">${p.name}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.patientId} · ${p.age} · Blood: ${p.blood} · ${p.gender}</div>
-          <div style="display:inline-block;background:#EFF6FF;color:#2563EB;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-top:4px;">${p.condition}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;">Synced Records: ${p.recordsCount} · Last Visit: ${p.lastVisit}</div>
         </div>
       </div>
