@@ -3882,19 +3882,20 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
         <View style={styles.modalBackdrop}>
           <View style={[styles.modernModalCard, { maxHeight: '90%' }]}>
             <View style={styles.modernModalHeader}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={styles.modernModalTitle}>Switch Account</Text>
                 <Text style={styles.modernModalSub}>Select an active role or sovereign vault</Text>
               </View>
               <TouchableOpacity
                 style={styles.modernModalCloseBtn}
                 onPress={() => setShowSwitchAccountModal(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modernModalCloseBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 10 }}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 8 }}>
               {/* Account 1: Melroy Almeida (Patient) */}
               <TouchableOpacity
                 style={[
@@ -3966,18 +3967,6 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                   <View style={styles.switchRoleRadio} />
                 )}
               </TouchableOpacity>
-
-              {/* Preview Toggle for "No other accounts" state */}
-              <View style={styles.simulateAccountRow}>
-                <Text style={styles.simulateAccountText}>Simulate no linked accounts:</Text>
-                <TouchableOpacity
-                  style={[styles.cleanToggle, !hasOtherAccounts && styles.cleanToggleActive]}
-                  onPress={() => setHasOtherAccounts(!hasOtherAccounts)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.cleanToggleKnob, !hasOtherAccounts && styles.cleanToggleKnobActive]} />
-                </TouchableOpacity>
-              </View>
             </ScrollView>
           </View>
         </View>
@@ -5314,10 +5303,10 @@ const styles = StyleSheet.create({
   /* Modals */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 18,
+    padding: 20,
   },
   modalContainer: {
     width: '100%',
@@ -6660,5 +6649,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* Modern Modals Container & Header */
+  modernModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.22,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  modernModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingBottom: 4,
+  },
+  modernModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  modernModalSub: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  modernModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  modernModalCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+    lineHeight: 16,
   },
 });
