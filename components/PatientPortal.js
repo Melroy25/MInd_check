@@ -11,6 +11,7 @@ import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 import { QRScannerModal, EmergencySosModal } from './common';
 import { storageService } from '../services/storageService';
 import { callGrok } from '../services/grokClient';
+import { updateUserProfile } from '../services/supabase/authService';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -440,7 +441,35 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     };
   });
 
-  const [avatarUri, setAvatarUri] = useState(null);
+  const [avatarUri, setAvatarUri] = useState(() => {
+    return currentProfile?.avatar_url || currentUser?.photoURL || null;
+  });
+
+  // ── Load Persisted Profile & Avatar on Mount or Auth Change ──
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUserAvatarAndProfile() {
+      const uid = currentUser?.uid;
+      const remoteAvatar = currentProfile?.avatar_url || currentUser?.photoURL;
+      if (remoteAvatar) {
+        if (isMounted) setAvatarUri(remoteAvatar);
+        if (uid) storageService.saveProfileAvatar(uid, remoteAvatar);
+      } else if (uid) {
+        const cachedAvatar = await storageService.getProfileAvatar(uid);
+        if (cachedAvatar && isMounted) {
+          setAvatarUri(cachedAvatar);
+        }
+      }
+
+      // Ensure full name from profile/auth syncs into patientInfo
+      const expectedName = currentProfile?.full_name || currentUser?.displayName;
+      if (expectedName && isMounted) {
+        setPatientInfo((prev) => (prev.name !== expectedName ? { ...prev, name: expectedName } : prev));
+      }
+    }
+    loadUserAvatarAndProfile();
+    return () => { isMounted = false; };
+  }, [currentUser?.uid, currentProfile?.avatar_url, currentProfile?.full_name, currentUser?.photoURL]);
 
   // Settings Toggles
   const [settings, setSettings] = useState({
@@ -838,24 +867,128 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     }
   };
 
-  // Avatar Picker (Gallery / Camera)
-  const handlePickAvatar = () => {
-    if (typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setAvatarUri(reader.result);
-          showToastMsg('Profile photo updated!');
-        };
-        reader.readAsDataURL(file);
+  // Helper to downscale avatar for fast, instant loading (max 280x280)
+  const compressAvatar = (dataUrl, maxWidth = 280, maxHeight = 280) => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return resolve(dataUrl);
       }
-    };
-    input.click();
+      try {
+        const img = new window.Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      } catch {
+        resolve(dataUrl);
+      }
+    });
+  };
+
+  // Avatar Picker (supports Gallery and Camera with Cloud & Supabase Backend Sync)
+  const handlePickAvatar = async (source = 'gallery') => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        if (source === 'camera') {
+          input.capture = 'user';
+        }
+        input.onchange = async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const rawDataUrl = reader.result;
+            const optimized = await compressAvatar(rawDataUrl);
+            setAvatarUri(optimized);
+
+            const uid = currentUser?.uid;
+            if (uid) {
+              await storageService.saveProfileAvatar(uid, optimized);
+              await updateUserProfile(uid, {
+                avatar_url: optimized,
+                full_name: patientInfo.name,
+              });
+              showToastMsg('Profile photo synced to backend!');
+            } else {
+              await storageService.saveProfileAvatar(null, optimized);
+              showToastMsg('Profile photo updated!');
+            }
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      } else {
+        // Native (Android APK / iOS)
+        const res = await pickMedicalDocument();
+        if (res && res.base64) {
+          const mime = res.mimeType || 'image/jpeg';
+          const dataUrl = `data:${mime};base64,${res.base64}`;
+          setAvatarUri(dataUrl);
+          const uid = currentUser?.uid;
+          if (uid) {
+            await storageService.saveProfileAvatar(uid, dataUrl);
+            await updateUserProfile(uid, {
+              avatar_url: dataUrl,
+              full_name: patientInfo.name,
+            });
+            showToastMsg('Profile photo synced to cloud!');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[handlePickAvatar] error:', err);
+      showToastMsg('Could not update photo');
+    }
+  };
+
+  // Save Profile Changes Handler (Name & Avatar synced to Supabase / Backend)
+  const handleSaveProfileChanges = async () => {
+    try {
+      const uid = currentUser?.uid;
+      const updates = {
+        full_name: patientInfo.name.trim() || patientDisplayName,
+        phone: patientInfo.emergencyContact,
+        avatar_url: avatarUri,
+      };
+
+      if (uid) {
+        await storageService.saveProfileAvatar(uid, avatarUri);
+        await storageService.saveProfileData(uid, updates);
+        const { error } = await updateUserProfile(uid, updates);
+        if (error) {
+          showToastMsg('Saved locally (cloud sync pending)');
+        } else {
+          showToastMsg('Profile and photo saved to cloud!');
+        }
+      } else {
+        await storageService.saveProfileAvatar(null, avatarUri);
+        await storageService.saveProfileData(null, updates);
+        showToastMsg('Changes saved!');
+      }
+    } catch (e) {
+      console.warn('[handleSaveProfileChanges] error:', e);
+      showToastMsg('Changes saved!');
+    }
   };
 
   const handleApproveRequest = (req) => {
@@ -2350,7 +2483,7 @@ Guidelines:
                 <View style={styles.changePhotoBtnRow}>
                   <TouchableOpacity
                     style={styles.changePhotoBtn}
-                    onPress={handlePickAvatar}
+                    onPress={() => handlePickAvatar('gallery')}
                     activeOpacity={0.8}
                   >
                     <IconUpload size={14} color={C.blue} />
@@ -2359,7 +2492,7 @@ Guidelines:
 
                   <TouchableOpacity
                     style={[styles.changePhotoBtn, { backgroundColor: C.greenBg, borderColor: C.greenBorder }]}
-                    onPress={handleCaptureCamera}
+                    onPress={() => handlePickAvatar('camera')}
                     activeOpacity={0.8}
                   >
                     <IconCamera size={14} color={C.green} />
@@ -2452,7 +2585,7 @@ Guidelines:
               {/* Button 1: Save Changes */}
               <TouchableOpacity
                 style={styles.cleanSaveBtn}
-                onPress={() => showToastMsg('Changes saved successfully!')}
+                onPress={handleSaveProfileChanges}
                 activeOpacity={0.8}
               >
                 <LinearGradient

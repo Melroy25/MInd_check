@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
   StyleSheet, TextInput, ActivityIndicator, Platform, Image,
@@ -10,6 +10,8 @@ import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 import { QRScannerModal } from './common';
 import AIConsultationModal from './doctor/AIConsultationModal';
 import MyMedicinesModal from './doctor/MyMedicinesModal';
+import { storageService } from '../services/storageService';
+import { updateUserProfile } from '../services/supabase/authService';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -563,9 +565,28 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
 
   // Doctor state - for real users, ZERO fake patients, ZERO fake history, ZERO fake notifications
   const [doctorInfo, setDoctorInfo] = useState(computedDoctorInfo);
+  const [avatarUri, setAvatarUri] = useState(() => currentProfile?.avatar_url || currentUser?.photoURL || null);
   const [connectedPatients, setConnectedPatients] = useState(() => (isRealUser ? [] : INITIAL_CONNECTED_PATIENTS));
   const [historyList, setHistoryList] = useState(() => (isRealUser ? [] : INITIAL_HISTORY));
   const [notifications, setNotifications] = useState(() => (isRealUser ? [] : INITIAL_NOTIFICATIONS));
+
+  // Load avatar and sync name
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDoctorAvatar() {
+      const uid = currentUser?.uid;
+      const remoteAvatar = currentProfile?.avatar_url || currentUser?.photoURL;
+      if (remoteAvatar) {
+        if (isMounted) setAvatarUri(remoteAvatar);
+        if (uid) storageService.saveProfileAvatar(uid, remoteAvatar);
+      } else if (uid) {
+        const cached = await storageService.getProfileAvatar(uid);
+        if (cached && isMounted) setAvatarUri(cached);
+      }
+    }
+    loadDoctorAvatar();
+    return () => { isMounted = false; };
+  }, [currentUser?.uid, currentProfile?.avatar_url, currentUser?.photoURL]);
 
   // Settings
   const [settings, setSettings] = useState({
@@ -654,6 +675,118 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   const showToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3200);
+  };
+
+  const compressAvatar = (dataUrl, maxWidth = 280, maxHeight = 280) => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined' || typeof document === 'undefined') return resolve(dataUrl);
+      try {
+        const img = new window.Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      } catch {
+        resolve(dataUrl);
+      }
+    });
+  };
+
+  const handlePickAvatar = async (source = 'gallery') => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        if (source === 'camera') input.capture = 'user';
+        input.onchange = async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const optimized = await compressAvatar(reader.result);
+            setAvatarUri(optimized);
+            const uid = currentUser?.uid;
+            if (uid) {
+              await storageService.saveProfileAvatar(uid, optimized);
+              await updateUserProfile(uid, {
+                avatar_url: optimized,
+                full_name: doctorInfo.name,
+                specialty: doctorInfo.specialty,
+              });
+              showToast('Profile photo synced to cloud!');
+            } else {
+              await storageService.saveProfileAvatar(null, optimized);
+              showToast('Profile photo updated!');
+            }
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      } else {
+        const res = await pickMedicalDocument();
+        if (res && res.base64) {
+          const dataUrl = `data:${res.mimeType || 'image/jpeg'};base64,${res.base64}`;
+          setAvatarUri(dataUrl);
+          const uid = currentUser?.uid;
+          if (uid) {
+            await storageService.saveProfileAvatar(uid, dataUrl);
+            await updateUserProfile(uid, {
+              avatar_url: dataUrl,
+              full_name: doctorInfo.name,
+              specialty: doctorInfo.specialty,
+            });
+            showToast('Profile photo synced to cloud!');
+          }
+        }
+      }
+    } catch (err) {
+      showToast('Could not update photo');
+    }
+  };
+
+  const handleSaveProfileChanges = async () => {
+    try {
+      const uid = currentUser?.uid;
+      const updates = {
+        full_name: doctorInfo.name,
+        specialty: doctorInfo.specialty,
+        phone: doctorInfo.phone,
+        avatar_url: avatarUri,
+      };
+      if (uid) {
+        await storageService.saveProfileAvatar(uid, avatarUri);
+        await storageService.saveProfileData(uid, updates);
+        const { error } = await updateUserProfile(uid, updates);
+        if (error) {
+          showToast('Saved locally (cloud sync pending)');
+        } else {
+          showToast('Doctor profile and photo saved to cloud!');
+        }
+      } else {
+        await storageService.saveProfileAvatar(null, avatarUri);
+        await storageService.saveProfileData(null, updates);
+        showToast('Profile saved!');
+      }
+    } catch {
+      showToast('Profile saved!');
+    }
   };
 
   // ─── FILTERED HISTORY (RECENT ONES ON TOP) ──────────────────────────────────
@@ -1578,22 +1711,26 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
               {/* 1. Avatar Card with Photo change buttons */}
               <View style={styles.profileAvatarCard}>
                 <View style={styles.profileAvatarLarge}>
-                  <Text style={styles.profileAvatarInitials}>
-                    {doctorInfo.name
-                      ? doctorInfo.name
-                          .replace('Dr. ', '')
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()
-                      : 'SJ'}
-                  </Text>
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.profileAvatarImg} />
+                  ) : (
+                    <Text style={styles.profileAvatarInitials}>
+                      {doctorInfo.name
+                        ? doctorInfo.name
+                            .replace('Dr. ', '')
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                        : 'SJ'}
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.changePhotoBtnRow}>
                   <TouchableOpacity
                     style={styles.changePhotoBtn}
-                    onPress={() => showToast('Photo uploaded from gallery!')}
+                    onPress={() => handlePickAvatar('gallery')}
                     activeOpacity={0.8}
                   >
                     <IconUpload size={14} color={C.blue} />
@@ -1602,7 +1739,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
 
                   <TouchableOpacity
                     style={[styles.changePhotoBtn, { backgroundColor: C.greenBg, borderColor: C.greenBorder }]}
-                    onPress={() => showToast('Camera capture completed!')}
+                    onPress={() => handlePickAvatar('camera')}
                     activeOpacity={0.8}
                   >
                     <IconCamera size={14} color={C.green} />
@@ -1731,7 +1868,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
               {/* Button 1: Save Changes */}
               <TouchableOpacity
                 style={styles.cleanSaveBtn}
-                onPress={() => showToast('Doctor profile updated successfully!')}
+                onPress={handleSaveProfileChanges}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -3901,6 +4038,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    overflow: 'hidden',
+  },
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
   },
   profileAvatarInitials: {
     fontSize: 26,

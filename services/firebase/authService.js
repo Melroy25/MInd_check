@@ -256,7 +256,10 @@ export function onFirebaseAuthStateChanged(callback) {
         email: user.email,
         full_name: user.displayName || user.email?.split('@')[0] || 'User',
         role: 'patient',
+        avatar_url: user.photoURL || null,
       };
+    } else if (!profile.avatar_url && user.photoURL) {
+      profile.avatar_url = user.photoURL;
     }
 
     callback(user, profile);

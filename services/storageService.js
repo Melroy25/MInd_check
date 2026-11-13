@@ -99,6 +99,62 @@ export const storageService = {
   },
 
   /**
+   * Load profile avatar data URL scoped to user
+   */
+  async getProfileAvatar(userId = null) {
+    try {
+      const key = userId ? `@medflow_avatar_${userId}` : '@medflow_avatar_guest';
+      return await AsyncStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Save profile avatar data URL scoped to user
+   */
+  async saveProfileAvatar(userId = null, avatarUri = null) {
+    try {
+      const key = userId ? `@medflow_avatar_${userId}` : '@medflow_avatar_guest';
+      if (avatarUri) {
+        await AsyncStorage.setItem(key, avatarUri);
+      } else {
+        await AsyncStorage.removeItem(key);
+      }
+      return true;
+    } catch (e) {
+      console.warn('[storageService] Failed to save avatar:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Load profile metadata scoped to user
+   */
+  async getProfileData(userId = null) {
+    try {
+      const key = userId ? `@medflow_profile_${userId}` : '@medflow_profile_guest';
+      const d = await AsyncStorage.getItem(key);
+      return d ? JSON.parse(d) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Save profile metadata scoped to user
+   */
+  async saveProfileData(userId = null, profileData = {}) {
+    try {
+      const key = userId ? `@medflow_profile_${userId}` : '@medflow_profile_guest';
+      await AsyncStorage.setItem(key, JSON.stringify(profileData));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
    * Clear all documents for a specific user or global demo
    */
   async clearFiles(userId = null) {
