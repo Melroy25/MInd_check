@@ -2459,7 +2459,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
 
             <Text style={styles.modalTitle}>Medical Emergency QR</Text>
             <Text style={styles.qrSubText}>
-              Scan this QR code with any smartphone or hospital scanner to instantly open Melroy Almeida's verified Emergency Medical Summary PDF.
+              Scan this QR code with any smartphone or hospital scanner to instantly open {patientInfo?.name || 'Patient'}'s verified Emergency Medical Summary PDF.
             </Text>
 
             {/* High Contrast Dynamic QR Code */}
@@ -3658,9 +3658,19 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       <QRScannerModal
         visible={showScanQrModal}
         onClose={() => setShowScanQrModal(false)}
-        title="Scan Medical QR Code"
-        subtitle="Point camera at Caretaker or Doctor QR invite, or paste access token"
+        title="Medical QR Code"
+        subtitle="Point camera to scan a QR code, or share your Medical Pass"
         accentColor="#4F46E5"
+        userName={patientInfo?.name || 'Patient'}
+        userSubtitle={`Sovereign Health Pass · ${patientInfo?.vaultId || 'MV-2026'}`}
+        userQrValue={JSON.stringify({
+          app: 'MedFlow',
+          type: 'emergency_summary',
+          patient: patientInfo?.name || 'Patient',
+          vaultId: patientInfo?.vaultId || 'MV-2026',
+          bloodType: patientInfo?.bloodType || 'Unknown',
+          timestamp: Date.now(),
+        })}
         onScan={(token, parsed) => {
           setShowScanQrModal(false);
           const code = String(token || 'CAR-4892');

@@ -836,6 +836,13 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
         title="Link Patient Ward by QR"
         subtitle="Point camera at patient's Caretaker QR invite or paste code below"
         accentColor={C.purple}
+        userName="Caretaker Access Pass"
+        userSubtitle="Proxy Ward Authorization"
+        userQrValue={JSON.stringify({
+          type: 'CARETAKER_INVITE',
+          role: 'caretaker',
+          id: 'CAR-8821',
+        })}
         onScan={(token, parsed) => {
           setShowQrModal(false);
           const rawToken = String(token || '').toUpperCase();

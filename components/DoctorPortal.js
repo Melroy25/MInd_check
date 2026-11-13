@@ -1925,11 +1925,19 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         visible={showQrScanModal}
         onClose={() => setShowQrScanModal(false)}
         title="Scan Patient Medical QR"
-        subtitle="Point camera at patient's MediVault QR badge or select a quick code"
+        subtitle="Point camera at patient's MediVault QR badge or paste code"
         accentColor={C.blue}
+        userName={doctorInfo?.name || 'Attending Physician'}
+        userSubtitle={doctorInfo?.clinic || 'Clinical Access Key'}
+        userQrValue={JSON.stringify({
+          type: 'DOCTOR_INVITE',
+          doctor: doctorInfo?.name,
+          clinic: doctorInfo?.clinic,
+          id: doctorInfo?.id || 'DOC-2026',
+        })}
         onScan={(token, parsed) => {
           setShowQrScanModal(false);
-          handleProcessQrScan(String(token || 'Melroy Almeida'));
+          handleProcessQrScan(String(token || 'Patient'));
         }}
       />
 
