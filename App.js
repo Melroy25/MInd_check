@@ -669,9 +669,10 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
 export default function App() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
+  const androidTopInset = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
   return (
-    <View style={{ flex: 1 }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: androidTopInset }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       <AppNavigator isDesktop={isDesktop} />
     </View>
   );

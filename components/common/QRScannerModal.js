@@ -73,8 +73,11 @@ export default function QRScannerModal({
     if (visible) {
       setHasScanned(false);
       setManualInput('');
+      if (!isWeb && !permission?.granted) {
+        requestPermission();
+      }
     }
-  }, [visible]);
+  }, [visible, permission?.granted]);
 
   const handleBarcodeScanned = ({ data }) => {
     if (hasScanned || !data) return;
@@ -117,20 +120,24 @@ export default function QRScannerModal({
           {/* Camera Viewfinder or Fallback Viewport */}
           <View style={s.viewportWrap}>
             {hasCameraAccess ? (
-              <View style={s.cameraContainer}>
+              <View style={s.cameraWrapper}>
                 <CameraView
-                  style={StyleSheet.absoluteFillObject}
+                  style={s.cameraStyle}
+                  facing="back"
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                   onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
                   enableTorch={torch}
                 />
-                {/* Visual Viewfinder Overlay */}
-                <View style={s.reticleBox}>
-                  <View style={[s.corner, s.cTL, { borderColor: accentColor }]} />
-                  <View style={[s.corner, s.cTR, { borderColor: accentColor }]} />
-                  <View style={[s.corner, s.cBL, { borderColor: accentColor }]} />
-                  <View style={[s.corner, s.cBR, { borderColor: accentColor }]} />
-                  <View style={[s.laserLine, { backgroundColor: accentColor }]} />
+
+                {/* Sibling Visual Viewfinder Reticle Overlay */}
+                <View style={s.reticleOverlay} pointerEvents="none">
+                  <View style={s.reticleBox}>
+                    <View style={[s.corner, s.cTL, { borderColor: accentColor }]} />
+                    <View style={[s.corner, s.cTR, { borderColor: accentColor }]} />
+                    <View style={[s.corner, s.cBL, { borderColor: accentColor }]} />
+                    <View style={[s.corner, s.cBR, { borderColor: accentColor }]} />
+                    <View style={[s.laserLine, { backgroundColor: accentColor }]} />
+                  </View>
                 </View>
 
                 {/* Torch Toggle */}
@@ -267,18 +274,31 @@ const s = StyleSheet.create({
   },
   viewportWrap: {
     width: '100%',
-    height: 230,
+    height: 250,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     marginBottom: 16,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraContainer: {
+  cameraWrapper: {
     width: '100%',
     height: '100%',
+    position: 'relative',
+    backgroundColor: '#000000',
+  },
+  cameraStyle: {
+    width: '100%',
+    height: '100%',
+  },
+  reticleOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
