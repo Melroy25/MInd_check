@@ -3967,29 +3967,6 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                 )}
               </TouchableOpacity>
 
-              {/* Account 3: Caretaker Proxy (Coming Soon) */}
-              <TouchableOpacity
-                style={[styles.switchRoleCard, { opacity: 0.65 }]}
-                onPress={() => {
-                  showToastMsg('Caretaker portal is coming soon.');
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.switchRoleAvatar, { backgroundColor: '#F5F3FF' }]}>
-                  <Text style={[styles.switchRoleAvatarText, { color: C.purple }]}>CP</Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.switchRoleName}>Caretaker Proxy</Text>
-                    <View style={[styles.switchRoleActiveBadge, { backgroundColor: '#F1F5F9' }]}>
-                      <Text style={[styles.switchRoleActiveBadgeText, { color: '#64748B' }]}>Coming Soon</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.switchRoleSub}>Delegated Health Proxy Portal</Text>
-                </View>
-                <View style={styles.switchRoleRadio} />
-              </TouchableOpacity>
-
               {/* Preview Toggle for "No other accounts" state */}
               <View style={styles.simulateAccountRow}>
                 <Text style={styles.simulateAccountText}>Simulate no linked accounts:</Text>
