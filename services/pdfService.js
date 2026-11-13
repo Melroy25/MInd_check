@@ -53,7 +53,7 @@ export const cleanAllergySubstance = (a) => {
     if (a?.reaction) {
       return `Hypersensitivity (${cleanAscii(a.reaction)})`;
     }
-    return 'Peanuts & Penicillin Antibiotics';
+    return 'Unspecified Allergen';
   }
   return raw;
 };
@@ -62,7 +62,7 @@ export const cleanAllergySubstance = (a) => {
  * Clean and truncate source document names for layout balance.
  */
 export const formatSource = (src, maxLen = 46) => {
-  const clean = cleanAscii(src || 'Clinical Record');
+  const clean = cleanAscii(src || 'Verified Record');
   if (clean.length <= maxLen) return `Source: ${clean}`;
   return `Source: ${clean.substring(0, maxLen - 3)}...`;
 };
@@ -75,15 +75,15 @@ export const formatSource = (src, maxLen = 46) => {
  * - Patient Privacy Redaction: excludes sensitive conditions/terms SILENTLY with zero disclaimers
  */
 export function generateMedicalHtml(record = {}) {
-  const patientName = cleanAscii(record.patientName || record.patient || 'Melroy Almeida');
-  const patientId = cleanAscii(record.patientId || 'MV-2026-PAT-892');
-  const doctorName = cleanAscii(record.doctor || 'Dr. Sarah Jenkins');
-  const facilityName = cleanAscii(record.facility || 'Metro Hospital & Clinical Diagnostics');
+  const patientName = cleanAscii(record.patientName || record.patient || 'Verified Patient');
+  const patientId = cleanAscii(record.patientId || 'MV-SOVEREIGN');
+  const doctorName = cleanAscii(record.doctor || 'Attending Clinical Team');
+  const facilityName = cleanAscii(record.facility || 'MedFlow Sovereign Health Network');
   const recordName = cleanAscii(record.name || 'Consolidated Sovereign Health Record');
   const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   const reportType = record.reportType || 'complete';
-  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'O+ (Positive)');
-  const emergencyContact = cleanAscii(record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834');
+  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'Not documented');
+  const emergencyContact = cleanAscii(record.emergencyContact || 'Not specified on file');
   const redactedTerms = Array.isArray(record.redactedTerms) ? record.redactedTerms : [];
 
   // Helper to check if an item contains sensitive/redacted keywords
@@ -151,98 +151,89 @@ export function generateMedicalHtml(record = {}) {
   const primaryDocName = cleanAscii(
     record.sourceDocuments?.[0]?.name ||
     record.sourceFileName ||
-    'Screenshot 2026 11 12 154728.png'
+    'Direct Sovereign Vault Entry'
   );
-
-  // Defaults if empty
-  if (conditions.length === 0 && !isRedacted('diabetes') && !isRedacted('hypertension')) {
-    conditions.push(
-      { name: 'Diabetes Mellitus Type 2', status: 'Active', certainty: 'Confirmed', source: primaryDocName },
-      { name: 'Essential Hypertension', status: 'Active', certainty: 'Confirmed', source: primaryDocName }
-    );
-  }
-  if (medications.length === 0 && !isRedacted('metformin') && !isRedacted('atorvastatin')) {
-    medications.push(
-      { name: 'Metformin HCl 500 mg', dose_raw: '500 mg once daily with meal', indication: 'Type 2 Diabetes', status: 'Active', source: primaryDocName },
-      { name: 'Atorvastatin Calcium 20 mg', dose_raw: '20 mg once daily at bedtime', indication: 'Cardiovascular Prophylaxis', status: 'Active', source: primaryDocName }
-    );
-  }
-  if (labResults.length === 0 && !isRedacted('glucose') && !isRedacted('blood sugar') && !isRedacted('cholesterol')) {
-    labResults.push(
-      { test_name: 'Fasting Blood Sugar', value: '142', unit: 'mg/dL', flag: 'High', reference_range: '70-99', source: primaryDocName },
-      { test_name: 'Glycated Hemoglobin (HbA1c)', value: '7.2', unit: '%', flag: 'High', reference_range: '< 5.7', source: primaryDocName }
-    );
-  }
-  if (allergies.length === 0 && !isRedacted('penicillin') && !isRedacted('sulfa')) {
-    allergies.push(
-      { substance: 'Penicillin Antibiotics', reaction: 'Anaphylaxis & Urticaria', severity: 'Severe', source: primaryDocName },
-      { substance: 'Sulfa Drugs', reaction: 'Skin Rash & Pruritus', severity: 'Moderate', source: primaryDocName }
-    );
-  }
 
   // ─── BUILD SECTION HTML BLOCKS ──────────────────────────────────────────────
   let conditionsHtml = '';
-  if (conditions.length > 0 && reportType !== 'medications' && reportType !== 'allergies') {
-    conditionsHtml = `
-      <div class="section-title">Verified Diagnoses & Clinical Conditions</div>
-      <table>
-        <thead>
-          <tr>
-            <th>Condition / Diagnosis</th>
-            <th>Clinical Status</th>
-            <th>Certainty</th>
-            <th>Attending Doctor</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${conditions.map((c) => `
+  if (reportType !== 'medications' && reportType !== 'allergies') {
+    if (conditions.length > 0) {
+      conditionsHtml = `
+        <div class="section-title">Verified Diagnoses & Clinical Conditions</div>
+        <table>
+          <thead>
             <tr>
-              <td>
-                <strong>${cleanAscii(c.name || c)}</strong>
-                <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(c.source || primaryDocName)}</div>
-              </td>
-              <td><span class="status-pill">${cleanAscii(c.status || 'Active')}</span></td>
-              <td>${cleanAscii(c.certainty || 'Confirmed')}</td>
-              <td>${doctorName}</td>
+              <th>Condition / Diagnosis</th>
+              <th>Clinical Status</th>
+              <th>Certainty</th>
+              <th>Attending Doctor</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+          </thead>
+          <tbody>
+            ${conditions.map((c) => `
+              <tr>
+                <td>
+                  <strong>${cleanAscii(c.name || c)}</strong>
+                  <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(c.source || primaryDocName)}</div>
+                </td>
+                <td><span class="status-pill">${cleanAscii(c.status || 'Active')}</span></td>
+                <td>${cleanAscii(c.certainty || 'Confirmed')}</td>
+                <td>${doctorName}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      conditionsHtml = `
+        <div class="section-title">Verified Diagnoses & Clinical Conditions</div>
+        <div style="font-size: 11.5px; color: #64748B; font-style: italic; padding: 6px 0 16px;">No chronic conditions or active diagnoses documented in uploaded records.</div>
+      `;
+    }
   }
 
   let allergiesHtml = '';
-  if (allergies.length > 0 && reportType !== 'medications') {
-    allergiesHtml = `
-      <div class="section-title" style="color: #DC2626;">Known Allergies & Adverse Drug Sensitivities</div>
-      <table>
-        <thead>
-          <tr>
-            <th>Allergen / Substance</th>
-            <th>Reaction Type</th>
-            <th>Severity</th>
-            <th>Precaution</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${allergies.map((a) => {
-            const substance = cleanAllergySubstance(a);
-            const severity = cleanAscii(a.severity || 'Severe');
-            return `
-              <tr>
-                <td>
-                  <strong>${substance}</strong>
-                  <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(a.source || primaryDocName)}</div>
-                </td>
-                <td>${cleanAscii(a.reaction || 'Anaphylactic / Hypersensitivity')}</td>
-                <td><span style="color: #DC2626; font-weight: 700;">${severity}</span></td>
-                <td>Contraindicated in all standard prescriptions</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
+  if (reportType !== 'medications') {
+    if (allergies.length > 0) {
+      allergiesHtml = `
+        <div class="section-title" style="color: #DC2626;">Known Allergies & Adverse Drug Sensitivities</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Allergen / Substance</th>
+              <th>Reaction Type</th>
+              <th>Severity</th>
+              <th>Precaution</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allergies.map((a) => {
+              const substance = cleanAllergySubstance(a);
+              const severity = cleanAscii(a.severity || 'Severe');
+              return `
+                <tr>
+                  <td>
+                    <strong>${substance}</strong>
+                    <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(a.source || primaryDocName)}</div>
+                  </td>
+                  <td>${cleanAscii(a.reaction || 'Anaphylactic / Hypersensitivity')}</td>
+                  <td><span style="color: #DC2626; font-weight: 700;">${severity}</span></td>
+                  <td>Contraindicated in all standard prescriptions</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      allergiesHtml = `
+        <div class="section-title" style="color: #15803D;">Known Allergies & Adverse Drug Sensitivities</div>
+        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #15803D;">NO KNOWN ALLERGIES DOCUMENTED</div>
+          <div style="font-size: 11px; color: #166534; margin-top: 2px;">No drug allergies or allergen contraindications recorded in uploaded clinical documents.</div>
+        </div>
+      `;
+    }
   }
 
   let labRowsHtml = '';
@@ -417,10 +408,10 @@ export async function generateMedicalPdf(record) {
     return new Uint8Array(arrayBuffer);
   }
 
-  const patientName = cleanAscii(record.patientName || record.patient || 'Melroy Almeida');
-  const patientId = cleanAscii(record.patientId || 'MV-2026-PAT-892');
-  const doctorName = cleanAscii(record.doctor || 'Dr. Sarah Jenkins');
-  const facilityName = cleanAscii(record.facility || 'Metro Hospital & Clinical Diagnostics');
+  const patientName = cleanAscii(record.patientName || record.patient || 'Verified Patient');
+  const patientId = cleanAscii(record.patientId || 'MV-SOVEREIGN');
+  const doctorName = cleanAscii(record.doctor || 'Attending Clinical Team');
+  const facilityName = cleanAscii(record.facility || 'MedFlow Sovereign Health Network');
   const recordName = cleanAscii(record.name || 'Medical Document');
   const recordType = cleanAscii(record.type || 'PDF');
   const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' }));
@@ -517,12 +508,12 @@ export async function generateMedicalPdf(record) {
   const primaryDocName = cleanAscii(
     record.sourceDocuments?.[0]?.name ||
     record.sourceFileName ||
-    'Screenshot 2026 11 12 154728.png'
+    'Direct Sovereign Vault Entry'
   );
 
   const reportType = record.reportType || 'complete';
-  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'O+ (Confirmed)');
-  const emergencyContact = cleanAscii(record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834');
+  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'Not documented');
+  const emergencyContact = cleanAscii(record.emergencyContact || 'Not specified on file');
   const redactedTerms = Array.isArray(record.redactedTerms) ? record.redactedTerms : [];
 
   const isRedacted = (text) => {
@@ -589,32 +580,6 @@ export async function generateMedicalPdf(record) {
 
   let labResults = dedupeItems(rawLabs.filter((l) => !isRedacted(l.test_name || l) && !isRedacted(l.value)), (l) => l.test_name || l);
   let allergies = dedupeItems(rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a)), (a) => cleanAllergySubstance(a));
-
-  // If newly initialized and not redacted, provide confirmed records tagged with primaryDocName
-  if (conditions.length === 0 && !isRedacted('diabetes') && !isRedacted('hypertension')) {
-    conditions.push(
-      { name: 'Diabetes Mellitus Type 2', status: 'Active', certainty: 'Confirmed', source: primaryDocName },
-      { name: 'Essential Hypertension', status: 'Active', certainty: 'Confirmed', source: primaryDocName }
-    );
-  }
-  if (medications.length === 0 && !isRedacted('metformin') && !isRedacted('atorvastatin')) {
-    medications.push(
-      { name: 'Metformin HCl 500 mg', dose_raw: '500 mg once daily with meal', indication: 'Type 2 Diabetes', status: 'Active', source: primaryDocName },
-      { name: 'Atorvastatin Calcium 20 mg', dose_raw: '20 mg once daily at bedtime', indication: 'Cardiovascular Prophylaxis', status: 'Active', source: primaryDocName }
-    );
-  }
-  if (labResults.length === 0 && !isRedacted('glucose') && !isRedacted('blood sugar') && !isRedacted('cholesterol')) {
-    labResults.push(
-      { test_name: 'Fasting Blood Sugar', value: '142', unit: 'mg/dL', flag: 'High', reference_range: '70-99', source: primaryDocName },
-      { test_name: 'Glycated Hemoglobin (HbA1c)', value: '7.2', unit: '%', flag: 'High', reference_range: '< 5.7', source: primaryDocName }
-    );
-  }
-  if (allergies.length === 0 && !isRedacted('penicillin') && !isRedacted('sulfa')) {
-    allergies.push(
-      { substance: 'Penicillin Antibiotics', reaction: 'Anaphylaxis & Urticaria', severity: 'Severe', source: primaryDocName },
-      { substance: 'Sulfa Drugs', reaction: 'Skin Rash & Pruritus', severity: 'Moderate', source: primaryDocName }
-    );
-  }
 
   let summary = '';
   if (reportType === 'medications') {

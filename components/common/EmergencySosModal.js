@@ -71,8 +71,12 @@ function GpsIcon({ size = 16, color = '#DC2626' }) {
 export default function EmergencySosModal({
   visible,
   onClose,
-  patientName = 'Melroy Almeida',
-  bloodType = 'O+',
+  patientName = 'Verified Patient',
+  bloodType = 'Not documented',
+  doctorName = 'Attending Physician',
+  doctorPhone = '+15550198234',
+  caretakerName = 'Primary Caretaker',
+  caretakerPhone = '+15550198999',
   onBroadcastSuccess,
 }) {
   const [broadcasting, setBroadcasting] = useState(false);
@@ -151,14 +155,14 @@ export default function EmergencySosModal({
             {/* Option 2: Attending Physician */}
             <TouchableOpacity
               style={[s.callBtn, { backgroundColor: '#2563EB' }]}
-              onPress={() => makeCall('+15550198234')}
+              onPress={() => makeCall(doctorPhone)}
               activeOpacity={0.85}
             >
               <View style={s.callBtnLeft}>
                 <PhoneIcon size={20} color="#FFFFFF" />
                 <View style={s.callBtnTextCol}>
-                  <Text style={s.callBtnTitle}>Dr. Sarah Jenkins</Text>
-                  <Text style={s.callBtnSub}>Attending Cardiologist · (+1 555-019-8234)</Text>
+                  <Text style={s.callBtnTitle}>{doctorName}</Text>
+                  <Text style={s.callBtnSub}>Attending Physician · ({doctorPhone})</Text>
                 </View>
               </View>
               <Text style={s.dialText}>CALL →</Text>
@@ -167,14 +171,14 @@ export default function EmergencySosModal({
             {/* Option 3: Family Caretaker */}
             <TouchableOpacity
               style={[s.callBtn, { backgroundColor: '#7C3AED' }]}
-              onPress={() => makeCall('+15550198999')}
+              onPress={() => makeCall(caretakerPhone)}
               activeOpacity={0.85}
             >
               <View style={s.callBtnLeft}>
                 <PhoneIcon size={20} color="#FFFFFF" />
                 <View style={s.callBtnTextCol}>
-                  <Text style={s.callBtnTitle}>Vikram Almeida</Text>
-                  <Text style={s.callBtnSub}>Primary Caretaker · (+1 555-019-8999)</Text>
+                  <Text style={s.callBtnTitle}>{caretakerName}</Text>
+                  <Text style={s.callBtnSub}>Primary Caretaker · ({caretakerPhone})</Text>
                 </View>
               </View>
               <Text style={s.dialText}>CALL →</Text>

@@ -96,7 +96,7 @@ export default function AIConsultationModal({
   visible,
   onClose,
   doctorId = 'default_doctor',
-  patientName = 'Melroy Almeida',
+  patientName = 'Verified Patient',
   onPrescriptionGenerated,
 }) {
   // Session State

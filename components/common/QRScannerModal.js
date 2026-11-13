@@ -253,8 +253,8 @@ export default function QRScannerModal({
     userQrValue ||
     JSON.stringify({
       type: 'MEDVAULT_SOVEREIGN_PASS',
-      patientId: 'MV-2026-PAT-892',
-      name: userName,
+      patientId: 'MV-SOVEREIGN',
+      name: userName || 'Verified Patient',
       created_at: new Date().toISOString(),
     });
 

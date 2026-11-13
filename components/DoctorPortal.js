@@ -242,8 +242,8 @@ const INITIAL_DOCTOR_INFO = {
 const INITIAL_CONNECTED_PATIENTS = [
   {
     id: 'p1',
-    name: 'Melroy Almeida',
-    patientId: 'MV-2026-PAT-892',
+    name: 'Verified Patient',
+    patientId: 'MV-SOVEREIGN',
     age: '32 yrs',
     gender: 'Male',
     blood: 'O+',
@@ -359,8 +359,8 @@ const INITIAL_HISTORY = [
     id: 'h-1',
     type: 'upload',
     title: 'Metabolic Panel Report',
-    patientName: 'Melroy Almeida',
-    patientId: 'MV-2026-PAT-892',
+    patientName: 'Verified Patient',
+    patientId: 'MV-SOVEREIGN',
     date: 'Today, Nov 13, 2026',
     time: '06:15 AM',
     timestamp: '2026-11-13T06:15:00',
@@ -375,8 +375,8 @@ const INITIAL_HISTORY = [
     id: 'h-2',
     type: 'connection',
     title: 'Patient QR Access',
-    patientName: 'Melroy Almeida',
-    patientId: 'MV-2026-PAT-892',
+    patientName: 'Verified Patient',
+    patientId: 'MV-SOVEREIGN',
     date: 'Today, Nov 13, 2026',
     time: '05:45 AM',
     timestamp: '2026-11-13T05:45:00',
@@ -390,13 +390,13 @@ const INITIAL_HISTORY = [
   {
     id: 'h-3',
     type: 'update',
-    title: 'Rx: Metformin 500mg',
-    patientName: 'Melroy Almeida',
-    patientId: 'MV-2026-PAT-892',
+    title: 'Rx: Maintenance Regimen',
+    patientName: 'Verified Patient',
+    patientId: 'MV-SOVEREIGN',
     date: 'Nov 12, 2026',
     time: '04:20 PM',
     timestamp: '2026-11-12T16:20:00',
-    details: 'Dose: 500mg PO daily with evening meal. Maintained glycemic stabilization protocol.',
+    details: 'Standard maintenance regimen prescribed and verified.',
     category: 'Prescription',
     format: 'RX',
     size: 'Active Rx',
@@ -521,14 +521,14 @@ const INITIAL_NOTIFICATIONS = [
   {
     id: 'notif-1',
     title: 'New Patient Connection',
-    desc: 'Melroy Almeida shared full clinical vault records with Dr. Sarah Jenkins.',
+    desc: 'Verified patient shared clinical vault records with attending team.',
     time: '15 mins ago',
     unread: true,
   },
   {
     id: 'notif-2',
     title: 'Lab Extraction Confirmed',
-    desc: 'Metabolic Panel structured schema successfully indexed for Melroy Almeida.',
+    desc: 'Metabolic Panel structured schema successfully indexed.',
     time: '2 hours ago',
     unread: true,
   },
@@ -2491,17 +2491,17 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         visible={showConsultationModal}
         onClose={() => setShowConsultationModal(false)}
         doctorId={doctorInfo?.id || 'd1'}
-        patientName={targetPatient?.name || 'Melroy Almeida'}
+        patientName={targetPatient?.name || 'Assigned Patient'}
         onPrescriptionGenerated={(rxDoc) => {
-          showToast(`Prescription successfully generated for ${targetPatient?.name || 'Melroy Almeida'}!`);
+          showToast(`Prescription successfully generated for ${targetPatient?.name || 'Assigned Patient'}!`);
           // Add to clinical history list
           setHistoryList((prev) => [
             {
               id: `h-rx-${Date.now()}`,
               type: 'update',
               title: rxDoc.name,
-              patientName: targetPatient?.name || 'Melroy Almeida',
-              patientId: targetPatient?.patientId || 'MV-2026-PAT-892',
+              patientName: targetPatient?.name || 'Assigned Patient',
+              patientId: targetPatient?.patientId || 'MV-SOVEREIGN',
               date: 'Today, ' + new Date().toLocaleDateString(),
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               timestamp: new Date().toISOString(),

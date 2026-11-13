@@ -67,8 +67,8 @@ const IconDownload = ({ size = 16, color = '#FFFFFF' }) => (
 export default function PrescriptionReviewModal({
   visible,
   onClose,
-  patientName = 'Melroy Almeida',
-  doctorName = 'Dr. Sarah Jenkins',
+  patientName = 'Verified Patient',
+  doctorName = 'Attending Physician',
   doctorSpecialty = 'Cardiology & Internal Medicine',
   acceptedMedicines = [],
   onUpdateMedicines,

@@ -47,14 +47,14 @@ export function generateDossierHtml({ patient, flags = [], records = [], doctorN
           </div>
           <div style="text-align: right;">
             <div style="font-weight: bold; font-size: 14px;">Date: ${new Date().toLocaleDateString()}</div>
-            <div style="font-size: 12px; color: #64748B;">Vault: ${patient?.vaultId || 'MV-2026-PAT-892'}</div>
+            <div style="font-size: 12px; color: #64748B;">Vault: ${patient?.vaultId || 'MV-SOVEREIGN'}</div>
           </div>
         </div>
 
         <div class="patient-box">
-          <div style="font-size: 18px; font-weight: bold;">${patient?.name || 'Melroy Almeida'}</div>
+          <div style="font-size: 18px; font-weight: bold;">${patient?.name || 'Verified Patient'}</div>
           <div style="font-size: 13px; color: #64748B; margin-top: 4px;">
-            Blood Group: <strong>${patient?.bloodType || 'O+'}</strong> | Attending: <strong>${patient?.attendingDoctor || 'Dr. Sarah Jenkins'}</strong>
+            Blood Group: <strong>${patient?.bloodType || 'Not documented'}</strong> | Attending: <strong>${patient?.attendingDoctor || 'Clinical Team'}</strong>
           </div>
         </div>
 

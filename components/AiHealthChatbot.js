@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import Svg, { Path, Line, Circle, Rect, Polygon } from 'react-native-svg';
+import Svg, { Path, Line, Circle, Rect, Polygon, Polyline } from 'react-native-svg';
 import { callGrok, transcribeAudioGroq } from '../services/grokClient';
 import { storageService } from '../services/storageService';
+import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 import {
   pickMedicalDocument,
   extractMedicalDocument,
@@ -20,6 +21,17 @@ import {
   fetchUriAsBase64,
   audioRecorder,
 } from '../services/geminiExtractor';
+
+// ─── SVG ICONS (STRICTLY NO EMOJIS) ──────────────────────────────────────────
+const IconFileText = ({ size = 15, color = '#0D9488' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <Polyline points="14 2 14 8 20 8" />
+    <Line x1="16" y1="13" x2="8" y2="13" />
+    <Line x1="16" y1="17" x2="8" y2="17" />
+    <Line x1="10" y1="9" x2="8" y2="9" />
+  </Svg>
+);
 
 // ─── SVG ICONS (STRICTLY NO EMOJIS) ──────────────────────────────────────────
 const IconArrowLeft = ({ size = 20, color = '#0F172A' }) => (
@@ -565,28 +577,30 @@ export default function AiHealthChatbot({
       const isTabletQuery = hasImage ||
         /tablet|pill|medicine|medication|drug|capsule|mg|dose|prescription|what is .* used for/i.test(userText);
 
-      const systemPrompt = `You are MedFlow Clinical AI, an intelligent clinical health assistant.
+      const systemPrompt = `You are MedFlow Clinical AI, an unrestricted medical, clinical, and pharmacological intelligence engine.
 User Role: ${userRole.toUpperCase()} (${userDisplayName}).
-Verified Vault Records Context:
-${recordSummaries || 'No patient records uploaded yet.'}
+Vault Records Context (if available):
+${recordSummaries || 'No specific vault records uploaded yet. You have full access to general medicine, pharmacology, symptoms, treatments, diagnostics, lifestyle, first aid, and healthcare guidance.'}
 
 ${hasImage ? `[IMAGE ATTACHMENT DETAILS]:
 - Attached Tablet Photo: "${currentAttachedImage.name}"
 ${ocrExtractedText ? `- OCR Extracted Text: "${ocrExtractedText}"` : ''}
 ${identifiedMeds.length ? `- Detected Active Medication: "${identifiedMeds.join(', ')}"` : ''}` : ''}
 
-CRITICAL FORMATTING INSTRUCTIONS:
-${isTabletQuery ? `1. ON THE VERY FIRST LINE, YOU MUST QUOTE THE AUTHORITATIVE CLINICAL REFERENCE SOURCE:
+CORE DIRECTIVES:
+1. You can answer ANY medical, pharmaceutical, anatomical, symptom, treatment, diagnostic, wellness, or healthcare inquiry without restriction or limitation.
+2. DO NOT artificially restrict your responses to uploaded records only. If no records are uploaded, provide comprehensive, authoritative, evidence-based medical information.
+3. If vault records are provided, synthesize them accurately when relevant.
+4. You can also generate comprehensive clinical summaries, care plans, and consultation briefings for export to PDF on any topic or patient consultation.
+${isTabletQuery ? `5. For medication/tablet queries, structure your answer clearly:
 > **Clinical Reference Source:** National Institutes of Health (NIH) DailyMed / FDA Clinical Pharmacology Database & Sovereign Clinical Formulary
-
-Followed by structured sections:
 • **Medication:** Active ingredient, strength, and common brand equivalents
 • **Primary Use:** What it is used for (primary therapeutic indications and conditions)
-• **Mechanism of Action:** How it acts in the body in clear, accessible medical terms
+• **Mechanism of Action:** How it acts biochemically in the body
 • **Standard Dosage & Administration:** Typical dose, timing, route, and with/without food
 • **Key Precautions & Warnings:** Critical contraindications, common side effects, and interaction warnings
-• **Safety Guidance:** Remind the patient to follow their prescribing clinician's instructions.` : `1. Answer the query accurately based on verified health records and clinical pharmacology.
-2. Clearly explain lab results, flags (High/Low), and medical conditions.`}
+• **Safety Guidance:** Remind the patient to follow their prescribing clinician's instructions.` : `1. Answer the query thoroughly, accurately, and objectively based on clinical medicine, pharmacology, and medical literature.
+2. Clearly explain symptoms, conditions, medications, tests, and clinical findings with clarity.`}
 
 STRICT SAFETY RULES:
 - DO NOT use any emojis.
@@ -656,7 +670,7 @@ STRICT SAFETY RULES:
           `• **Key Precautions & Warnings:** Verify expiration date, dosage strength, and potential interactions with existing prescriptions.\n\n` +
           `*Note: Consult your physician or licensed pharmacist for verified dispensing instructions.*`;
       } else {
-        fallbackReply = `MedFlow AI Assistant:\nI analyzed your query against sovereign vault records. All medical data is verified and encrypted under AES-256 standard. Please consult your physician for specific diagnostic evaluations.`;
+        fallbackReply = `MedFlow AI Clinical Assistant:\nI encountered a temporary connection issue reaching the clinical intelligence service. For immediate pharmacological questions, you can upload a tablet photo or ask about specific medications, dosage guidelines, and clinical indications.`;
       }
 
       setChatMessages((prev) => [
@@ -670,6 +684,73 @@ STRICT SAFETY RULES:
       ]);
     } finally {
       setIsBotTyping(false);
+    }
+  };
+
+  // ─── EXPORT CONSULTATION OR GENERAL TOPIC AS PDF ───────────────────────────
+  const handleExportChatPdf = () => {
+    try {
+      const meaningfulMessages = chatMessages.filter((m) => m.id !== '1');
+      if (meaningfulMessages.length === 0) {
+        showToast('Ask a medical or general health question first to export PDF.');
+        return;
+      }
+
+      const lastUserMsg = [...chatMessages].reverse().find((m) => m.sender === 'user')?.text || 'Clinical Consultation';
+      const cleanTitle = lastUserMsg.length > 40 ? lastUserMsg.slice(0, 37) + '...' : lastUserMsg;
+      const botAnswers = meaningfulMessages.filter((m) => m.sender === 'bot').map((m) => m.text).join('\n\n');
+
+      const consultRecord = {
+        name: `Clinical Consultation - ${cleanTitle}`,
+        patientName: userDisplayName || 'Verified Patient',
+        patientId: userId ? `MV-${userId.slice(0, 8).toUpperCase()}` : 'MV-SOVEREIGN',
+        doctor: 'MedFlow Clinical Intelligence',
+        facility: 'MedFlow Sovereign Health Network',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        reportType: 'complete',
+        bloodType: 'Recorded on file',
+        emergencyContact: 'Not specified on file',
+        conditions: [
+          {
+            name: `Consultation Topic: ${cleanTitle}`,
+            status: 'Clinical Review Completed',
+            certainty: 'Evidence-Based Intelligence',
+            source: 'MedFlow Clinical Session',
+          },
+        ],
+        medications: [],
+        lab_results: [],
+        allergies: [],
+        extractedData: {
+          summary: botAnswers.slice(0, 400),
+          conditions: [
+            {
+              name: `Consultation Topic: ${cleanTitle}`,
+              status: 'Clinical Review Completed',
+              certainty: 'Evidence-Based Intelligence',
+              source: 'MedFlow Clinical Session',
+            },
+          ],
+          medications: [],
+          lab_results: [],
+          allergies: [],
+        },
+        sourceDocuments: [
+          {
+            id: 'chat-consult-1',
+            name: 'MedFlow Clinical AI Intelligence Session',
+            type: 'DOC',
+            date: new Date().toLocaleDateString(),
+            facility: 'MedFlow Sovereign Health Network',
+          },
+        ],
+      };
+
+      downloadMedicalPdf(consultRecord);
+      showToast('Medical Consultation PDF exported and downloaded!');
+    } catch (err) {
+      console.warn('[handleExportChatPdf Error]', err);
+      showToast('Could not generate consultation PDF');
     }
   };
 
@@ -707,11 +788,19 @@ STRICT SAFETY RULES:
           </View>
         </View>
 
-        {/* New / Reset Chat Button */}
-        <TouchableOpacity style={styles.newChatBtn} onPress={handleResetChat} activeOpacity={0.8}>
-          <IconRefreshCw size={13} color={themeColor} />
-          <Text style={[styles.newChatBtnText, { color: themeColor }]}>New Chat</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/* Export PDF Button */}
+          <TouchableOpacity style={styles.exportPdfBtn} onPress={handleExportChatPdf} activeOpacity={0.8}>
+            <IconFileText size={13} color="#0D9488" />
+            <Text style={styles.exportPdfBtnText}>Export PDF</Text>
+          </TouchableOpacity>
+
+          {/* New / Reset Chat Button */}
+          <TouchableOpacity style={styles.newChatBtn} onPress={handleResetChat} activeOpacity={0.8}>
+            <IconRefreshCw size={13} color={themeColor} />
+            <Text style={[styles.newChatBtnText, { color: themeColor }]}>New Chat</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ─── QUICK SUGGESTION CHIPS ───────────────────────────────────────── */}
@@ -719,6 +808,7 @@ STRICT SAFETY RULES:
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipContent}>
           {[
             'Identify tablet photo',
+            'Generate consultation PDF',
             'What is Metformin used for?',
             'What is Paracetamol used for?',
             'Check my latest lab results',
@@ -727,7 +817,13 @@ STRICT SAFETY RULES:
             <TouchableOpacity
               key={chip}
               style={styles.quickPromptChip}
-              onPress={() => handleSendChatMessage(chip)}
+              onPress={() => {
+                if (chip === 'Generate consultation PDF') {
+                  handleExportChatPdf();
+                } else {
+                  handleSendChatMessage(chip);
+                }
+              }}
               activeOpacity={0.7}
             >
               <Text style={styles.quickPromptChipText}>{chip}</Text>
@@ -954,6 +1050,22 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#64748B',
     marginTop: 1,
+  },
+  exportPdfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  exportPdfBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0D9488',
   },
   newChatBtn: {
     flexDirection: 'row',

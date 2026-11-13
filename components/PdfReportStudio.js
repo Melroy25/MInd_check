@@ -121,22 +121,27 @@ export default function PdfReportStudio({
   const [redactedTerms, setRedactedTerms] = useState([]);
   const [privacyNotification, setPrivacyNotification] = useState(null);
 
-  // Derive all real source documents from patient's uploaded vault files (strictly NO JSON)
-  const sourceDocuments = useMemo(() => {
-    const realFiles = (files || []).filter((f) => {
+  // Filter for real uploaded clinical files (strictly NO JSON)
+  const realVaultFiles = useMemo(() => {
+    return (files || []).filter((f) => {
       const name = (f.name || '').toLowerCase();
       return !name.includes('(structured json)') && !name.endsWith('.json') && f.type !== 'json';
     });
+  }, [files]);
 
-    if (realFiles.length > 0) {
-      return realFiles.map((f) => {
+  const hasDocuments = realVaultFiles.length > 0;
+
+  // Derive real source documents from patient's uploaded vault files (strictly zero fake files)
+  const sourceDocuments = useMemo(() => {
+    if (realVaultFiles.length > 0) {
+      return realVaultFiles.map((f) => {
         const isImg = f.type === 'IMG' || f.type === 'image' || (f.name || '').toLowerCase().match(/\.(png|jpg|jpeg|webp)$/);
         return {
           id: f.id,
           name: f.name || 'Medical Document',
           type: isImg ? 'IMG' : 'PDF',
           date: f.date || 'Recent',
-          facility: f.hospital || 'Metro Diagnostics',
+          facility: f.hospital || f.facility || 'Sovereign Vault',
           fileBlob: f.fileBlob,
           uri: f.uri,
           dataUrl: f.dataUrl,
@@ -145,32 +150,23 @@ export default function PdfReportStudio({
       });
     }
 
-    return [
-      {
-        id: 's1',
-        name: 'Screenshot 2026 11 12 154728.png',
-        type: 'IMG',
-        date: 'Nov 12, 2026',
-        facility: 'Metro Diagnostics',
-      },
-    ];
-  }, [files]);
+    return [];
+  }, [realVaultFiles]);
 
-  // Aggregate clinical entities from vault records with real document provenance
+  // Aggregate clinical entities exclusively from real vault records (strictly zero fake data)
   const aggregatedData = useMemo(() => {
     const conditions = [];
     const medications = [];
     const lab_results = [];
     const allergies = [];
 
-    const realVaultFiles = (files || []).filter((f) => {
-      const name = (f.name || '').toLowerCase();
-      return !name.includes('(structured json)') && !name.endsWith('.json') && f.type !== 'json';
-    });
+    if (!hasDocuments) {
+      return { conditions, medications, lab_results, allergies };
+    }
 
-    const primaryDocName = realVaultFiles[0]?.name || 'Screenshot 2026 11 12 154728.png';
+    const primaryDocName = realVaultFiles[0]?.name || 'Direct Sovereign Vault Entry';
 
-    files.forEach((f) => {
+    realVaultFiles.forEach((f) => {
       const docSourceName = f.name || primaryDocName;
       const ed = f.extractedData || {};
       const ent = ed.extracted_entities || {};
@@ -200,42 +196,28 @@ export default function PdfReportStudio({
       }
     });
 
-    // Provide default clinical entities tagged with real document name if newly uploaded
-    if (conditions.length === 0) {
-      conditions.push({ name: 'Diabetes Mellitus Type 2', status: 'Active', certainty: 'Confirmed', source: primaryDocName });
-      conditions.push({ name: 'Essential Hypertension', status: 'Active', certainty: 'Confirmed', source: primaryDocName });
-    }
-    if (medications.length === 0) {
-      medications.push({ name: 'Metformin HCl 500 mg', dose_raw: '500 mg once daily with meal', indication: 'Type 2 Diabetes', status: 'Active', source: primaryDocName });
-      medications.push({ name: 'Atorvastatin Calcium 20 mg', dose_raw: '20 mg once daily at bedtime', indication: 'Cardiovascular Prophylaxis', status: 'Active', source: primaryDocName });
-    }
-    if (lab_results.length === 0) {
-      lab_results.push({ test_name: 'Fasting Blood Sugar', value: '142', unit: 'mg/dL', flag: 'High', reference_range: '70-99', source: primaryDocName });
-      lab_results.push({ test_name: 'Glycated Hemoglobin (HbA1c)', value: '7.2', unit: '%', flag: 'High', reference_range: '< 5.7', source: primaryDocName });
-      lab_results.push({ test_name: 'Total Cholesterol', value: '195', unit: 'mg/dL', flag: 'Normal', reference_range: '< 200', source: primaryDocName });
-    }
-    if (allergies.length === 0) {
-      allergies.push({ substance: 'Penicillin Antibiotics', reaction: 'Anaphylaxis & Urticaria', severity: 'Severe', source: primaryDocName });
-      allergies.push({ substance: 'Sulfa Drugs', reaction: 'Skin Rash & Pruritus', severity: 'Moderate', source: primaryDocName });
-    }
-
     return { conditions, medications, lab_results, allergies };
-  }, [files]);
+  }, [realVaultFiles, hasDocuments]);
 
-  // Build the compiled record object for View/Download
+  // Build the compiled record object for View/Download (real patient info, zero fake names)
   const compiledReportRecord = useMemo(() => {
     const presetObj = REPORT_PRESETS.find((p) => p.id === activePreset) || REPORT_PRESETS[0];
+    const patientDisplayName = patientInfo?.name || 'Verified Patient';
+    const patientVaultId = patientInfo?.vaultId || 'MV-SOVEREIGN';
+    const attendingDoc = patientInfo?.attendingDoctor || 'Attending Clinical Team';
+    const hospitalFacility = patientInfo?.primaryHospital || 'MedFlow Sovereign Health Network';
+    const emergencyContactPhone = patientInfo?.emergencyContact || 'Not specified on file';
 
     return {
-      name: `${presetObj.title} - ${patientInfo?.name || 'Melroy Almeida'}`,
-      patientName: patientInfo?.name || 'Melroy Almeida',
-      patientId: patientInfo?.vaultId || 'MV-2026-PAT-892',
-      doctor: patientInfo?.attendingDoctor || 'Dr. Sarah Jenkins',
-      facility: patientInfo?.primaryHospital || 'Metro Hospital & Clinical Diagnostics',
+      name: `${presetObj.title} - ${patientDisplayName}`,
+      patientName: patientDisplayName,
+      patientId: patientVaultId,
+      doctor: attendingDoc,
+      facility: hospitalFacility,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       reportType: activePreset,
-      bloodType: patientInfo?.bloodType || 'O+ (Positive)',
-      emergencyContact: 'Maria Almeida (Spouse) - +1 (555) 019-2834',
+      bloodType: patientInfo?.bloodType || 'Not documented',
+      emergencyContact: emergencyContactPhone,
       redactedTerms,
       sourceDocuments,
       conditions: aggregatedData.conditions,
@@ -316,10 +298,22 @@ Strictly return JSON only.`,
 
   // ─── ACTION HANDLERS: VIEW & DOWNLOAD ──────────────────────────────────────
   const handleViewPdf = () => {
+    if (!hasDocuments) {
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Cannot generate PDF: No clinical records found in your sovereign vault. Please upload documents first.');
+      }
+      return;
+    }
     viewMedicalPdf(compiledReportRecord);
   };
 
   const handleDownloadPdf = () => {
+    if (!hasDocuments) {
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Cannot generate PDF: No clinical records found in your sovereign vault. Please upload documents first.');
+      }
+      return;
+    }
     downloadMedicalPdf(compiledReportRecord);
   };
 
@@ -445,33 +439,52 @@ Strictly return JSON only.`,
           )}
         </View>
 
-        {/* ── 3. REPORT ACTION CARD ── */}
-        <View style={styles.reportSummaryCard}>
-          <View style={styles.summaryTopRow}>
-            <View style={styles.summaryIconBox}>
-              <IconFileText size={26} color="#EA580C" />
+        {/* ── 3. REPORT ACTION CARD OR EMPTY VAULT STATE ── */}
+        {!hasDocuments ? (
+          <View style={styles.emptyVaultCard}>
+            <View style={styles.emptyVaultTopRow}>
+              <View style={styles.emptyVaultIconCircle}>
+                <IconAlertCircle size={28} color="#DC2626" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emptyVaultTitle}>No Documents in Sovereign Vault</Text>
+                <Text style={styles.emptyVaultDesc}>
+                  You have 0 clinical documents in your vault. Clinical PDF summaries require real verified records. Please upload a lab report, prescription, or clinical summary to generate an authentic report.
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.summaryDocTitle}>{compiledReportRecord.name}</Text>
-              <Text style={styles.summaryDocSub}>
-                Patient: {compiledReportRecord.patientName} (Vault: {compiledReportRecord.patientId})
-              </Text>
-            </View>
-          </View>
-
-          {/* Action Buttons: View A4 PDF & Download PDF */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity style={styles.viewPdfBtn} onPress={handleViewPdf} activeOpacity={0.85}>
-              <IconEye size={18} color="#EA580C" />
-              <Text style={styles.viewPdfBtnText}>View A4 PDF</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.downloadPdfBtn} onPress={handleDownloadPdf} activeOpacity={0.85}>
-              <IconDownload size={18} color="#FFFFFF" />
-              <Text style={styles.downloadPdfBtnText}>Download PDF</Text>
+            <TouchableOpacity style={styles.emptyVaultUploadBtn} onPress={onBack} activeOpacity={0.85}>
+              <Text style={styles.emptyVaultUploadBtnText}>Upload Medical Document First</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        ) : (
+          <View style={styles.reportSummaryCard}>
+            <View style={styles.summaryTopRow}>
+              <View style={styles.summaryIconBox}>
+                <IconFileText size={26} color="#EA580C" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.summaryDocTitle}>{compiledReportRecord.name}</Text>
+                <Text style={styles.summaryDocSub}>
+                  Patient: {compiledReportRecord.patientName} (Vault: {compiledReportRecord.patientId})
+                </Text>
+              </View>
+            </View>
+
+            {/* Action Buttons: View A4 PDF & Download PDF */}
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity style={styles.viewPdfBtn} onPress={handleViewPdf} activeOpacity={0.85}>
+                <IconEye size={18} color="#EA580C" />
+                <Text style={styles.viewPdfBtnText}>View A4 PDF</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.downloadPdfBtn} onPress={handleDownloadPdf} activeOpacity={0.85}>
+                <IconDownload size={18} color="#FFFFFF" />
+                <Text style={styles.downloadPdfBtnText}>Download PDF</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -914,6 +927,51 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   downloadPdfBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  emptyVaultCard: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    padding: 18,
+    gap: 14,
+  },
+  emptyVaultTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  emptyVaultIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyVaultTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#991B1B',
+  },
+  emptyVaultDesc: {
+    fontSize: 12,
+    color: '#B91C1C',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  emptyVaultUploadBtn: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyVaultUploadBtnText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',

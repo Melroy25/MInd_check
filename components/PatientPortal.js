@@ -316,8 +316,8 @@ const buildStructuredJson = (title, file, text, patient) => {
       doc_type_confidence: 0.98,
       document_date: "2026-10-24",
       provider: {
-        name: patient?.attendingDoctor || "Dr. Sarah Jenkins",
-        facility: patient?.primaryHospital || "Metro Diagnostics",
+        name: patient?.attendingDoctor || "Clinical Team",
+        facility: patient?.primaryHospital || "MedFlow Sovereign Health Network",
         country: "US"
       },
       extracted_at: new Date().toISOString(),
@@ -328,45 +328,20 @@ const buildStructuredJson = (title, file, text, patient) => {
     },
     clinical_summary: text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${effectiveTitle}. All critical observations, units, and evidence preserved with zero hallucinations.`,
     extracted_entities: {
-      conditions: [
+      conditions: effectiveTitle ? [
         {
-          name: effectiveTitle.toLowerCase().includes('cardio') ? "Cardiovascular Health" : "Routine Metabolic Screening",
+          name: effectiveTitle,
           status: "active",
           certainty: "confirmed",
-          evidence: { quote: `${effectiveTitle} findings verified`, page: 1 }
+          evidence: { quote: `${effectiveTitle} recorded in sovereign vault`, page: 1 }
         }
-      ],
-      medications: [
-        {
-          name: "Metformin HCl",
-          dose_raw: "500 mg",
-          frequency_raw: "Daily with meal",
-          status: "prescribed",
-          evidence: { quote: "Metformin HCl 500mg daily", page: 1 }
-        }
-      ],
+      ] : [],
+      medications: [],
       allergies: {
         status: "explicit_negative",
         items: []
       },
-      lab_results: [
-        {
-          test_name: "Fasting Plasma Glucose",
-          value: "104",
-          unit: "mg/dL",
-          reference_range_raw: "70 - 99",
-          flag: "borderline",
-          evidence: { quote: "Fasting Glucose 104 mg/dL (ref 70-99)", page: 1 }
-        },
-        {
-          test_name: "HbA1c",
-          value: "5.8",
-          unit: "%",
-          reference_range_raw: "< 5.7",
-          flag: "prediabetic",
-          evidence: { quote: "HbA1c 5.8% (ref < 5.7%)", page: 1 }
-        }
-      ]
+      lab_results: []
     }
   };
 };
@@ -376,8 +351,8 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [activeTab, setActiveTab] = useState('home');
 
   const isRealUser = Boolean(currentUser || currentProfile);
-  const patientDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Melroy Almeida');
-  const userVaultId = currentUser?.uid ? `MV-${currentUser.uid.slice(0, 8).toUpperCase()}` : 'MV-2026-PAT-892';
+  const patientDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Verified Patient');
+  const userVaultId = currentUser?.uid ? `MV-${currentUser.uid.slice(0, 8).toUpperCase()}` : 'MV-SOVEREIGN';
 
   // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
   const [currentAccountRole, setCurrentAccountRole] = useState(() => {
@@ -394,8 +369,8 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       return {
         name: patientDisplayName,
         vaultId: userVaultId,
-        bloodType: currentProfile?.blood_type || 'O+ (Confirmed)',
-        emergencyContact: currentProfile?.phone || currentUser?.phoneNumber || '+1 (555) 019-2834',
+        bloodType: currentProfile?.blood_type || 'Not documented',
+        emergencyContact: currentProfile?.phone || currentUser?.phoneNumber || 'Not specified on file',
         primaryHospital: 'MedFlow Health Network',
         attendingDoctor: 'Clinical Team',
         roleLabel: 'Patient (Primary)',
@@ -403,44 +378,44 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
     }
     if (proxyPatient) {
       return {
-        name: proxyPatient.name || 'Melroy Almeida',
-        vaultId: proxyPatient.id === 'p2' ? 'MV-2026-PAT-441' : proxyPatient.id === 'p3' ? 'MV-2026-PAT-712' : 'MV-2026-PAT-892',
-        bloodType: proxyPatient.blood ? `${proxyPatient.blood} (Ward)` : 'O+ (Positive)',
-        emergencyContact: '+1 (555) 019-2834',
-        primaryHospital: 'Metro Diagnostics',
-        attendingDoctor: 'Dr. Sarah Jenkins',
+        name: proxyPatient.name || 'Patient Ward',
+        vaultId: proxyPatient.id === 'p2' ? 'MV-2026-PAT-441' : proxyPatient.id === 'p3' ? 'MV-2026-PAT-712' : userVaultId,
+        bloodType: proxyPatient.blood ? `${proxyPatient.blood} (Ward)` : 'Not documented',
+        emergencyContact: 'Not specified on file',
+        primaryHospital: 'MedFlow Health Network',
+        attendingDoctor: 'Clinical Team',
         roleLabel: `Patient (${proxyPatient.relation || 'Assigned Ward'})`,
       };
     }
     if (userRole === 'doctor') {
       return {
-        name: 'Dr. Sarah Jenkins',
-        vaultId: 'MV-2026-DOC-401',
+        name: currentProfile?.full_name || currentUser?.displayName || 'Attending Physician',
+        vaultId: userVaultId,
         bloodType: 'Clinical Attending',
-        emergencyContact: '+1 (555) 019-9110',
-        primaryHospital: 'Metro Diagnostics & General',
-        attendingDoctor: 'Dr. Sarah Jenkins (MD)',
+        emergencyContact: 'Not specified on file',
+        primaryHospital: 'MedFlow Clinical Network',
+        attendingDoctor: currentProfile?.full_name || currentUser?.displayName || 'Attending Physician',
         roleLabel: 'Doctor (Attending)',
       };
     }
     if (userRole === 'caretaker') {
       return {
-        name: 'Vikram Almeida',
-        vaultId: 'MV-2026-CARE-112',
+        name: currentProfile?.full_name || currentUser?.displayName || 'Primary Caretaker',
+        vaultId: userVaultId,
         bloodType: 'Family Delegate',
-        emergencyContact: '+1 (555) 019-2834',
-        primaryHospital: 'Metro Diagnostics',
-        attendingDoctor: 'Dr. Sarah Jenkins',
+        emergencyContact: 'Not specified on file',
+        primaryHospital: 'MedFlow Health Network',
+        attendingDoctor: 'Clinical Team',
         roleLabel: 'Caretaker (Family Proxy)',
       };
     }
     return {
-      name: 'Melroy Almeida',
-      vaultId: 'MV-2026-PAT-892',
-      bloodType: 'O+ (Positive)',
-      emergencyContact: '+1 (555) 019-2834',
-      primaryHospital: 'Metro Diagnostics',
-      attendingDoctor: 'Dr. Sarah Jenkins',
+      name: patientDisplayName,
+      vaultId: userVaultId,
+      bloodType: 'Not documented',
+      emergencyContact: 'Not specified on file',
+      primaryHospital: 'MedFlow Health Network',
+      attendingDoctor: 'Clinical Team',
       roleLabel: 'Patient (Primary)',
     };
   });
@@ -1305,42 +1280,21 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
         vault_id: patientInfo.vaultId,
         encryption: 'AES-256-GCM Sovereign Vault',
       },
-      clinical_summary: enteredText.trim() || `Verified sovereign clinical record for ${title}. Extracted with high fidelity.`,
+      clinical_summary: enteredText.trim() || `Verified sovereign clinical record for ${title}.`,
       extracted_entities: {
-        conditions: [
+        conditions: title ? [
           {
-            name: title.toLowerCase().includes('diabetes') ? 'Type 2 Diabetes Mellitus'
-              : title.toLowerCase().includes('cardio') ? 'Cardiovascular Health'
-              : title.toLowerCase().includes('asthma') || title.toLowerCase().includes('pulmonary') ? 'Bronchial Asthma Assessment'
-              : title.toLowerCase().includes('renal') || title.toLowerCase().includes('kidney') ? 'Renal Function Surveillance'
-              : title.toLowerCase().includes('allergy') || title.toLowerCase().includes('immunology') ? 'Immunology & Allergy Evaluation'
-              : title.toLowerCase().includes('emergency') ? 'Emergency Clinical Stabilization'
-              : `${title} Assessment`,
+            name: title,
             status: 'active',
             certainty: 'confirmed'
           }
-        ],
-        medications: [
-          {
-            name: title.toLowerCase().includes('diabetes') ? 'Metformin HCl 1000 mg ER'
-              : title.toLowerCase().includes('cardio') ? 'Telmisartan 40 mg'
-              : title.toLowerCase().includes('asthma') || title.toLowerCase().includes('pulmonary') ? 'Symbicort Turbuhaler 160/4.5'
-              : title.toLowerCase().includes('renal') ? 'Losartan Potassium 50 mg'
-              : title.toLowerCase().includes('allergy') ? 'Cetirizine 10 mg'
-              : 'Prescribed Clinical Regimen',
-            dose_raw: 'As directed',
-            status: 'active'
-          }
-        ],
+        ] : [],
+        medications: [],
         allergies: {
-          status: title.toLowerCase().includes('allergy') || title.toLowerCase().includes('emergency') ? 'present' : 'explicit_negative',
-          items: (title.toLowerCase().includes('allergy') || title.toLowerCase().includes('emergency'))
-            ? [{ substance: 'Peanuts & Penicillin Antibiotics', reaction: 'Anaphylaxis & Generalized Urticaria', severity: 'severe' }]
-            : []
+          status: 'explicit_negative',
+          items: []
         },
-        lab_results: [
-          { test_name: 'Diagnostic Panel Index', value: 'Normal', unit: 'Index', flag: 'normal' }
-        ]
+        lab_results: []
       },
       rag_verification: {
         status: '0_conflicts',
@@ -1505,20 +1459,7 @@ Guidelines:
       setChatMessages((prev) => [...prev, { id: String(Date.now() + 1), sender: 'bot', text: botReply.trim() }]);
     } catch (err) {
       console.error('[ChatBot Error]', err);
-      // Helpful fallback if API key or network fails
-      let fallback = "I analyzed your MediVault records. Everything is stored under AES-256 sovereign encryption.";
-      const lower = q.toLowerCase();
-      if (lower.includes('medication') || lower.includes('medicine') || lower.includes('drug')) {
-        fallback = "According to your active prescriptions, you are currently prescribed:\n• Metformin HCl 500 mg (Oral, daily with meal)\n• Atorvastatin & Lisinopril (Cardiology daily regimen)";
-      } else if (lower.includes('lab') || lower.includes('glucose') || lower.includes('blood') || lower.includes('hba1c')) {
-        fallback = "Latest Blood & Lab Test Findings (Metro Diagnostics):\n• Fasting Blood Sugar: 142 mg/dL [High, normal range 70-99]\n• HbA1c: 7.2% [High, normal range < 5.7%]\n• Total Cholesterol: 195 mg/dL [Desirable]\n• HDL Cholesterol: 42 mg/dL [Borderline]";
-      } else if (lower.includes('cardio') || lower.includes('heart') || lower.includes('ecg') || lower.includes('echo')) {
-        fallback = "Your Resting ECG & 2D Echo performed by Dr. Mark Vance showed Normal Sinus Rhythm with no acute ischemic changes.";
-      } else if (lower.includes('summar') || lower.includes('overview') || lower.includes('health')) {
-        fallback = `Patient Health Summary for ${patientDisplayName}:\n• Sovereign ID: MV-2026-PAT-892\n• Active Conditions: Pre-diabetes / Poor glycemic control\n• Total Organized Vault Records: ${files.length}`;
-      } else {
-        fallback = `MedFlow AI response: I encountered a network issue reaching the clinical AI service (${err.message || 'offline'}). Your records remain safely stored in your sovereign vault.`;
-      }
+      const fallback = `MedFlow AI Assistant: I encountered a temporary network issue reaching the clinical AI service (${err.message || 'offline'}). Your records remain safely stored in your sovereign vault.`;
       setChatMessages((prev) => [...prev, { id: String(Date.now() + 1), sender: 'bot', text: fallback }]);
     } finally {
       setIsBotTyping(false);
@@ -1879,7 +1820,7 @@ Guidelines:
                   style={styles.benefactorSwitchBackBtn}
                   onPress={() => {
                     setCurrentAccountRole('patient');
-                    showToastMsg('Switched back to Melroy Almeida');
+                    showToastMsg(`Switched back to ${patientDisplayName}`);
                   }}
                   activeOpacity={0.8}
                 >
@@ -2711,7 +2652,7 @@ Guidelines:
                       <Text style={styles.settingItemSub}>
                         {currentAccountRole === 'benefactor'
                           ? 'Active: Apex Health Trust (Benefactor)'
-                          : 'Active: Melroy Almeida (Patient)'}
+                          : `Active: ${patientDisplayName} (Patient)`}
                       </Text>
                     </View>
                     <IconChevronRight size={18} color={C.textSub} />
@@ -2889,7 +2830,7 @@ Guidelines:
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.notifTitle}>Doctor Access Authorized</Text>
-                <Text style={styles.notifSub}>Dr. Sarah Jenkins accessed Cardiology Reports folder.</Text>
+                <Text style={styles.notifSub}>Authorized clinical provider accessed shared records.</Text>
                 <Text style={styles.notifTime}>Yesterday</Text>
               </View>
             </View>
@@ -3995,7 +3936,7 @@ Guidelines:
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 8 }}>
-              {/* Account 1: Melroy Almeida (Patient) */}
+              {/* Account 1: Patient Primary */}
               <TouchableOpacity
                 style={[
                   styles.switchRoleCard,
@@ -4004,23 +3945,25 @@ Guidelines:
                 onPress={() => {
                   setCurrentAccountRole('patient');
                   setShowSwitchAccountModal(false);
-                  showToastMsg('Switched to Melroy Almeida (Patient)');
+                  showToastMsg(`Switched to ${patientDisplayName} (Patient)`);
                 }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.switchRoleAvatar, { backgroundColor: '#EFF6FF' }]}>
-                  <Text style={[styles.switchRoleAvatarText, { color: C.blue }]}>ME</Text>
+                  <Text style={[styles.switchRoleAvatarText, { color: C.blue }]}>
+                    {patientDisplayName.slice(0, 2).toUpperCase()}
+                  </Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.switchRoleName}>Melroy Almeida</Text>
+                    <Text style={styles.switchRoleName}>{patientDisplayName}</Text>
                     {currentAccountRole === 'patient' && (
                       <View style={styles.switchRoleActiveBadge}>
                         <Text style={styles.switchRoleActiveBadgeText}>Active</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.switchRoleSub}>Patient Sovereign Vault · MV-2026-PAT-892</Text>
+                  <Text style={styles.switchRoleSub}>Patient Sovereign Vault · {userVaultId}</Text>
                 </View>
                 {currentAccountRole === 'patient' ? (
                   <View style={styles.switchRoleRadioSelected}>
