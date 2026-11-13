@@ -43,6 +43,7 @@ from app.schemas import (
     BatchItemResult,
     get_json_schema,
 )
+from app.consultation import router as consultation_router
 
 def get_active_provider():
     """Select the active extractor provider based on environment and key availability."""

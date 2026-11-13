@@ -1,8 +1,9 @@
 -- ==============================================================================
--- MEDFLOW / MEDIVAULT — PRODUCTION SUPABASE DATABASE SCHEMA
+-- MEDFLOW / MEDIVAULT — PRODUCTION SUPABASE DATABASE SCHEMA (IDEMPOTENT)
 -- ==============================================================================
--- Run this script in your Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
--- This creates all tables, triggers, and security policies for real authentication & clinical storage.
+-- Copy and paste this ENTIRE script into your Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/zigeebkgfyurcqmmzhcs/sql/new
+-- Then click the green "Run" button.
 
 -- 1. PROFILES TABLE (Linked directly to Supabase Auth Users)
 create table if not exists public.profiles (
@@ -11,7 +12,7 @@ create table if not exists public.profiles (
   full_name text not null default 'User',
   phone text,
   role text not null check (role in ('patient', 'doctor', 'caretaker')),
-  specialty text default 'General Medicine',
+  specialty text default 'Cardiology & Internal Medicine',
   license_number text,
   avatar_url text,
   created_at timestamptz default now(),
@@ -57,7 +58,24 @@ create table if not exists public.audit_logs (
   created_at timestamptz default now()
 );
 
--- 5. AUTO-CREATE PROFILE ON AUTH SIGNUP TRIGGER
+-- 5. DOCTOR PREFERRED MEDICINES TABLE (Memory store for AI Consultation Assistant)
+create table if not exists public.doctor_preferred_medicines (
+  id uuid default gen_random_uuid() primary key,
+  doctor_id uuid references auth.users on delete cascade not null,
+  name text not null,
+  strength text,
+  form text default 'tablet',
+  usual_dosage text,
+  usual_frequency text,
+  usual_timing text default 'after food',
+  condition_tags text[] default array[]::text[],
+  notes text,
+  usage_count int default 1,
+  last_used timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+-- 6. AUTO-CREATE PROFILE ON AUTH SIGNUP TRIGGER
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -84,60 +102,100 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 6. ENABLE ROW LEVEL SECURITY (RLS)
+-- 7. ENABLE ROW LEVEL SECURITY (RLS) ON ALL TABLES
 alter table public.profiles enable row level security;
 alter table public.medical_records enable row level security;
 alter table public.consent_tokens enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.doctor_preferred_medicines enable row level security;
 
--- Profiles Policies: Users can read and update their own profiles; doctors/caretakers can view linked profiles
+-- 8. IDEMPOTENT POLICIES (DROP EXISTING THEN RECREATE)
+
+-- Profiles Policies
+drop policy if exists "Users can view all profiles" on public.profiles;
 create policy "Users can view all profiles"
   on public.profiles for select
   using (true);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
--- Medical Records Policies: Patients can view and manage their own records
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
+-- Medical Records Policies
+drop policy if exists "Users can view own medical records" on public.medical_records;
 create policy "Users can view own medical records"
   on public.medical_records for select
   using (auth.uid() = patient_id or auth.uid() in (
     select id from public.profiles where role in ('doctor', 'caretaker')
   ));
 
+drop policy if exists "Users can insert own medical records" on public.medical_records;
 create policy "Users can insert own medical records"
   on public.medical_records for insert
   with check (auth.uid() = patient_id or auth.uid() in (
     select id from public.profiles where role in ('doctor', 'caretaker')
   ));
 
+drop policy if exists "Users can update own medical records" on public.medical_records;
 create policy "Users can update own medical records"
   on public.medical_records for update
   using (auth.uid() = patient_id);
 
+drop policy if exists "Users can delete own medical records" on public.medical_records;
 create policy "Users can delete own medical records"
   on public.medical_records for delete
   using (auth.uid() = patient_id);
 
--- Consent Tokens Policies: Active tokens can be validated by anyone authenticated
+-- Consent Tokens Policies
+drop policy if exists "Authenticated users can view consent tokens" on public.consent_tokens;
 create policy "Authenticated users can view consent tokens"
   on public.consent_tokens for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Patients can create consent tokens" on public.consent_tokens;
 create policy "Patients can create consent tokens"
   on public.consent_tokens for insert
   with check (auth.uid() = patient_id);
 
+drop policy if exists "Patients can update/revoke consent tokens" on public.consent_tokens;
 create policy "Patients can update/revoke consent tokens"
   on public.consent_tokens for update
   using (auth.uid() = patient_id);
 
--- Audit Logs Policies:
+-- Audit Logs Policies
+drop policy if exists "Authenticated users can view audit logs" on public.audit_logs;
 create policy "Authenticated users can view audit logs"
   on public.audit_logs for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can insert audit logs" on public.audit_logs;
 create policy "Authenticated users can insert audit logs"
   on public.audit_logs for insert
   with check (auth.role() = 'authenticated');
+
+-- Doctor Preferred Medicines Policies (Memory store for AI Consultation Assistant)
+drop policy if exists "Doctors can view own preferred medicines" on public.doctor_preferred_medicines;
+create policy "Doctors can view own preferred medicines"
+  on public.doctor_preferred_medicines for select
+  using (auth.uid() = doctor_id);
+
+drop policy if exists "Doctors can insert own preferred medicines" on public.doctor_preferred_medicines;
+create policy "Doctors can insert own preferred medicines"
+  on public.doctor_preferred_medicines for insert
+  with check (auth.uid() = doctor_id);
+
+drop policy if exists "Doctors can update own preferred medicines" on public.doctor_preferred_medicines;
+create policy "Doctors can update own preferred medicines"
+  on public.doctor_preferred_medicines for update
+  using (auth.uid() = doctor_id);
+
+drop policy if exists "Doctors can delete own preferred medicines" on public.doctor_preferred_medicines;
+create policy "Doctors can delete own preferred medicines"
+  on public.doctor_preferred_medicines for delete
+  using (auth.uid() = doctor_id);

@@ -8,6 +8,8 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-s
 import { pickMedicalDocument, extractMedicalDocument } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 import { QRScannerModal } from './common';
+import AIConsultationModal from './doctor/AIConsultationModal';
+import MyMedicinesModal from './doctor/MyMedicinesModal';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -120,6 +122,13 @@ const IconArrowLeft = ({ size = 22, color = C.textMain }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <Line x1="19" y1="12" x2="5" y2="12" />
     <Polyline points="12 19 5 12 12 5" />
+  </Svg>
+);
+
+const IconPill = ({ size = 22, color = C.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M10.5 20.5l10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+    <Line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
   </Svg>
 );
 
@@ -567,6 +576,8 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showHistoryDetailModal, setShowHistoryDetailModal] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showConsultationModal, setShowConsultationModal] = useState(false);
+  const [showMyMedicinesModal, setShowMyMedicinesModal] = useState(false);
   const [qrScanInput, setQrScanInput] = useState('');
 
   // Connected Patients Page Filter & Search
@@ -945,6 +956,33 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'home' && (
           <View style={styles.viewSection}>
+            {/* AI Consultation Assistant Hero Banner */}
+            <TouchableOpacity
+              style={styles.aiConsultationHeroCard}
+              onPress={() => setShowConsultationModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.aiHeroLeft}>
+                <View style={styles.aiHeroIconWrap}>
+                  <IconStethoscope size={28} color={C.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.aiHeroTagRow}>
+                    <Text style={styles.aiHeroTagText}>AI CONSULTATION ASSISTANT</Text>
+                    <View style={styles.aiLiveBadge}>
+                      <View style={styles.aiLiveDot} />
+                      <Text style={styles.aiLiveText}>DECISION SUPPORT</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aiHeroTitle}>Live Consultation & Speech Rx</Text>
+                  <Text style={styles.aiHeroSub}>Listen, transcribe & suggest medications in real time</Text>
+                </View>
+              </View>
+              <View style={styles.aiHeroBtn}>
+                <Text style={styles.aiHeroBtnText}>Start Session →</Text>
+              </View>
+            </TouchableOpacity>
+
             {/* At your Fingertip Section */}
             <Text style={styles.sectionTitle}>At your Fingertip</Text>
 
@@ -1006,6 +1044,24 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
                 <Text style={styles.boxSubText}>{historyList.length} Entries</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Doctor Preferred Medicines Memory Quick Bar */}
+            <TouchableOpacity
+              style={styles.myMedsBar}
+              onPress={() => setShowMyMedicinesModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.myMedsBarIconWrap}>
+                  <IconPill size={18} color={C.blue} />
+                </View>
+                <View>
+                  <Text style={styles.myMedsBarTitle}>My Preferred Medicines (Memory Store)</Text>
+                  <Text style={styles.myMedsBarSub}>View & customize prescription habits taught to AI</Text>
+                </View>
+              </View>
+              <Text style={styles.myMedsBarAction}>Manage →</Text>
+            </TouchableOpacity>
 
             {/* Overview / Quick Patient Record Hub */}
             <View style={styles.recentSectionHeader}>
@@ -2130,12 +2186,185 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
           </View>
         </View>
       </Modal>
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* MODAL 7: AI CONSULTATION ASSISTANT MODAL (SPEECH TO RX DECISION SUPPORT) */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <AIConsultationModal
+        visible={showConsultationModal}
+        onClose={() => setShowConsultationModal(false)}
+        doctorId={doctorInfo?.id || 'd1'}
+        patientName={targetPatient?.name || 'Melroy Almeida'}
+        onPrescriptionGenerated={(rxDoc) => {
+          showToast(`Prescription successfully generated for ${targetPatient?.name || 'Melroy Almeida'}!`);
+          // Add to clinical history list
+          setHistoryList((prev) => [
+            {
+              id: `h-rx-${Date.now()}`,
+              type: 'update',
+              title: rxDoc.name,
+              patientName: targetPatient?.name || 'Melroy Almeida',
+              patientId: targetPatient?.patientId || 'MV-2026-PAT-892',
+              date: 'Today, ' + new Date().toLocaleDateString(),
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timestamp: new Date().toISOString(),
+              details: `Official consultation prescription generated with verified decision support.`,
+              category: 'Prescription',
+              format: 'PDF',
+              size: '1.2 MB',
+              badgeColor: C.green,
+              badgeBg: C.greenBg,
+            },
+            ...prev,
+          ]);
+        }}
+      />
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* MODAL 8: DOCTOR PREFERRED MEDICINES SETTINGS MODAL                   */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <MyMedicinesModal
+        visible={showMyMedicinesModal}
+        onClose={() => setShowMyMedicinesModal(false)}
+        doctorId={doctorInfo?.id || 'd1'}
+        onMedsUpdated={() => {
+          showToast('Updated preferred medicines memory.');
+        }}
+      />
     </View>
   );
 }
 
 // ─── COMPREHENSIVE STYLES (MATCHING PATIENT PORTAL DESIGN SYSTEM) ────────────
 const styles = StyleSheet.create({
+  // AI Consultation Assistant Hero Card
+  aiConsultationHeroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.greenBorder,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: C.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  aiHeroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiHeroIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: C.greenBg,
+    borderWidth: 1,
+    borderColor: C.greenBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiHeroTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  aiHeroTagText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: C.green,
+    letterSpacing: 0.8,
+  },
+  aiLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  aiLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.blue,
+  },
+  aiLiveText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: C.blue,
+  },
+  aiHeroTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.textMain,
+    marginBottom: 2,
+  },
+  aiHeroSub: {
+    fontSize: 12.5,
+    color: C.textSub,
+    lineHeight: 16,
+  },
+  aiHeroBtn: {
+    marginTop: 12,
+    backgroundColor: C.green,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiHeroBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // My Preferred Medicines Bar
+  myMedsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: C.blueBorder,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 14,
+    marginBottom: 10,
+    shadowColor: C.blue,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  myMedsBarIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.blueBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myMedsBarTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.textMain,
+  },
+  myMedsBarSub: {
+    fontSize: 11.5,
+    color: C.textSub,
+    marginTop: 1,
+  },
+  myMedsBarAction: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: C.blue,
+  },
+
   root: {
     flex: 1,
     backgroundColor: C.bg,

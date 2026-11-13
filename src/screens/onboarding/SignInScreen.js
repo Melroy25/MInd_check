@@ -165,12 +165,6 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
   const [loading,     setLoading]     = useState(false);
   const [errorMsg,    setErrorMsg]    = useState('');
 
-  const handleAutoFillDemo = () => {
-    setEmail(cfg.emailPlaceholder);
-    setPassword('demo123');
-    setErrorMsg('');
-  };
-
   const handleLoginSubmit = async () => {
     setErrorMsg('');
     const cleanEmail = email.trim();
@@ -233,26 +227,6 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
 
           {/* ── Form Card ── */}
           <View style={s.formCard}>
-            {/* Demo Testing Callout */}
-            <View style={[s.demoCallout, { borderColor: cfg.pillColor + '40', backgroundColor: cfg.iconBg }]}>
-              <View style={s.demoCalloutHeader}>
-                <Text style={[s.demoCalloutTitle, { color: cfg.pillColor }]}>🧪 DEMO TEST ACCESS</Text>
-                <TouchableOpacity
-                  style={[s.demoFillBtn, { backgroundColor: cfg.pillColor }]}
-                  onPress={handleAutoFillDemo}
-                  activeOpacity={0.8}
-                >
-                  <Text style={s.demoFillBtnText}>⚡ Auto-Fill</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={s.demoCredsText}>
-                Email: <Text style={s.demoCredsCode}>{cfg.emailPlaceholder}</Text>
-              </Text>
-              <Text style={s.demoCredsText}>
-                Password: <Text style={s.demoCredsCode}>demo123</Text>
-              </Text>
-            </View>
-
             {/* Email */}
             <Text style={s.fieldLabel}>Username or Email</Text>
             <View style={s.inputRow}>
@@ -412,43 +386,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
     marginBottom: 20,
-  },
-
-  demoCallout: {
-    borderWidth: 1.5,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 18,
-  },
-  demoCalloutHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  demoCalloutTitle: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  demoFillBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 8,
-  },
-  demoFillBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  demoCredsText: {
-    fontSize: 12.5,
-    color: T.slate,
-    marginBottom: 2,
-  },
-  demoCredsCode: {
-    fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 
   fieldLabel: { fontSize: 13, fontWeight: '600', color: T.slate, marginBottom: 8 },

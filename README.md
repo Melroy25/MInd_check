@@ -46,7 +46,37 @@ npx expo start
 
 ---
 
-## 🎨 Design System & Developer Guide
+## 🩺 AI Consultation Assistant & Decision Support
+
+The Doctor Portal features a real-time **AI Consultation Assistant**:
+1. **Live Speech-to-Text Transcription:**
+   - Powered by Groq's `whisper-large-v3-turbo` model with sub-second chunk turnaround.
+   - **Zero Audio Storage Guarantee:** Audio streams are processed strictly in transient memory buffers and discarded immediately after transcription. No audio files or raw consultation transcripts are ever persisted to disk, cloud storage, or database.
+2. **Clinical Decision Support:**
+   - Real-time extraction of symptoms, probable diagnosis (explicitly labeled *"possible"*), allergies, and current patient medications.
+   - Clinical medicine suggestions with structured rationales: *Why*, *Key Advantages*, *Contraindications/Risks*, and *Allergy Warnings*.
+3. **Doctor-Specific Medicine Memory:**
+   - Learns each doctor's prescription habits in Supabase table `doctor_preferred_medicines`.
+   - Prioritizes the doctor's usual medications in AI prompt suggestions.
+   - Automatically saves and increments `usage_count` when a doctor prescribes or accepts medications.
+4. **Automatic 4-Key Failover Pool:**
+   - Automatically rotates across `EXPO_PUBLIC_GROK_API_KEY_1..4` with a 60-second cooldown on HTTP 429/503.
+   - Remembers the last working key to eliminate latency.
+5. **Printable Prescription Generator:**
+   - Doctor reviews accepted medications, customizes dosages, and exports a signed clinical PDF prescription.
+
+---
+
+## 🔐 Supabase Authentication & Real Backend
+
+1. **Database Schema:** Execute `supabase_schema.sql` in your Supabase SQL Editor.
+2. **Environment Variables:** Define in `.env.local`:
+   ```env
+   EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-publishable-key>
+   ```
+3. **Instant Sign-Up Tip:** In Supabase Dashboard -> **Authentication** -> **Providers** -> **Email**, toggle **"Confirm email"** to **OFF** for instant login during testing.
+
 
 Before building new features or creating new portals, please read:
 

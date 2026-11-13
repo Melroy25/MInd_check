@@ -43,15 +43,28 @@ export const storageService = {
   },
 
   /**
-   * Load patient health records / documents
+   * Load patient health records / documents (Real documents only, no fake mock documents)
    */
   async getFiles() {
     try {
       const data = await AsyncStorage.getItem(KEYS.FILES);
-      return data ? JSON.parse(data) : MOCK_FILES;
+      if (!data) return [];
+      const list = JSON.parse(data);
+      if (!Array.isArray(list)) return [];
+      // Filter out any legacy fake/mock documents
+      const FAKE_NAMES = [
+        'Comprehensive Metabolic Panel',
+        'Comprehensive Metabolic Panel (Structured JSON)',
+        'Resting ECG & 2D Echo Report',
+        'Chest X-Ray PA & Lateral View',
+        'Atorvastatin & Lisinopril Active Rx',
+        'Cardiology Consultation & Diet Notes',
+      ];
+      const realOnly = list.filter((f) => !FAKE_NAMES.includes(f.name) && !['1', '1-json', '2', '3', '4', '5'].includes(f.id));
+      return realOnly;
     } catch (e) {
       console.warn('[storageService] Failed to load files from storage:', e);
-      return MOCK_FILES;
+      return [];
     }
   },
 
