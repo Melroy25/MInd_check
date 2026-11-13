@@ -40,7 +40,7 @@ class ProviderInfo(BaseModel):
 
 class ExtractorInfo(BaseModel):
     """Metadata regarding the extraction engine."""
-    provider: Literal["gemini"] = Field(default="gemini", description="Extractor provider")
+    provider: Literal["gemini", "pure_python", "local"] = Field(default="pure_python", description="Extractor provider")
     model: str = Field(description="Model or engine identifier")
     version: str = Field(default="1.0", description="Extractor version")
 

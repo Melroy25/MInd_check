@@ -41,7 +41,7 @@ def read_image(file_bytes: bytes, filename: str = "image.png") -> Tuple[str, Dic
         elif "Comment" in img.info:
             text = str(img.info["Comment"]).strip()
 
-    # Optional pytesseract OCR if installed and text not yet found
+    # Optional pytesseract or EasyOCR if text not yet found
     if not text:
         try:
             import pytesseract  # type: ignore
@@ -50,7 +50,17 @@ def read_image(file_bytes: bytes, filename: str = "image.png") -> Tuple[str, Dic
             pass
 
     if not text:
-        text = f"[Scanned Image: {filename} - Processed via Vision LLM]"
+        try:
+            import easyocr  # type: ignore
+            import numpy as np
+            reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+            results = reader.readtext(np.array(img_rgb), detail=0)
+            text = "\n".join(results).strip()
+        except (ImportError, Exception):
+            pass
+
+    if not text:
+        text = f"[Scanned Image: {filename} - Processed via Local OCR]"
 
     page_texts = {1: text}
     raw_text = f"--- Page 1 ---\n{text}"

@@ -40,6 +40,12 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# python
+__pycache__/
+*.py[cod]
+extractor/outputs/
+.pytest_cache/
+
 # generated native folders
 /ios
 /android

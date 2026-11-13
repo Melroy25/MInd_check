@@ -22,6 +22,43 @@ export async function fetchPatientRecords(patientId) {
   return { data, error };
 }
 
+// ─── SAVE / UPLOAD MEDICAL RECORD ───────────────────────────────────────────
+export async function uploadMedicalRecord({ patientId, title, docType, fileUrl, extractedData, providerName, facilityName, documentDate }) {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: {
+        id: `rec_${Date.now()}`,
+        patient_id: patientId,
+        title,
+        doc_type: docType || 'other',
+        file_url: fileUrl || null,
+        extracted_data: extractedData || {},
+        created_at: new Date().toISOString(),
+      },
+      error: null,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('medical_records')
+    .insert([
+      {
+        patient_id: patientId,
+        title,
+        doc_type: docType || 'other',
+        file_url: fileUrl || null,
+        extracted_data: extractedData || {},
+        provider_name: providerName || null,
+        facility_name: facilityName || null,
+        document_date: documentDate || null,
+      },
+    ])
+    .select()
+    .single();
+
+  return { data, error };
+}
+
 // ─── CREATE CONSENT TOKEN (QR SHARING) ───────────────────────────────────────
 export async function createConsentToken({ patientId, roleAllowed, scopes, durationHours = 24 }) {
   const token = `${roleAllowed === 'caretaker' ? 'CAR' : 'DOC'}-${Math.floor(1000 + Math.random() * 9000)}`;

@@ -36,12 +36,27 @@ from app.storage import (
     get_batch_result,
 )
 from app.extract.gemini_provider import GeminiProvider
+from app.extract.pure_python_provider import PurePythonProvider
 from app.schemas import (
     MedicalDocumentExtraction,
     BatchExtractionResponse,
     BatchItemResult,
     get_json_schema,
 )
+
+def get_active_provider():
+    """Select the active extractor provider based on environment and key availability."""
+    import os
+    pref = os.getenv("EXTRACTOR_PROVIDER", "auto").strip().lower()
+    if pref == "pure_python":
+        return PurePythonProvider()
+    if pref == "gemini":
+        return GeminiProvider()
+    # Auto mode: if a valid Gemini key is present, use Gemini, otherwise Pure Python
+    key = get_gemini_api_key()
+    if key and len(key) > 5 and not key.startswith("your_"):
+        return GeminiProvider()
+    return PurePythonProvider()
 
 app = FastAPI(
     title="Verifiable Medical History - Gemini Extractor API",
@@ -89,7 +104,7 @@ async def health_check():
     if _health_cache and (now - _health_cache_time < 30.0):
         return _health_cache
 
-    provider = GeminiProvider()
+    provider = get_active_provider()
     result = provider.check_health()
     _health_cache = result
     _health_cache_time = now
@@ -159,7 +174,7 @@ async def extract_single(
             },
         )
 
-    provider = GeminiProvider()
+    provider = get_active_provider()
     model_name = provider.model_name
 
     # Ingest File
@@ -266,7 +281,7 @@ BATCH_JOBS: Dict[str, BatchJobState] = {}
 
 
 async def _run_batch_worker(job: BatchJobState, work_queue: List[Tuple[int, IngestionResult]]):
-    provider = GeminiProvider()
+    provider = get_active_provider()
     sem = asyncio.Semaphore(MAX_CONCURRENCY)
 
     for item_idx, ingestion in work_queue:
@@ -343,7 +358,7 @@ async def extract_batch(
         )
 
     batch_id = str(uuid.uuid4())
-    provider = GeminiProvider()
+    provider = get_active_provider()
     model_name = provider.model_name
 
     results: List[BatchItemResult] = []

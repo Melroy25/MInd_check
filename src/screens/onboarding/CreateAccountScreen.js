@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Image, SafeAreaView,
-  TextInput, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { signUpWithEmail } from '../../../services/supabase/authService';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -148,14 +149,57 @@ export default function CreateAccountScreen({
 }) {
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.patient;
 
-  const [fullName,     setFullName]     = useState('Melroy Almeida');
-  const [email,        setEmail]        = useState('melroy@medflow.org');
-  const [phone,        setPhone]        = useState('98765 43210');
-  const [password,     setPassword]     = useState('demo123');
-  const [confirmPass,  setConfirmPass]  = useState('demo123');
+  const [fullName,     setFullName]     = useState('');
+  const [email,        setEmail]        = useState('');
+  const [phone,        setPhone]        = useState('');
+  const [password,     setPassword]     = useState('');
+  const [confirmPass,  setConfirmPass]  = useState('');
   const [showPass,     setShowPass]     = useState(false);
   const [showConfirm,  setShowConfirm]  = useState(false);
   const [agreedTerms,  setAgreedTerms]  = useState(true);
+  const [loading,      setLoading]      = useState(false);
+  const [errorMsg,     setErrorMsg]     = useState('');
+
+  const handleSignUpSubmit = async () => {
+    setErrorMsg('');
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setErrorMsg('Please fill in your legal name, email, and password.');
+      return;
+    }
+    if (password !== confirmPass) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+    if (!agreedTerms) {
+      setErrorMsg('Please agree to the Terms of Service & Privacy Policy.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { user, error } = await signUpWithEmail(email.trim(), password, {
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        role,
+      });
+
+      if (error) {
+        setErrorMsg(error.message || 'Registration failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      onCreateAccount(role, user);
+    } catch (err) {
+      setErrorMsg(err.message || 'Network error during registration.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -291,16 +335,29 @@ export default function CreateAccountScreen({
               </Text>
             </TouchableOpacity>
 
+            {/* Error Banner */}
+            {!!errorMsg && (
+              <View style={{ backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                <Text style={{ color: '#B91C1C', fontSize: 13, fontWeight: '600' }}>{errorMsg}</Text>
+              </View>
+            )}
+
             {/* CTA in App Green */}
             <TouchableOpacity
               style={[
                 s.primaryBtn,
                 { backgroundColor: cfg.pillColor },
+                loading && { opacity: 0.7 },
               ]}
               activeOpacity={0.85}
-              onPress={() => onCreateAccount(role)}
+              onPress={handleSignUpSubmit}
+              disabled={loading}
             >
-              <Text style={s.primaryBtnText}>Create an Account  →</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={s.primaryBtnText}>Create an Account  →</Text>
+              )}
             </TouchableOpacity>
           </View>
 

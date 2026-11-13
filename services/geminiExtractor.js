@@ -22,7 +22,15 @@ export const GEMINI_CONFIG = {
   },
   fallbackModel: 'gemini-3.5-flash-lite',
   tertiaryModel: 'gemini-flash-lite-latest',
-  backendUrl: 'http://127.0.0.1:8000',
+  get backendUrl() {
+    if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_BACKEND_URL) {
+      return process.env.EXPO_PUBLIC_BACKEND_URL.replace(/\/+$/, '');
+    }
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:8000';
+    }
+    return 'http://127.0.0.1:8000';
+  },
 };
 
 export const SYSTEM_PROMPT = `You are a specialized medical information extractor designed to convert medical documents (prescriptions, lab reports, discharge summaries, scan reports, consultation notes) into verifiable structured JSON.
@@ -254,6 +262,7 @@ export async function extractMedicalDocument({
       if (onProgress) onProgress('Processing through local Extractor backend...');
       const backendResult = await callBackendExtract({
         base64,
+        fileUri: file?.uri,
         fileName: effectiveName,
         mimeType: effectiveMime,
         rawText,
@@ -446,18 +455,23 @@ async function checkBackendHealth() {
   }
 }
 
-async function callBackendExtract({ base64, fileName, mimeType, rawText }) {
+async function callBackendExtract({ base64, fileUri, fileName, mimeType, rawText }) {
   const formData = new FormData();
-  if (base64) {
-    // Convert base64 to Blob if in browser
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteNumbers.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+  if (Platform.OS !== 'web' && fileUri) {
+    // Native React Native mobile file upload
+    formData.append('file', {
+      uri: fileUri,
+      name: fileName,
+      type: mimeType,
+    });
+  } else if (base64) {
+    try {
+      const resBlob = await fetch(`data:${mimeType};base64,${base64}`);
+      const blob = await resBlob.blob();
+      formData.append('file', blob, fileName);
+    } catch {
+      formData.append('text', rawText || base64);
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
-    formData.append('file', blob, fileName);
   } else if (rawText) {
     formData.append('text', rawText);
   }

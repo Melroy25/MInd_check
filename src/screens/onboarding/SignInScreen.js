@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Image, SafeAreaView,
-  TextInput, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { signInWithEmail } from '../../../services/supabase/authService';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -161,10 +162,38 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
   const [password,    setPassword]    = useState('');
   const [showPass,    setShowPass]    = useState(false);
   const [rememberMe,  setRememberMe]  = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [errorMsg,    setErrorMsg]    = useState('');
 
   const handleAutoFillDemo = () => {
     setEmail(cfg.emailPlaceholder);
     setPassword('demo123');
+    setErrorMsg('');
+  };
+
+  const handleLoginSubmit = async () => {
+    setErrorMsg('');
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password.trim()) {
+      setErrorMsg('Please enter both email and password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { user, profile, error } = await signInWithEmail(cleanEmail, password, role);
+      if (error) {
+        setErrorMsg(error.message || 'Login failed. Please verify credentials.');
+        setLoading(false);
+        return;
+      }
+      const targetRole = profile?.role || role;
+      onLogin(targetRole, user, profile);
+    } catch (err) {
+      setErrorMsg(err.message || 'Network error during sign in.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -277,13 +306,25 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
               </TouchableOpacity>
             </View>
 
+            {/* Error Banner */}
+            {!!errorMsg && (
+              <View style={{ backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                <Text style={{ color: '#B91C1C', fontSize: 13, fontWeight: '600' }}>{errorMsg}</Text>
+              </View>
+            )}
+
             {/* Login CTA */}
             <TouchableOpacity
-              style={[s.primaryBtn, { backgroundColor: cfg.pillColor }]}
+              style={[s.primaryBtn, { backgroundColor: cfg.pillColor }, loading && { opacity: 0.7 }]}
               activeOpacity={0.85}
-              onPress={() => onLogin(role)}
+              onPress={handleLoginSubmit}
+              disabled={loading}
             >
-              <Text style={s.primaryBtnText}>Login to MedFlow  →</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={s.primaryBtnText}>Login to MedFlow  →</Text>
+              )}
             </TouchableOpacity>
 
             {/* Divider */}

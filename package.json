@@ -27,7 +27,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "extractor": "python -m uvicorn app.main:app --app-dir extractor --host 0.0.0.0 --port 8000 --reload"
   },
   "private": true,
   "devDependencies": {
