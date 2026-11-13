@@ -392,16 +392,32 @@ class PurePythonProvider(LLMProvider):
         allergy_items = []
         for line in lines:
             if "allerg" in line.lower() and not re.search(r"\b(nkda|none|nil|not stated)\b", line.lower()):
-                # e.g. "Allergies: Penicillin (skin rash)" or "Allergy: Penicillin -> rash"
-                m = re.search(r"allerg(?:ies|y)?:\s*([A-Za-z]+)(?:[\s\-\(]+([^,\)\n]+)[\)]?)?", line, re.IGNORECASE)
-                if m:
-                    substance = m.group(1).strip()
-                    reaction = m.group(2).strip() if m.group(2) else None
+                # e.g. "Allergies: Penicillin (skin rash)" or "Critical Allergies: Severe Anaphylaxis to Peanuts & Penicillin"
+                # Strip prefix
+                cleaned = re.sub(r"^.*?allerg(?:ies|y)?\s*:\s*", "", line, flags=re.IGNORECASE)
+                # Check for leading severity/descriptor e.g. "Severe Anaphylaxis to Peanuts & Penicillin"
+                desc_match = re.search(r"^(?:severe|critical|moderate|mild|known|documented)\s+(?:anaphylaxis|reaction|sensitivity|hypersensitivity)?\s*(?:to\s+)?([^;,\.\n]+)", cleaned, re.IGNORECASE)
+                if desc_match:
+                    substance = desc_match.group(1).strip()
+                    reaction = "Anaphylaxis / Hypersensitivity"
+                    severity = "severe" if "severe" in line.lower() or "critical" in line.lower() else "moderate"
+                else:
+                    m = re.search(r"^([A-Za-z\s&]+?)(?:[\s\-\(]+([^,\)\n]+)[\)]?)?(?:;|\.|$)", cleaned, re.IGNORECASE)
+                    if m:
+                        substance = m.group(1).strip()
+                        reaction = m.group(2).strip() if m.group(2) else None
+                        severity = "severe" if "severe" in line.lower() else "moderate"
+                    else:
+                        substance = cleaned.split(';')[0].split(',')[0].strip()
+                        reaction = None
+                        severity = "moderate"
+
+                if substance and substance.lower() not in {"none", "nil", "severe", "critical", "moderate", "mild"}:
                     allergy_items.append(
                         AllergyItem(
                             substance=substance,
                             reaction=reaction,
-                            severity="moderate" if reaction else None,
+                            severity=severity,
                             evidence=Evidence(quote=line, page=1),
                         )
                     )

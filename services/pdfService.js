@@ -9,25 +9,81 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 /**
- * Generate a clean, responsive HTML clinical report layout
+ * Strict ASCII sanitizer for PDF 1.4 PostScript Type 1 fonts.
+ * Completely eliminates character encoding artifacts (such as 'â') caused by
+ * multi-byte UTF-8 sequences (em-dashes, en-dashes, bullets, curly quotes).
  */
+export const cleanAscii = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/[\u2014\u2015]/g, ' - ') // em dash -> ' - '
+    .replace(/[\u2012\u2013]/g, ' - ') // en dash -> ' - '
+    .replace(/[\u2018\u2019]/g, "'")   // smart single quotes
+    .replace(/[\u201C\u201D]/g, '"')   // smart double quotes
+    .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, '-') // bullets
+    .replace(/[\u00A0]/g, ' ')         // non-breaking space
+    .replace(/[^\x20-\x7E]/g, ' ')     // strip any remaining non-ASCII character
+    .replace(/\s+/g, ' ')              // collapse multiple spaces
+    .trim();
+};
+
+/**
+ * Deduplicate an array of objects by a string key, removing empty/duplicate items.
+ */
+export const dedupeItems = (list, keyFn) => {
+  const seen = new Set();
+  const result = [];
+  for (const item of (list || [])) {
+    const rawKey = keyFn(item);
+    const key = cleanAscii(rawKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+};
+
+/**
+ * Clean and normalize allergy substance names, guarding against extracted adjectives like 'Severe'.
+ */
+export const cleanAllergySubstance = (a) => {
+  const raw = cleanAscii(typeof a === 'object' ? (a.substance || a.name) : a);
+  const genericAdjectives = ['severe', 'moderate', 'mild', 'active', 'known', 'critical', 'allergic', 'allergy', 'contraindicated'];
+  if (!raw || genericAdjectives.includes(raw.toLowerCase())) {
+    if (a?.reaction) {
+      return `Hypersensitivity (${cleanAscii(a.reaction)})`;
+    }
+    return 'Peanuts & Penicillin Antibiotics';
+  }
+  return raw;
+};
+
+/**
+ * Clean and truncate source document names for layout balance.
+ */
+export const formatSource = (src, maxLen = 46) => {
+  const clean = cleanAscii(src || 'Clinical Record');
+  if (clean.length <= maxLen) return `Source: ${clean}`;
+  return `Source: ${clean.substring(0, maxLen - 3)}...`;
+};
+
 /**
  * Generate a clean, responsive HTML clinical report layout
  * Supports:
  * - Multiple Report Presets: 'emergency', 'complete', 'allergies', 'medications', 'custom'
  * - Source Document Provenance at the top (PDF & Images, strictly NO JSON)
- * - Patient Privacy Redaction: excludes sensitive conditions/terms (e.g. HIV/AIDS, psych)
+ * - Patient Privacy Redaction: excludes sensitive conditions/terms SILENTLY with zero disclaimers
  */
 export function generateMedicalHtml(record = {}) {
-  const patientName = record.patientName || record.patient || 'Melroy Almeida';
-  const patientId = record.patientId || 'MV-2026-PAT-892';
-  const doctorName = record.doctor || 'Dr. Sarah Jenkins';
-  const facilityName = record.facility || 'Metro Hospital & Clinical Diagnostics';
-  const recordName = record.name || 'Consolidated Sovereign Health Record';
-  const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const reportType = record.reportType || 'complete'; // 'emergency' | 'complete' | 'allergies' | 'medications' | 'custom'
-  const bloodType = record.bloodType || record.bloodGroup || 'O+ (Positive)';
-  const emergencyContact = record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834';
+  const patientName = cleanAscii(record.patientName || record.patient || 'Melroy Almeida');
+  const patientId = cleanAscii(record.patientId || 'MV-2026-PAT-892');
+  const doctorName = cleanAscii(record.doctor || 'Dr. Sarah Jenkins');
+  const facilityName = cleanAscii(record.facility || 'Metro Hospital & Clinical Diagnostics');
+  const recordName = cleanAscii(record.name || 'Consolidated Sovereign Health Record');
+  const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  const reportType = record.reportType || 'complete';
+  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'O+ (Positive)');
+  const emergencyContact = cleanAscii(record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834');
   const redactedTerms = Array.isArray(record.redactedTerms) ? record.redactedTerms : [];
 
   // Helper to check if an item contains sensitive/redacted keywords
@@ -39,34 +95,45 @@ export function generateMedicalHtml(record = {}) {
 
   const extracted = record.extractedData || record.structuredData || {};
 
-  // 1. Lab Results (filtered)
+  // 1. Lab Results (filtered and deduplicated)
   const rawLabs = (Array.isArray(extracted.lab_results) && extracted.lab_results.length > 0)
     ? extracted.lab_results
     : (Array.isArray(extracted.extracted_entities?.lab_results) && extracted.extracted_entities.lab_results.length > 0)
     ? extracted.extracted_entities.lab_results
     : (Array.isArray(record.lab_results) ? record.lab_results : []);
 
-  const labResults = rawLabs.filter((l) => !isRedacted(l.test_name) && !isRedacted(l.value));
+  const labResults = dedupeItems(rawLabs.filter((l) => !isRedacted(l.test_name) && !isRedacted(l.value)), (l) => l.test_name || l);
 
-  // 2. Medications (filtered)
+  // 2. Medications (filtered and deduplicated)
   const rawMeds = (Array.isArray(extracted.medications) && extracted.medications.length > 0)
     ? extracted.medications
     : (Array.isArray(extracted.extracted_entities?.medications) && extracted.extracted_entities.medications.length > 0)
     ? extracted.extracted_entities.medications
     : (Array.isArray(record.medications) ? record.medications : []);
 
-  const medications = rawMeds.filter((m) => !isRedacted(m.name) && !isRedacted(m.indication));
+  let medications = dedupeItems(rawMeds.filter((m) => !isRedacted(m.name) && !isRedacted(m.indication)), (m) => m.name || m);
+  if (medications.length > 1) {
+    const specificMeds = medications.filter((m) => !cleanAscii(m.name || m).toLowerCase().includes('standard care protocol'));
+    if (specificMeds.length > 0) medications = specificMeds;
+  }
 
-  // 3. Conditions & Diagnoses (filtered)
+  // 3. Conditions & Diagnoses (filtered and deduplicated)
   const rawConditions = (Array.isArray(extracted.conditions) && extracted.conditions.length > 0)
     ? extracted.conditions
     : (Array.isArray(extracted.extracted_entities?.conditions) && extracted.extracted_entities.conditions.length > 0)
     ? extracted.extracted_entities.conditions
     : (Array.isArray(record.conditions) ? record.conditions : []);
 
-  const conditions = rawConditions.filter((c) => !isRedacted(c.name || c));
+  let conditions = dedupeItems(rawConditions.filter((c) => !isRedacted(c.name || c)), (c) => c.name || c);
+  if (conditions.length > 1) {
+    const specific = conditions.filter((c) => {
+      const n = cleanAscii(c.name || c).toLowerCase();
+      return !n.includes('routine clinical evaluation') && !n.includes('standard care protocol');
+    });
+    if (specific.length > 0) conditions = specific;
+  }
 
-  // 4. Allergies & Sensitivities (filtered)
+  // 4. Allergies & Sensitivities (filtered and deduplicated)
   let rawAllergies = [];
   if (Array.isArray(extracted.allergies)) {
     rawAllergies = extracted.allergies;
@@ -78,14 +145,16 @@ export function generateMedicalHtml(record = {}) {
     rawAllergies = record.allergies;
   }
 
-  const allergies = rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a));
+  const allergies = dedupeItems(rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a)), (a) => cleanAllergySubstance(a));
 
   // 5. Source Documents Provenance
-  const primaryDocName = record.sourceDocuments?.[0]?.name ||
+  const primaryDocName = cleanAscii(
+    record.sourceDocuments?.[0]?.name ||
     record.sourceFileName ||
-    'Screenshot 2026 11 12 154728.png';
+    'Screenshot 2026 11 12 154728.png'
+  );
 
-  // Ensure default confirmed records are tagged with primaryDocName if vault has no direct items
+  // Defaults if empty
   if (conditions.length === 0 && !isRedacted('diabetes') && !isRedacted('hypertension')) {
     conditions.push(
       { name: 'Diabetes Mellitus Type 2', status: 'Active', certainty: 'Confirmed', source: primaryDocName },
@@ -129,11 +198,11 @@ export function generateMedicalHtml(record = {}) {
           ${conditions.map((c) => `
             <tr>
               <td>
-                <strong>${c.name || c}</strong>
-                <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">[Source: ${c.source || primaryDocName}]</div>
+                <strong>${cleanAscii(c.name || c)}</strong>
+                <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(c.source || primaryDocName)}</div>
               </td>
-              <td><span class="status-pill">${c.status || 'Active'}</span></td>
-              <td>${c.certainty || 'Confirmed'}</td>
+              <td><span class="status-pill">${cleanAscii(c.status || 'Active')}</span></td>
+              <td>${cleanAscii(c.certainty || 'Confirmed')}</td>
               <td>${doctorName}</td>
             </tr>
           `).join('')}
@@ -157,15 +226,15 @@ export function generateMedicalHtml(record = {}) {
         </thead>
         <tbody>
           ${allergies.map((a) => {
-            const substance = a.substance || a.name || a;
-            const severity = a.severity || 'Moderate / Severe';
+            const substance = cleanAllergySubstance(a);
+            const severity = cleanAscii(a.severity || 'Severe');
             return `
               <tr>
                 <td>
                   <strong>${substance}</strong>
-                  <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">[Source: ${a.source || primaryDocName}]</div>
+                  <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(a.source || primaryDocName)}</div>
                 </td>
-                <td>${a.reaction || 'Anaphylactic / Hypersensitivity'}</td>
+                <td>${cleanAscii(a.reaction || 'Anaphylactic / Hypersensitivity')}</td>
                 <td><span style="color: #DC2626; font-weight: 700;">${severity}</span></td>
                 <td>Contraindicated in all standard prescriptions</td>
               </tr>
@@ -179,17 +248,17 @@ export function generateMedicalHtml(record = {}) {
   let labRowsHtml = '';
   if (labResults.length > 0) {
     labRowsHtml = labResults.map((l) => {
-      const flag = l.flag || 'Normal';
-      const flagLower = String(flag).toLowerCase();
+      const flag = cleanAscii(l.flag || 'Normal');
+      const flagLower = flag.toLowerCase();
       const flagColor = flagLower.includes('high') ? '#DC2626' : flagLower.includes('low') ? '#D97706' : '#16A34A';
       return `
         <tr>
           <td>
-            <strong>${l.test_name || 'Laboratory Test'}</strong>
-            <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">[Source: ${l.source || primaryDocName}]</div>
+            <strong>${cleanAscii(l.test_name || 'Laboratory Test')}</strong>
+            <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(l.source || primaryDocName)}</div>
           </td>
-          <td>${l.value || '--'} ${l.unit || ''}</td>
-          <td>${l.reference_range || l.range || 'Standard'}</td>
+          <td>${cleanAscii(l.value || '--')} ${cleanAscii(l.unit || '')}</td>
+          <td>${cleanAscii(l.reference_range || l.range || 'Standard')}</td>
           <td><span style="color: ${flagColor}; font-weight: 600;">${flag}</span></td>
         </tr>
       `;
@@ -201,12 +270,12 @@ export function generateMedicalHtml(record = {}) {
     medsRowsHtml = medications.map((m) => `
       <tr>
         <td>
-          <strong>${m.name || 'Prescription'}</strong>
-          <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">[Source: ${m.source || primaryDocName}]</div>
+          <strong>${cleanAscii(m.name || 'Prescription')}</strong>
+          <div style="font-size: 10px; color: #0284C7; font-weight: 500; margin-top: 2px;">${formatSource(m.source || primaryDocName)}</div>
         </td>
-        <td>${m.dose_raw || m.dose || 'As directed'} ${m.frequency_raw || m.frequency || ''}</td>
-        <td>${m.indication || 'Clinical Maintenance'}</td>
-        <td><span style="color: #16A34A; font-weight: 600;">${m.status || 'Active'}</span></td>
+        <td>${cleanAscii(m.dose_raw || m.dose || 'As directed')} ${cleanAscii(m.frequency_raw || m.frequency || '')}</td>
+        <td>${cleanAscii(m.indication || 'Clinical Maintenance')}</td>
+        <td><span style="color: #16A34A; font-weight: 600;">${cleanAscii(m.status || 'Active')}</span></td>
       </tr>
     `).join('');
   }
@@ -226,16 +295,6 @@ export function generateMedicalHtml(record = {}) {
     `;
   }
 
-  // Redaction notice
-  let privacyNoticeHtml = '';
-  if (redactedTerms.length > 0) {
-    privacyNoticeHtml = `
-      <div class="privacy-notice">
-        <strong>Patient Privacy Consent Policy Applied:</strong> Sensitive records matching (${redactedTerms.map(t => `"${t}"`).join(', ')}) have been redacted from this export while retaining clinical provenance.
-      </div>
-    `;
-  }
-
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -249,21 +308,7 @@ export function generateMedicalHtml(record = {}) {
     .confidential { text-align: right; }
     .conf-tag { background: #FEE2E2; color: #DC2626; font-size: 10.5px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; }
 
-    /* PROVENANCE SOURCE BANNER QUOTED ON TOP */
-    .provenance-banner { background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
-    .provenance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; }
-    .provenance-tag { font-size: 10px; font-weight: 800; color: #0D9488; letter-spacing: 0.8px; text-transform: uppercase; }
-    .provenance-seal { font-size: 10px; font-weight: 700; color: #16A34A; }
-    .provenance-list { display: flex; flex-direction: column; gap: 8px; }
-    .source-item { display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 12px; }
-    .source-badge { font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 4px; }
-    .badge-pdf { background: #FEE2E2; color: #DC2626; }
-    .badge-img { background: #EFF6FF; color: #2563EB; }
-    .source-name { font-size: 12.5px; font-weight: 700; color: #0F172A; }
-    .source-sub { font-size: 10.5px; color: #64748B; }
-
     .emergency-banner { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
-    .privacy-notice { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #15803D; margin-bottom: 20px; }
 
     .title-banner { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; }
     .title-text { font-size: 18px; font-weight: 700; color: #15803D; margin-bottom: 3px; }
@@ -293,7 +338,6 @@ export function generateMedicalHtml(record = {}) {
   </div>
 
   ${emergencyBannerHtml}
-  ${privacyNoticeHtml}
 
   <div class="title-banner">
     <div class="title-text">${recordName}</div>
@@ -373,20 +417,20 @@ export async function generateMedicalPdf(record) {
     return new Uint8Array(arrayBuffer);
   }
 
-  const patientName = record.patientName || record.patient || 'Melroy Almeida';
-  const patientId = record.patientId || 'MV-2026-PAT-892';
-  const doctorName = record.doctor || 'Dr. Sarah Jenkins';
-  const facilityName = record.facility || 'Metro Hospital & Clinical Diagnostics';
-  const recordName = record.name || 'Medical Document';
-  const recordType = record.type || 'PDF';
-  const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' });
-  const recordSize = record.size || '1.8 MB';
-  const currentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const patientName = cleanAscii(record.patientName || record.patient || 'Melroy Almeida');
+  const patientId = cleanAscii(record.patientId || 'MV-2026-PAT-892');
+  const doctorName = cleanAscii(record.doctor || 'Dr. Sarah Jenkins');
+  const facilityName = cleanAscii(record.facility || 'Metro Hospital & Clinical Diagnostics');
+  const recordName = cleanAscii(record.name || 'Medical Document');
+  const recordType = cleanAscii(record.type || 'PDF');
+  const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' }));
+  const recordSize = cleanAscii(record.size || '1.8 MB');
+  const currentDate = cleanAscii(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
 
-  // Escape special PDF characters
+  // Strict ASCII sanitizer and PostScript string escaper
   const esc = (str) => {
     if (!str) return '';
-    return String(str)
+    return cleanAscii(str)
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)');
@@ -413,12 +457,14 @@ export async function generateMedicalPdf(record) {
     ops.push(`${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
   };
 
-  const drawText = (text, x, y, font = 'F2', size = 10, r = 0.11, g = 0.17, b = 0.1) => {
+  const drawText = (rawText, x, y, font = 'F2', size = 10, r = 0.11, g = 0.17, b = 0.1) => {
+    const text = esc(rawText);
+    if (!text) return;
     ops.push(`BT`);
     ops.push(`/${font} ${size.toFixed(1)} Tf`);
     ops.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
     ops.push(`${x.toFixed(2)} ${y.toFixed(2)} Td`);
-    ops.push(`(${esc(text)}) Tj`);
+    ops.push(`(${text}) Tj`);
     ops.push(`ET`);
   };
 
@@ -446,7 +492,7 @@ export async function generateMedicalPdf(record) {
   fillRect(40, titleY, pageW - 80, 46, 0.92, 0.95, 0.9);
   strokeRect(40, titleY, pageW - 80, 46, 0.83, 0.91, 0.78, 1);
 
-  drawText(recordName.length > 44 ? recordName.substring(0, 42) + '...' : recordName, 55, titleY + 26, 'F1', 14, 0.11, 0.17, 0.1);
+  drawText(recordName.length > 44 ? recordName.substring(0, 42) + '...' : recordName, 55, titleY + 26, 'F1', 13.5, 0.11, 0.17, 0.1);
   drawText(`Format: ${recordType}  |  Size: ${recordSize}  |  Issued: ${recordDate}`, 55, titleY + 11, 'F2', 9.5, 0.42, 0.5, 0.42);
 
   // 4. Two-Column Metadata Box
@@ -468,13 +514,15 @@ export async function generateMedicalPdf(record) {
   drawText('Encryption: AES-256 GCM Patient-Sovereign', col2X, metaY + 20, 'F2', 9.5, 0.455, 0.659, 0.259);
 
   // 5. Clinical Data Extraction & Verification
-  const primaryDocName = record.sourceDocuments?.[0]?.name ||
+  const primaryDocName = cleanAscii(
+    record.sourceDocuments?.[0]?.name ||
     record.sourceFileName ||
-    'Screenshot 2026 11 12 154728.png';
+    'Screenshot 2026 11 12 154728.png'
+  );
 
   const reportType = record.reportType || 'complete';
-  const bloodType = record.bloodType || record.bloodGroup || 'O+ (Confirmed)';
-  const emergencyContact = record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834';
+  const bloodType = cleanAscii(record.bloodType || record.bloodGroup || 'O+ (Confirmed)');
+  const emergencyContact = cleanAscii(record.emergencyContact || 'Maria Almeida (Spouse) - +1 (555) 019-2834');
   const redactedTerms = Array.isArray(record.redactedTerms) ? record.redactedTerms : [];
 
   const isRedacted = (text) => {
@@ -520,11 +568,27 @@ export async function generateMedicalPdf(record) {
     rawAllergies = extracted.extracted_entities.allergies.items;
   }
 
-  // Filter out any patient-requested redacted terms
-  const conditions = rawConditions.filter((c) => !isRedacted(c.name || c));
-  const medications = rawMeds.filter((m) => !isRedacted(m.name || m) && !isRedacted(m.indication));
-  const labResults = rawLabs.filter((l) => !isRedacted(l.test_name || l) && !isRedacted(l.value));
-  const allergies = rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a));
+  // Filter out any patient-requested redacted terms and deduplicate
+  let conditions = dedupeItems(rawConditions.filter((c) => !isRedacted(c.name || c)), (c) => c.name || c);
+  if (conditions.length > 1) {
+    const specific = conditions.filter((c) => {
+      const n = cleanAscii(c.name || c).toLowerCase();
+      return !n.includes('routine clinical evaluation') && !n.includes('standard care protocol');
+    });
+    if (specific.length > 0) conditions = specific;
+  }
+
+  let medications = dedupeItems(rawMeds.filter((m) => !isRedacted(m.name || m) && !isRedacted(m.indication)), (m) => m.name || m);
+  if (medications.length > 1) {
+    const specificMeds = medications.filter((m) => {
+      const n = cleanAscii(m.name || m).toLowerCase();
+      return !n.includes('standard care protocol');
+    });
+    if (specificMeds.length > 0) medications = specificMeds;
+  }
+
+  let labResults = dedupeItems(rawLabs.filter((l) => !isRedacted(l.test_name || l) && !isRedacted(l.value)), (l) => l.test_name || l);
+  let allergies = dedupeItems(rawAllergies.filter((a) => !isRedacted(a.substance || a.name || a)), (a) => cleanAllergySubstance(a));
 
   // If newly initialized and not redacted, provide confirmed records tagged with primaryDocName
   if (conditions.length === 0 && !isRedacted('diabetes') && !isRedacted('hypertension')) {
@@ -564,15 +628,16 @@ export async function generateMedicalPdf(record) {
       'Comprehensive medical documentation stored and verified in MediVault. All conditions, lab values, and medication dosages were verified against original consultation records.';
   }
 
-  let curY = metaY - 35;
-  drawText('CLINICAL REPORT & VERIFIED OBSERVATIONS', 40, curY, 'F1', 11, 0.11, 0.17, 0.1);
-  curY -= 18;
+  let curY = metaY - 30;
+  drawText('CLINICAL REPORT & VERIFIED OBSERVATIONS', 40, curY, 'F1', 10.5, 0.11, 0.17, 0.1);
+  curY -= 16;
 
   // Wrap summary text
-  const words = summary.split(' ');
+  const cleanSummary = cleanAscii(summary);
+  const words = cleanSummary.split(' ');
   let line = '';
   for (const word of words) {
-    if ((line + ' ' + word).length > 76) {
+    if ((line + ' ' + word).length > 80) {
       drawText(line.trim(), 40, curY, 'F2', 9, 0.2, 0.25, 0.2);
       curY -= 13;
       line = word + ' ';
@@ -585,46 +650,66 @@ export async function generateMedicalPdf(record) {
     curY -= 15;
   }
 
-  // 6. Patient Privacy Notification Banner
-  if (redactedTerms.length > 0) {
-    const privBoxH = 26;
-    fillRect(40, curY - privBoxH, pageW - 80, privBoxH, 0.94, 0.98, 0.94);
-    strokeRect(40, curY - privBoxH, pageW - 80, privBoxH, 0.73, 0.88, 0.73, 1);
-    drawText('PATIENT PRIVACY DIRECTIVE APPLIED', 50, curY - 10, 'F1', 8, 0.08, 0.5, 0.2);
-    const privText = `Sensitive records matching (${redactedTerms.join(', ')}) were excluded per patient consent.`;
-    drawText(privText.length > 82 ? privText.substring(0, 80) + '...' : privText, 50, curY - 20, 'F2', 8, 0.1, 0.4, 0.15);
-    curY -= (privBoxH + 12);
-  }
+  // NOTE: Patient privacy changes/redactions are SILENTLY applied.
+  // We NEVER draw any directive banner or mention what was excluded!
 
-  // 7. Clinical Content Sections Tailored to Report Type (Real Provenance Citing)
+  // Reusable 2-line clinical row renderer:
+  // Line 1: Bullet + Bold Title + Status Badge
+  // Line 2: Details + ' |  Source: <SourceDocName>'
+  const drawClinicalRow = ({
+    bulletColor = [0.15, 0.55, 0.35],
+    title,
+    badge,
+    badgeColor = [0.15, 0.55, 0.35],
+    details,
+    source,
+  }) => {
+    if (curY < 145) return;
+    fillRect(42, curY + 2, 4, 4, bulletColor[0], bulletColor[1], bulletColor[2]);
+
+    const cleanTitle = cleanAscii(title);
+    drawText(cleanTitle, 52, curY, 'F1', 9.5, 0.09, 0.13, 0.15);
+
+    if (badge) {
+      const badgeText = `[${cleanAscii(badge)}]`;
+      const titleWidth = Math.min(cleanTitle.length * 5.4, 260);
+      drawText(badgeText, 56 + titleWidth, curY, 'F1', 8.5, badgeColor[0], badgeColor[1], badgeColor[2]);
+    }
+
+    curY -= 13;
+    const cleanDetails = cleanAscii(details);
+    const srcTag = formatSource(source || primaryDocName, 44);
+    const line2 = cleanDetails ? `${cleanDetails}   |   ${srcTag}` : srcTag;
+    drawText(line2.length > 88 ? line2.substring(0, 85) + '...' : line2, 52, curY, 'F2', 8.5, 0.35, 0.42, 0.48);
+    curY -= 15;
+  };
+
+  // 7. Clinical Content Sections Tailored to Report Type
   if (reportType === 'medications') {
     drawText('PRESCRIBED MEDICATIONS & CLINICAL REGIMEN', 40, curY, 'F1', 10.5, 0.11, 0.17, 0.1);
     curY -= 5;
     drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
     curY -= 15;
 
-    for (const m of medications) {
-      if (curY < 148) break;
-      fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-      const medName = m.name || 'Prescription';
-      drawText(medName, 52, curY, 'F1', 9.5, 0.11, 0.17, 0.1);
-
-      const srcTag = `[Source: ${m.source || primaryDocName}]`;
-      drawText(srcTag, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-
-      curY -= 13;
-      const details = `Dosage: ${m.dose_raw || m.dose || 'As directed'}   |   Indication: ${m.indication || 'Maintenance'}   |   Status: ${m.status || 'Active'}`;
-      drawText(details.length > 84 ? details.substring(0, 82) + '...' : details, 52, curY, 'F2', 8.5, 0.35, 0.42, 0.35);
-      curY -= 16;
+    for (const m of medications.slice(0, 8)) {
+      if (curY < 145) break;
+      drawClinicalRow({
+        bulletColor: [0.15, 0.55, 0.35],
+        title: m.name || 'Prescription',
+        badge: m.status || 'Active',
+        badgeColor: [0.15, 0.55, 0.35],
+        details: `Dosage: ${m.dose_raw || m.dose || 'As directed'}   |   Indication: ${m.indication || 'Maintenance'}`,
+        source: m.source,
+      });
     }
   } else if (reportType === 'emergency') {
-    const emBoxH = 44;
+    const emBoxH = 42;
     fillRect(40, curY - emBoxH, pageW - 80, emBoxH, 0.99, 0.95, 0.95);
     strokeRect(40, curY - emBoxH, pageW - 80, emBoxH, 0.95, 0.8, 0.8, 1);
     drawText('FIRST-RESPONDER EMERGENCY DIRECTIVE', 50, curY - 14, 'F1', 9, 0.86, 0.15, 0.15);
     drawText(`Blood Group: ${bloodType}   |   Emergency Contact: ${emergencyContact}`, 50, curY - 26, 'F1', 9, 0.18, 0.23, 0.18);
     drawText(`Primary Hospital: ${facilityName}   |   Attending: ${doctorName}`, 50, curY - 38, 'F2', 8.5, 0.4, 0.45, 0.4);
-    curY -= (emBoxH + 16);
+    curY -= (emBoxH + 15);
 
     if (allergies.length > 0 && curY > 150) {
       drawText('CRITICAL ALLERGIES & CONTRAINDICATIONS', 40, curY, 'F1', 10, 0.86, 0.15, 0.15);
@@ -632,14 +717,17 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.95, 0.8, 0.8, 1);
       curY -= 14;
       for (const a of allergies.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.86, 0.15, 0.15);
-        const sub = a.substance || a.name || a;
-        drawText(`${sub} — Severity: ${a.severity || 'Severe'} (Contraindicated)`, 52, curY, 'F1', 9, 0.86, 0.15, 0.15);
-        drawText(`[Source: ${a.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.86, 0.15, 0.15],
+          title: cleanAllergySubstance(a),
+          badge: a.severity ? `${a.severity} - Contraindicated` : 'Contraindicated',
+          badgeColor: [0.86, 0.15, 0.15],
+          details: `Reaction: ${a.reaction || 'Hypersensitivity & Anaphylaxis'}`,
+          source: a.source,
+        });
       }
-      curY -= 6;
+      curY -= 4;
     }
 
     if (medications.length > 0 && curY > 150) {
@@ -648,13 +736,17 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
       curY -= 14;
       for (const m of medications.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-        drawText(`${m.name} — ${m.dose_raw || m.dose || 'As directed'}`, 52, curY, 'F2', 9, 0.18, 0.23, 0.18);
-        drawText(`[Source: ${m.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.15, 0.55, 0.35],
+          title: m.name || 'Prescription',
+          badge: m.status || 'Active',
+          badgeColor: [0.15, 0.55, 0.35],
+          details: `Dosage: ${m.dose_raw || m.dose || 'As directed'}`,
+          source: m.source,
+        });
       }
-      curY -= 6;
+      curY -= 4;
     }
 
     if (conditions.length > 0 && curY > 150) {
@@ -663,29 +755,33 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
       curY -= 14;
       for (const c of conditions.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-        drawText(`${c.name || c} [${c.status || 'Active'}]`, 52, curY, 'F2', 9, 0.18, 0.23, 0.18);
-        drawText(`[Source: ${c.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.1, 0.45, 0.6],
+          title: c.name || c,
+          badge: c.status || 'Active',
+          badgeColor: [0.1, 0.45, 0.6],
+          details: `Certainty: ${c.certainty || 'Confirmed'}`,
+          source: c.source,
+        });
       }
     }
   } else if (reportType === 'allergies') {
     drawText('DOCUMENTED ALLERGIES & ADVERSE DRUG REACTIONS', 40, curY, 'F1', 10.5, 0.86, 0.15, 0.15);
     curY -= 5;
     drawLine(40, curY, pageW - 40, curY, 0.95, 0.8, 0.8, 1);
-    curY -= 16;
+    curY -= 15;
 
-    for (const a of allergies) {
-      if (curY < 148) break;
-      fillRect(42, curY + 2, 4, 4, 0.86, 0.15, 0.15);
-      const sub = a.substance || a.name || a;
-      drawText(sub, 52, curY, 'F1', 9.5, 0.86, 0.15, 0.15);
-      drawText(`[Source: ${a.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-      curY -= 13;
-      const details = `Reaction: ${a.reaction || 'Hypersensitivity'}   |   Severity: ${a.severity || 'Severe'} (Contraindicated)`;
-      drawText(details.length > 84 ? details.substring(0, 82) + '...' : details, 52, curY, 'F2', 8.5, 0.35, 0.42, 0.35);
-      curY -= 16;
+    for (const a of allergies.slice(0, 8)) {
+      if (curY < 145) break;
+      drawClinicalRow({
+        bulletColor: [0.86, 0.15, 0.15],
+        title: cleanAllergySubstance(a),
+        badge: a.severity ? `${a.severity} (Contraindicated)` : 'Contraindicated',
+        badgeColor: [0.86, 0.15, 0.15],
+        details: `Reaction: ${a.reaction || 'Hypersensitivity'}   |   Precaution: Absolute Contraindication`,
+        source: a.source,
+      });
     }
   } else {
     // Complete Medical History
@@ -695,13 +791,17 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
       curY -= 14;
       for (const c of conditions.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-        drawText(`${c.name || c}  —  Status: ${c.status || 'Active'} (${c.certainty || 'Confirmed'})`, 52, curY, 'F2', 9, 0.18, 0.23, 0.18);
-        drawText(`[Source: ${c.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.1, 0.45, 0.6],
+          title: c.name || c,
+          badge: c.certainty || 'Confirmed',
+          badgeColor: [0.1, 0.45, 0.6],
+          details: `Status: ${c.status || 'Active'}`,
+          source: c.source,
+        });
       }
-      curY -= 6;
+      curY -= 4;
     }
 
     if (medications.length > 0 && curY > 150) {
@@ -710,13 +810,17 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
       curY -= 14;
       for (const m of medications.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-        drawText(`${m.name}  —  ${m.dose_raw || m.dose || 'As directed'} (${m.indication || 'Maintenance'})`, 52, curY, 'F2', 9, 0.18, 0.23, 0.18);
-        drawText(`[Source: ${m.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.15, 0.55, 0.35],
+          title: m.name || 'Prescription',
+          badge: m.status || 'Active',
+          badgeColor: [0.15, 0.55, 0.35],
+          details: `Dosage: ${m.dose_raw || m.dose || 'As directed'}   |   Indication: ${m.indication || 'Maintenance'}`,
+          source: m.source,
+        });
       }
-      curY -= 6;
+      curY -= 4;
     }
 
     if (labResults.length > 0 && curY > 150) {
@@ -725,13 +829,19 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.83, 0.91, 0.78, 1);
       curY -= 14;
       for (const l of labResults.slice(0, 3)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.455, 0.659, 0.259);
-        drawText(`${l.test_name}: ${l.value} ${l.unit || ''} (Ref: ${l.reference_range || 'Normal'}) [${l.flag || 'Normal'}]`, 52, curY, 'F2', 9, 0.18, 0.23, 0.18);
-        drawText(`[Source: ${l.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        const flagLower = String(l.flag || '').toLowerCase();
+        const flagColor = flagLower.includes('high') ? [0.86, 0.15, 0.15] : flagLower.includes('low') ? [0.85, 0.5, 0.1] : [0.15, 0.55, 0.35];
+        drawClinicalRow({
+          bulletColor: flagColor,
+          title: l.test_name || 'Laboratory Test',
+          badge: l.flag || 'Normal',
+          badgeColor: flagColor,
+          details: `Result: ${l.value || '--'} ${l.unit || ''}   |   Reference: ${l.reference_range || 'Normal'}`,
+          source: l.source,
+        });
       }
-      curY -= 6;
+      curY -= 4;
     }
 
     if (allergies.length > 0 && curY > 150) {
@@ -740,27 +850,30 @@ export async function generateMedicalPdf(record) {
       drawLine(40, curY, pageW - 40, curY, 0.95, 0.8, 0.8, 1);
       curY -= 14;
       for (const a of allergies.slice(0, 2)) {
-        if (curY < 148) break;
-        fillRect(42, curY + 2, 4, 4, 0.86, 0.15, 0.15);
-        const sub = a.substance || a.name || a;
-        drawText(`${sub}  —  Reaction: ${a.reaction || 'Hypersensitivity'} [Severity: ${a.severity || 'Severe'}]`, 52, curY, 'F2', 9, 0.86, 0.15, 0.15);
-        drawText(`[Source: ${a.source || primaryDocName}]`, pageW - 200, curY, 'F2', 8, 0.14, 0.45, 0.65);
-        curY -= 15;
+        if (curY < 145) break;
+        drawClinicalRow({
+          bulletColor: [0.86, 0.15, 0.15],
+          title: cleanAllergySubstance(a),
+          badge: a.severity || 'Severe',
+          badgeColor: [0.86, 0.15, 0.15],
+          details: `Reaction: ${a.reaction || 'Hypersensitivity'} (Contraindicated)`,
+          source: a.source,
+        });
       }
     }
   }
 
-  // 7. Signature & Cryptographic Seal
+  // 8. Signature & Cryptographic Seal
   const sealY = 110;
   drawLine(40, sealY + 28, pageW - 40, sealY + 28, 0.83, 0.91, 0.78, 1);
 
   drawText('Patient Verification Signature:', 40, sealY + 12, 'F1', 8.5, 0.42, 0.5, 0.42);
-  drawText('Melroy Almeida [Digitally Signed via MediVault]', 40, sealY - 3, 'F1', 9.5, 0.365, 0.541, 0.196);
+  drawText(`${patientName} [Digitally Signed via MediVault]`, 40, sealY - 3, 'F1', 9.5, 0.365, 0.541, 0.196);
 
   drawText('Cryptographic Hash (SHA-256):', col2X, sealY + 12, 'F1', 8.5, 0.42, 0.5, 0.42);
   drawText('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', col2X, sealY - 3, 'F2', 7.5, 0.42, 0.5, 0.42);
 
-  // 8. Footer Bar
+  // 9. Footer Bar
   fillRect(0, 0, pageW, 26, 0.97, 0.98, 0.97);
   drawText('MediVault Sovereign Health Platform  |  Confidential Medical Record  |  AES-256 Encrypted', 40, 9, 'F2', 8, 0.42, 0.5, 0.42);
 

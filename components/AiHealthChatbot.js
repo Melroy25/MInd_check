@@ -543,15 +543,23 @@ export default function AiHealthChatbot({
       // Step B: Build Patient Vault Context from uploaded records
       const recordSummaries = (records || []).map((f) => {
         let line = `• "${f.name || 'Document'}" (${f.date || 'Recent'}) [Type: ${f.type || 'Doc'}]`;
-        if (f.extractedData?.clinical_summary) line += ` | Summary: ${f.extractedData.clinical_summary}`;
-        if (f.extractedData?.extracted_entities?.medications?.length) {
-          line += ` | Prescriptions: ${f.extractedData.extracted_entities.medications.map((m) => `${m.name} (${m.dose_raw || 'Std dose'})`).join(', ')}`;
-        }
-        if (f.extractedData?.extracted_entities?.lab_results?.length) {
-          line += ` | Labs: ${f.extractedData.extracted_entities.lab_results.map((l) => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ')}`;
-        }
+        const ed = f.extractedData || {};
+        const ent = ed.extracted_entities || {};
+        const conds = ed.conditions || ent.conditions || [];
+        const meds = ed.medications || ent.medications || [];
+        const labs = ed.lab_results || ent.lab_results || [];
+        const allergies = ed.allergies || ent.allergies || [];
+        const summary = ed.clinical_summary || ed.summary || f.notes;
+
+        if (summary) line += ` | Summary: ${summary.slice(0, 160)}`;
+        if (conds.length) line += ` | Diagnoses: ${conds.map(c => typeof c === 'object' ? c.name : c).join(', ')}`;
+        if (meds.length) line += ` | Prescriptions: ${meds.map(m => typeof m === 'object' ? `${m.name} (${m.dose_raw || m.dose || ''})` : m).join(', ')}`;
+        if (labs.length) line += ` | Labs: ${labs.map(l => typeof l === 'object' ? `${l.test_name}: ${l.value} ${l.unit || ''}` : l).join(', ')}`;
+        const allergyItems = Array.isArray(allergies) ? allergies : (allergies.items || []);
+        if (allergyItems.length) line += ` | Allergies: ${allergyItems.map(a => typeof a === 'object' ? `${a.substance || a.name}: ${a.reaction || a.severity || ''}` : a).join(', ')}`;
+
         return line;
-      }).slice(0, 8).join('\n');
+      }).join('\n');
 
       // Step C: Construct Grok Clinical Prompt
       const isTabletQuery = hasImage ||
