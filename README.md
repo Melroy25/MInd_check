@@ -102,4 +102,34 @@ MED_CHECK/
 
 ---
 
+## 🔑 Google Gemini API Setup & Automatic Key Rotation
+
+MedFlow includes a resilient, multi-key rotation client (`services/geminiClient.js`) that automatically balances load and fails over if a key encounters rate limits (HTTP 429), server errors (500/503), or quota exhaustion (403).
+
+### Setting Up API Keys
+
+1. Create a `.env.local` file in the root directory (or copy from `.env.example`):
+```bash
+cp .env.example .env.local
+```
+
+2. Add between 1 and 5 Gemini API keys:
+```env
+EXPO_PUBLIC_GEMINI_API_KEY_1=your_first_gemini_key
+EXPO_PUBLIC_GEMINI_API_KEY_2=your_second_gemini_key
+EXPO_PUBLIC_GEMINI_API_KEY_3=
+EXPO_PUBLIC_GEMINI_API_KEY_4=
+EXPO_PUBLIC_GEMINI_API_KEY_5=
+
+EXPO_PUBLIC_GEMINI_MODEL=gemini-3.1-flash-lite
+```
+
+### Rotation & Failover Features
+- **Zero Config:** Add anywhere from 1 to 5 keys; empty placeholders are automatically filtered out.
+- **Smart Rotation:** Starts with the last working key to prevent unnecessary failover latency.
+- **Automatic Cooldown:** On rate limit (429), server error (500/503), or quota limit (403), the active key is placed on a 60-second cooldown and the request immediately retries with the next available key.
+- **Security:** API keys are sent via the `x-goog-api-key` header (never in the URL) and logs mask all but the last 4 characters (`...EPnw`).
+
+---
+
 *Built with care for patients, doctors, and caretakers.*

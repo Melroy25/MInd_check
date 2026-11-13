@@ -10,13 +10,16 @@
 
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
+import { callGemini, getGeminiModel, getGeminiApiKeys } from './geminiClient';
 
 export const GEMINI_CONFIG = {
-  apiKey:
-    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GEMINI_API_KEY) ||
-    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-    '',
-  primaryModel: 'gemini-3.1-flash-lite',
+  get apiKey() {
+    const keys = getGeminiApiKeys();
+    return keys[0] || '';
+  },
+  get primaryModel() {
+    return getGeminiModel();
+  },
   fallbackModel: 'gemini-3.5-flash-lite',
   tertiaryModel: 'gemini-flash-lite-latest',
   backendUrl: 'http://127.0.0.1:8000',
@@ -261,51 +264,36 @@ export async function extractMedicalDocument({
     // Backend offline, fallback to direct Gemini API
   }
 
-  // 2. Direct Gemini Multimodal API Call
+  // 2. Direct Gemini Multimodal API Call via Rotated Key Pool
   if (onProgress) onProgress('Connecting to Google Gemini Multimodal Engine...');
 
-  const models = [
-    GEMINI_CONFIG.primaryModel,
-    GEMINI_CONFIG.fallbackModel,
-    GEMINI_CONFIG.tertiaryModel,
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
-    'gemini-flash-lite-latest',
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
-  let lastError = null;
+  const model = GEMINI_CONFIG.primaryModel || getGeminiModel();
+  try {
+    if (onProgress) onProgress(`Extracting medical facts with ${model}...`);
+    const extraction = await callGeminiApi({
+      model,
+      effectiveName,
+      effectiveMime,
+      base64,
+      rawText,
+    });
 
-  for (const model of models) {
-    try {
-      if (onProgress) onProgress(`Extracting medical facts with ${model}...`);
-      const extraction = await callGeminiApi({
-        model,
-        apiKey: GEMINI_CONFIG.apiKey,
-        effectiveName,
-        effectiveMime,
-        base64,
-        rawText,
-      });
-
-      if (extraction) {
-        if (onProgress) onProgress('Verifying evidence quotes & schema compliance...');
-        return formatExtractionResult(extraction, effectiveName);
-      }
-    } catch (err) {
-      console.warn(`[GeminiExtractor] Model ${model} error:`, err);
-      lastError = err;
-      // Try next model
+    if (extraction) {
+      if (onProgress) onProgress('Verifying evidence quotes & schema compliance...');
+      return formatExtractionResult(extraction, effectiveName);
     }
+  } catch (err) {
+    console.warn(`[GeminiExtractor] Direct extraction error:`, err);
+    throw err;
   }
 
-  throw lastError || new Error('Gemini medical document extraction failed.');
+  throw new Error('Gemini medical document extraction failed.');
 }
 
 /**
- * Call Gemini Multimodal REST API
+ * Call Gemini Multimodal REST API via Centralized Rotated Client
  */
-async function callGeminiApi({ model, apiKey, effectiveName, effectiveMime, base64, rawText }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
+async function callGeminiApi({ model, effectiveName, effectiveMime, base64, rawText }) {
   const parts = [];
 
   // If we have base64 data for PDF or Image
@@ -347,18 +335,7 @@ Output valid schema-compliant JSON.`;
     },
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errText}`);
-  }
-
-  const result = await response.json();
+  const result = await callGemini(payload, { model });
   const textOutput = result?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!textOutput) {
@@ -685,10 +662,8 @@ export class AudioRecorderService {
       throw new Error('No audio data provided for transcription');
     }
 
-    const apiKey = GEMINI_CONFIG.apiKey;
-    const model = GEMINI_CONFIG.primaryModel || 'gemini-3.1-flash-lite';
+    const model = GEMINI_CONFIG.primaryModel || getGeminiModel();
     const effectiveMime = (mimeType || 'audio/webm').split(';')[0];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const prompt = `You are a medical transcription expert.
 Listen to this medical voice note / clinical dictation.
@@ -719,18 +694,7 @@ Return ONLY the transcribed plain text. Do not include markdown formatting, time
       },
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini transcription error (${res.status}): ${errText}`);
-    }
-
-    const data = await res.json();
+    const data = await callGemini(payload, { model });
     const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!transcript) {
       throw new Error('Gemini could not detect speech in the audio recording.');
