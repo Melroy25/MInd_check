@@ -414,7 +414,7 @@ export async function generateMedicalPdf(record) {
   const facilityName = cleanAscii(record.facility || 'MedFlow Sovereign Health Network');
   const recordName = cleanAscii(record.name || 'Medical Document');
   const recordType = cleanAscii(record.type || 'PDF');
-  const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2026' }));
+  const recordDate = cleanAscii(record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   const recordSize = cleanAscii(record.size || '1.8 MB');
   const currentDate = cleanAscii(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
 
