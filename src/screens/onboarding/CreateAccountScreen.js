@@ -188,7 +188,13 @@ export default function CreateAccountScreen({
       });
 
       if (error) {
-        setErrorMsg(error.message || 'Registration failed. Please try again.');
+        if (error.message && error.message.toLowerCase().includes('rate limit')) {
+          setErrorMsg(
+            "Supabase email rate limit reached. In your open Supabase tab (Sign In / Providers), click Email and turn OFF 'Confirm email', then tap Save. You will be able to register instantly!"
+          );
+        } else {
+          setErrorMsg(error.message || 'Registration failed. Please try again.');
+        }
         setLoading(false);
         return;
       }
