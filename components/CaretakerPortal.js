@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
 import PatientPortal from './PatientPortal';
+import { INITIAL_CARETAKER_WARDS, INITIAL_AUDIT_LOGS } from '../constants/mockData';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -128,109 +129,10 @@ const IconBack = ({ size = 20, color = C.textMain }) => (
   </Svg>
 );
 
-// ─── INITIAL WARDS DATA (PATIENTS ASSIGNED TO CARETAKER) ───────────────────────
-const INITIAL_WARDS = [
-  {
-    id: 'p1',
-    name: 'Melroy Almeida',
-    relation: 'Father',
-    age: 68,
-    blood: 'O+',
-    avatarBg: '#EFF6FF',
-    avatarText: '#2563EB',
-    permissions: {
-      viewTimeline: true,
-      editMeds: true,
-      uploadDocs: true,
-      emergencySos: true,
-    },
-    vitals: { bp: '128/82', pulse: '72 bpm', glucose: '110 mg/dL' },
-    meds: [
-      { id: 'm1', name: 'Metformin 500mg', time: '08:00 AM', taken: true, lastUpdated: 'Today, 8:05 AM by Vikram' },
-      { id: 'm2', name: 'Lisinopril 10mg', time: '01:00 PM', taken: false, lastUpdated: 'Yesterday by Dr. Jenkins' },
-      { id: 'm3', name: 'Atorvastatin 20mg', time: '08:00 PM', taken: false, lastUpdated: 'Nov 10 by Dr. Jenkins' },
-    ],
-  },
-  {
-    id: 'p2',
-    name: 'Sofia Almeida',
-    relation: 'Mother',
-    age: 64,
-    blood: 'B+',
-    avatarBg: '#F0FDF4',
-    avatarText: '#16A34A',
-    permissions: {
-      viewTimeline: true,
-      editMeds: false, // Patient restricted edit access (View Only)
-      uploadDocs: true,
-      emergencySos: true,
-    },
-    vitals: { bp: '118/76', pulse: '68 bpm', glucose: '98 mg/dL' },
-    meds: [
-      { id: 'm4', name: 'Thyroxine 50mcg', time: '07:30 AM', taken: true, lastUpdated: 'Today, 7:35 AM by Vikram' },
-      { id: 'm5', name: 'Calcium + Vit D3', time: '02:00 PM', taken: true, lastUpdated: 'Nov 11 by Dr. Jenkins' },
-    ],
-  },
-  {
-    id: 'p3',
-    name: 'Eleanor Vance',
-    relation: 'Assisted Ward',
-    age: 79,
-    blood: 'A+',
-    avatarBg: '#F5F3FF',
-    avatarText: '#7C3AED',
-    permissions: {
-      viewTimeline: true,
-      editMeds: true,
-      uploadDocs: false,
-      emergencySos: true,
-    },
-    vitals: { bp: '135/88', pulse: '76 bpm', glucose: '124 mg/dL' },
-    meds: [
-      { id: 'm6', name: 'Amlodipine 5mg', time: '09:00 AM', taken: true, lastUpdated: 'Today, 9:15 AM by Vikram' },
-      { id: 'm7', name: 'Aspirin 81mg', time: '09:00 PM', taken: false, lastUpdated: 'Nov 09 by Dr. Vance' },
-    ],
-  },
-];
-
-// ─── INITIAL GIT-STYLE AUDIT / PROPOSED CHANGES ──────────────────────────────
-const INITIAL_CHANGES = [
-  {
-    id: 'c1',
-    commitHash: '8f9a2c1',
-    patientId: 'p1',
-    patientName: 'Melroy Almeida',
-    title: 'Marked Metformin 500mg as Taken',
-    detail: 'Logged morning dosage at 08:05 AM',
-    timestamp: 'Today, 08:05 AM',
-    status: 'applied', // 'applied' (reversible) or 'reverted'
-  },
-  {
-    id: 'c2',
-    commitHash: '3d7b4e9',
-    patientId: 'p1',
-    patientName: 'Melroy Almeida',
-    title: 'Proposed Dosage Time Adjustment',
-    detail: 'Shifted Lisinopril 10mg from 12:00 PM to 01:00 PM',
-    timestamp: 'Today, 07:45 AM',
-    status: 'pending', // Pending patient review
-  },
-  {
-    id: 'c3',
-    commitHash: '1c4e7f8',
-    patientId: 'p2',
-    patientName: 'Sofia Almeida',
-    title: 'Logged Morning BP Reading',
-    detail: 'Recorded 118/76 mmHg (Normal sinus rhythm)',
-    timestamp: 'Yesterday, 06:30 PM',
-    status: 'applied',
-  },
-];
-
 export default function CaretakerPortal({ onSignOut, isDesktop }) {
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'wards' | 'changes' | 'profile'
-  const [wards, setWards] = useState(INITIAL_WARDS);
-  const [changes, setChanges] = useState(INITIAL_CHANGES);
+  const [wards, setWards] = useState(INITIAL_CARETAKER_WARDS);
+  const [changes, setChanges] = useState(INITIAL_AUDIT_LOGS);
   const [selectedWardId, setSelectedWardId] = useState('p1');
   const [searchQuery, setSearchQuery] = useState('');
   const [openWardVault, setOpenWardVault] = useState(null);
