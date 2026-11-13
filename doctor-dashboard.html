@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MediVault — Doctor Portal</title>
+<style>
+/* ── Design Tokens & MediVault Color Palette ── */
+:root {
+  --green:   #16A34A;
+  --gd:      #15803D;
+  --gl:      #F0FDF4;
+  --bg:      #F8FAFC;
+  --white:   #ffffff;
+  --charcoal:#0F172A;
+  --text:    #0F172A;
+  --muted:   #64748B;
+  --border:  #E2E8F0;
+  --bdg:     #DCFCE7;
+  --red:     #DC2626;
+  --blue:    #2563EB;
+  --purple:  #7C3AED;
+  --amber:   #D97706;
+  --coral:   #EA580C;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 74px;
+}
+
+/* ── Container ── */
+.app-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px 24px;
+}
+
+/* ── Top Curved Header ── */
+.top-header-curve {
+  background: linear-gradient(180deg, #E8EEF9 0%, #F4F7FC 60%, #F8FAFC 100%);
+  padding: 32px 20px 20px;
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+  margin-bottom: 16px;
+}
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.greeting-small {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.greeting-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.4px;
+}
+.greeting-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  margin-top: 2px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease;
+}
+.header-icon-btn:hover {
+  transform: translateY(-1px);
+}
+.notif-dot-badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 1.5px solid var(--white);
+}
+
+/* ── Role Banner ── */
+.doctor-role-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--white);
+  border-radius: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--bdg);
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.doctor-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gl);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.doctor-role-sub {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.hipaa-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gl);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* ── Section Title ── */
+.section-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--charcoal);
+  margin-bottom: 14px;
+  letter-spacing: -0.2px;
+}
+
+/* ── At your Fingertip: 4 Buttons Grid ── */
+.fingertip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (min-width: 640px) {
+  .fingertip-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.fingertip-card {
+  background: var(--white);
+  border-radius: 18px;
+  padding: 16px 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  transition: all 0.18s ease;
+}
+.fingertip-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--green);
+}
+.fingertip-icon-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  position: relative;
+}
+.count-badge-pill {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--blue);
+  color: var(--white);
+  border-radius: 10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--white);
+}
+.fingertip-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+.fingertip-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Recent Activity Section ── */
+.recent-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.link-action {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  cursor: pointer;
+}
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.activity-card {
+  display: flex;
+  align-items: center;
+  background: var(--white);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  gap: 12px;
+}
+.activity-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.activity-details {
+  flex: 1;
+  min-width: 0;
+}
+.activity-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activity-patient-sub {
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.btn-mini-pdf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFF7ED;
+  color: var(--coral);
+  border: 1px solid #FFEDD5;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Patients Quick List ── */
+.patient-row-card {
+  display: flex;
+  align-items: center;
+  background: var(--white);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.patient-avatar-circ {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.patient-info-col {
+  flex: 1;
+  min-width: 0;
+}
+.patient-name-txt {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+.patient-sub-txt {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.btn-upload-quick {
+  background: var(--gl);
+  color: var(--green);
+  border: 1px solid var(--bdg);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Page Layout & Views ── */
+.page-view {
+  display: none;
+}
+.page-view.active {
+  display: block;
+}
+.subpage-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+.subpage-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--charcoal);
+  letter-spacing: -0.3px;
+}
+
+/* ── Target Patient Finalized Container (Upload Page) ── */
+.target-patient-box {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1.5px solid #DBEAFE;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.target-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.target-patient-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--blue);
+  letter-spacing: 0.6px;
+}
+.switch-patient-btn {
+  background: #EFF6FF;
+  color: var(--blue);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.target-patient-card-active {
+  display: flex;
+  align-items: center;
+  background: #EFF6FF;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid #DBEAFE;
+  gap: 12px;
+}
+.finalized-pill {
+  background: var(--gl);
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* ── Upload Form ── */
+.field-wrap {
+  margin-bottom: 16px;
+}
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: block;
+  letter-spacing: 0.5px;
+}
+.text-input {
+  width: 100%;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--charcoal);
+  outline: none;
+}
+.text-input:focus {
+  border-color: var(--green);
+}
+.category-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cat-pill {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cat-pill.active {
+  background: var(--gl);
+  border-color: var(--green);
+  color: var(--green);
+  font-weight: 700;
+}
+.choose-file-dual {
+  display: flex;
+  background: var(--white);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.dual-btn {
+  flex: 1;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: background 0.15s;
+}
+.dual-btn:hover {
+  background: #F8FAFC;
+}
+.dual-icon-circ {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--gl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.dual-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+.dual-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.divider-col {
+  width: 1px;
+  background: var(--border);
+}
+.demo-samples-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.sample-chip {
+  background: #F1F5F9;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+.divider-row {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+}
+.div-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.div-pill-txt {
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+/* JSON Code Preview Box */
+.json-preview-card {
+  background: #0F172A;
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.json-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.copy-json-btn {
+  background: rgba(255,255,255,0.1);
+  color: #38BDF8;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.json-code-box {
+  background: #020617;
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 180px;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 11px;
+  color: #38BDF8;
+  white-space: pre;
+}
+
+/* Bottom Large Save / CTA Button */
+.btn-save-large {
+  width: 100%;
+  background: linear-gradient(90deg, var(--green) 0%, var(--gd) 100%);
+  color: var(--white);
+  border: none;
+  border-radius: 999px;
+  padding: 15px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+  margin-top: 20px;
+  transition: opacity 0.15s;
+}
+.btn-save-large:hover {
+  opacity: 0.95;
+}
+
+/* ── History Page ── */
+.history-counters-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.history-counter-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.counter-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--charcoal);
+}
+.counter-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.history-search-input {
+  width: 100%;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 10px;
+}
+.history-filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.history-timeline-card {
+  display: flex;
+  background: var(--white);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 14px;
+  gap: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+.history-badge-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.history-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.history-top-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.history-tag-pill {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.history-datetime {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.history-item-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin-bottom: 4px;
+}
+.history-patient-lbl {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.history-desc-txt {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 18px;
+  margin-bottom: 10px;
+}
+.history-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #F1F5F9;
+  padding-top: 8px;
+}
+
+/* ── Profile Page ── */
+.profile-avatar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.profile-large-circ {
+  width: 80px;
+  height: 80px;
+  border-radius: 26px;
+  background: var(--gl);
+  border: 2px solid var(--bdg);
+  color: var(--green);
+  font-size: 26px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.profile-btn-row {
+  display: flex;
+  gap: 10px;
+}
+.btn-photo-pill {
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  color: var(--blue);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.setting-panel {
+  background: var(--white);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.setting-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid #F1F5F9;
+}
+.setting-item-row:last-child {
+  border-bottom: none;
+}
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--green);
+  position: relative;
+  cursor: pointer;
+}
+.toggle-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: white;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  transition: all 0.2s;
+}
+.profile-bottom-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+.btn-signout-page {
+  flex: 1;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  color: var(--charcoal);
+  border-radius: 999px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-delete-session {
+  flex: 1;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: var(--red);
+  border-radius: 999px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Fixed Bottom Navigation Bar (4 Pages) ── */
+.bottom-nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 12px 10px;
+  z-index: 100;
+}
+.bottom-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 14px;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.bottom-nav-btn.active {
+  color: var(--green);
+}
+.bottom-nav-lbl {
+  font-size: 11px;
+  font-weight: 600;
+}
+.bottom-nav-btn.active .bottom-nav-lbl {
+  font-weight: 700;
+}
+
+/* ── Modals ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 200;
+}
+.modal-overlay.open {
+  display: flex;
+}
+.modal-box {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.15);
+}
+.modal-close-x {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: #F1F5F9;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Toast */
+.toast-pill {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0F172A;
+  color: white;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast-pill"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TOP CURVED HEADER (HOME ONLY)                                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="homeHeaderCurve" class="top-header-curve">
+  <div class="header-inner">
+    <div>
+      <div class="greeting-small">Hello,</div>
+      <div class="greeting-name" id="docGreetingName">Dr. Sarah Jenkins</div>
+      <div class="greeting-sub">Cardiology & Internal Medicine · Metro Hospital</div>
+    </div>
+    <div class="header-actions">
+      <div class="header-icon-btn" onclick="openModal('qrModal')" title="Scan Patient QR">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <line x1="7" y1="7" x2="7.01" y2="7" stroke-width="2.5"/><line x1="17" y1="7" x2="17.01" y2="7" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="header-icon-btn" onclick="openModal('notifModal')" title="Notifications">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <div class="notif-dot-badge"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app-container">
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 1: HOME DASHBOARD                                                   -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-home" class="page-view active">
+    <!-- Doctor Role Banner -->
+    <div class="doctor-role-banner">
+      <div>
+        <div class="doctor-role-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M4.5 3v5a4.5 4.5 0 0 0 9 0V3"/><path d="M9 12.5v3.5a3 3 0 0 0 6 0v-2"/><circle cx="15" cy="14" r="2"/></svg>
+          CLINICAL PRACTITIONER VAULT
+        </div>
+        <div class="doctor-role-sub">Metro Hospital & Cardiac Wing · License MD-849204-CA</div>
+      </div>
+      <div class="hipaa-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/></svg>
+        HIPAA Verified
+      </div>
+    </div>
+
+    <!-- At your Fingertip Section: Exactly 4 Buttons -->
+    <div class="section-title">At your Fingertip</div>
+    <div class="fingertip-grid">
+      <!-- 1. Scan QR -->
+      <div class="fingertip-card" onclick="openModal('qrModal')">
+        <div class="fingertip-icon-wrap" style="background:#F5F3FF;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+        </div>
+        <div class="fingertip-name">Scan QR</div>
+        <div class="fingertip-sub">Scan patient code</div>
+      </div>
+
+      <!-- 2. No of patients connected (count no) -->
+      <div class="fingertip-card" onclick="openModal('patientsModal')">
+        <div class="fingertip-icon-wrap" style="background:#EFF6FF;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <div class="count-badge-pill" id="homePatientCountBadge">8</div>
+        </div>
+        <div class="fingertip-name">Connected</div>
+        <div class="fingertip-sub" id="homePatientCountSub">8 Patients</div>
+      </div>
+
+      <!-- 3. Upload -->
+      <div class="fingertip-card" onclick="switchTab('upload')">
+        <div class="fingertip-icon-wrap" style="background:#F0FDF4;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="fingertip-name">Upload</div>
+        <div class="fingertip-sub">Add patient records</div>
+      </div>
+
+      <!-- 4. History -->
+      <div class="fingertip-card" onclick="switchTab('history')">
+        <div class="fingertip-icon-wrap" style="background:#FFF7ED;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="fingertip-name">History</div>
+        <div class="fingertip-sub" id="homeHistoryCountSub">10 Entries</div>
+      </div>
+    </div>
+
+    <!-- Recent Clinical Activity -->
+    <div class="recent-header-row">
+      <div>
+        <div class="section-title" style="margin-bottom:2px;">Recent Clinical Activity</div>
+        <div style="font-size:11px;color:var(--muted);">Latest uploads & records synced</div>
+      </div>
+      <div class="link-action" onclick="switchTab('history')">View History &rarr;</div>
+    </div>
+
+    <div class="activity-list" id="homeRecentActivityList">
+      <!-- Populated via JS -->
+    </div>
+
+    <!-- Connected Patients Section -->
+    <div class="recent-header-row" style="margin-top:20px;">
+      <div>
+        <div class="section-title" style="margin-bottom:2px;">Connected Patients</div>
+        <div style="font-size:11px;color:var(--muted);">Active patients under clinical care</div>
+      </div>
+      <div class="link-action" onclick="openModal('patientsModal')">All Patients &rarr;</div>
+    </div>
+
+    <div id="homeConnectedPatientsList">
+      <!-- Populated via JS -->
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 2: UPLOAD (WITH FINALIZED DESTINATION PATIENT)                     -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-upload" class="page-view">
+    <div class="subpage-header-row" onclick="switchTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <div class="subpage-title">Upload to Patient Vault</div>
+    </div>
+
+    <!-- Step 1: Target Patient (Finalized Destination) -->
+    <div class="target-patient-box">
+      <div class="target-header-row">
+        <div class="target-patient-label">TARGET PATIENT (FINALIZED DESTINATION)</div>
+        <button class="switch-patient-btn" onclick="openModal('patientPickerModal')">Switch Patient ▾</button>
+      </div>
+
+      <div class="target-patient-card-active" id="selectedTargetPatientCard">
+        <div class="patient-avatar-circ" id="targetPatientAvatar" style="background:#2563EB;">MA</div>
+        <div class="patient-info-col">
+          <div style="display:flex;align-items:center;">
+            <span class="patient-name-txt" id="targetPatientName">Melroy Almeida</span>
+            <span class="finalized-pill">✓ FINALIZED</span>
+          </div>
+          <div class="patient-sub-txt" id="targetPatientMeta">MV-2026-PAT-892 · 32 yrs · Male · Blood O+</div>
+          <div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:2px;" id="targetPatientCondition">
+            Borderline Hyperglycemia / Pre-diabetes
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Category & Title -->
+    <div class="field-wrap">
+      <label class="field-label">RECORD CATEGORY</label>
+      <div class="category-pills">
+        <button class="cat-pill active" onclick="selectCategory(this, 'Lab Report')">Lab Report</button>
+        <button class="cat-pill" onclick="selectCategory(this, 'Cardiology')">Cardiology</button>
+        <button class="cat-pill" onclick="selectCategory(this, 'Prescription')">Prescription</button>
+        <button class="cat-pill" onclick="selectCategory(this, 'Radiology')">Radiology</button>
+        <button class="cat-pill" onclick="selectCategory(this, 'Clinical Note')">Clinical Note</button>
+      </div>
+    </div>
+
+    <div class="field-wrap">
+      <label class="field-label">DOCUMENT TITLE</label>
+      <input type="text" class="text-input" id="uploadTitleInput" placeholder="e.g. Comprehensive Metabolic Panel (Follow-up)"/>
+    </div>
+
+    <!-- Step 3: Attachment -->
+    <div class="field-wrap">
+      <label class="field-label">DOCUMENT ATTACHMENT</label>
+      <div class="choose-file-dual" id="chooseFileDualBox">
+        <button class="dual-btn" onclick="document.getElementById('hiddenFileInput').click()">
+          <div class="dual-icon-circ">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dual-title">Choose File</div>
+          <div class="dual-sub">PDF, Scan, or Doc</div>
+        </button>
+        <input type="file" id="hiddenFileInput" style="display:none;" onchange="handleFileSelected(event)"/>
+        <div class="divider-col"></div>
+        <button class="dual-btn" onclick="loadSampleDoc('Metabolic_Panel.pdf', 'Lab Report', 'Comprehensive Metabolic Panel')">
+          <div class="dual-icon-circ" style="background:#EFF6FF;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <div class="dual-title">Use Camera</div>
+          <div class="dual-sub">Direct scan capture</div>
+        </button>
+      </div>
+
+      <div class="demo-samples-row">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;">Quick Samples:</span>
+        <button class="sample-chip" onclick="loadSampleDoc('Metabolic_Report.pdf', 'Lab Report', 'Comprehensive Metabolic Panel')">Metabolic Lab</button>
+        <button class="sample-chip" onclick="loadSampleDoc('2D_Echo_Study.pdf', 'Cardiology', 'Resting 2D Echocardiogram')">2D Echo</button>
+        <button class="sample-chip" onclick="loadSampleDoc('Active_Rx_Order.pdf', 'Prescription', 'Active Prescription Plan')">Prescription</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Paste Raw Text -->
+    <div class="divider-row">
+      <div class="div-line"></div>
+      <div class="div-pill-txt">OR PASTE RAW CLINICAL TEXT</div>
+      <div class="div-line"></div>
+    </div>
+
+    <div class="field-wrap">
+      <textarea class="text-input" id="uploadTextInput" rows="3" placeholder="Paste physician observations, lab values, or prescription details..." style="resize:vertical;" oninput="handleTextTyping(this.value)"></textarea>
+    </div>
+
+    <!-- Step 5: Extracted Clinical JSON Box -->
+    <div id="jsonPreviewBox" class="json-preview-card" style="display:none;">
+      <div class="json-header-row">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#F59E0B;font-size:13px;font-weight:700;">&lt;/&gt; Extracted Clinical JSON</span>
+        </div>
+        <button class="copy-json-btn" onclick="copyExtractedJson()">Copy JSON</button>
+      </div>
+      <div class="json-code-box" id="jsonCodeDisplay"></div>
+    </div>
+
+    <!-- Step 6: Bottom Save Button -->
+    <button class="btn-save-large" id="uploadSaveBtn" onclick="saveUploadRecord()">
+      Upload to Melroy Almeida's Vault
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 3: HISTORY (COMPLETE AUDIT WITH DATE AND TIME)                      -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-history" class="page-view">
+    <div class="subpage-header-row" onclick="switchTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <div>
+        <div class="subpage-title">Doctor Activity History</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Complete chronological record of all uploads, access grants & clinical updates</div>
+      </div>
+    </div>
+
+    <!-- Counters Grid -->
+    <div class="history-counters-grid">
+      <div class="history-counter-card">
+        <div class="counter-num" id="cntTotal">10</div>
+        <div class="counter-lbl">Total Actions</div>
+      </div>
+      <div class="history-counter-card" style="border-left:3px solid var(--green);">
+        <div class="counter-num" style="color:var(--green);" id="cntUploads">5</div>
+        <div class="counter-lbl">Uploads</div>
+      </div>
+      <div class="history-counter-card" style="border-left:3px solid var(--blue);">
+        <div class="counter-num" style="color:var(--blue);" id="cntConnect">3</div>
+        <div class="counter-lbl">Connections</div>
+      </div>
+      <div class="history-counter-card" style="border-left:3px solid var(--purple);">
+        <div class="counter-num" style="color:var(--purple);" id="cntUpdates">2</div>
+        <div class="counter-lbl">Updates</div>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <input type="text" class="history-search-input" id="historySearchInput" placeholder="Search by patient name, record title, or keyword..." oninput="renderHistoryList()"/>
+
+    <div class="history-filter-pills">
+      <button class="cat-pill active" onclick="setHistoryFilter(this, 'all')">All Actions</button>
+      <button class="cat-pill" onclick="setHistoryFilter(this, 'upload')">Uploads Only</button>
+      <button class="cat-pill" onclick="setHistoryFilter(this, 'connection')">Connections</button>
+      <button class="cat-pill" onclick="setHistoryFilter(this, 'update')">Clinical Updates</button>
+    </div>
+
+    <!-- Chronological Timeline List with Date and Time -->
+    <div id="historyTimelineContainer">
+      <!-- Populated via JS -->
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 4: PROFILE (NO SWITCH ACCOUNT OPTION)                               -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-profile" class="page-view">
+    <div class="subpage-header-row" onclick="switchTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <div class="subpage-title">Doctor Profile</div>
+    </div>
+
+    <!-- Avatar & Change Photo -->
+    <div class="profile-avatar-center">
+      <div class="profile-large-circ">SJ</div>
+      <div class="profile-btn-row">
+        <button class="btn-photo-pill" onclick="showToast('Photo uploaded from gallery!')">Gallery</button>
+        <button class="btn-photo-pill" style="background:#F0FDF4;color:var(--green);border-color:#DCFCE7;" onclick="showToast('Camera capture completed!')">Camera</button>
+      </div>
+    </div>
+
+    <!-- Doctor Details Form -->
+    <div class="field-wrap">
+      <label class="field-label">DOCTOR NAME</label>
+      <input type="text" class="text-input" id="profName" value="Dr. Sarah Jenkins"/>
+    </div>
+
+    <div class="field-wrap">
+      <label class="field-label">SPECIALIZATION & SCOPE</label>
+      <input type="text" class="text-input" id="profSpec" value="Cardiology & Internal Medicine"/>
+    </div>
+
+    <div class="field-wrap">
+      <label class="field-label">HOSPITAL / CLINIC AFFILIATION</label>
+      <input type="text" class="text-input" id="profClinic" value="Metro Hospital & Cardiac Wing"/>
+    </div>
+
+    <div class="field-wrap">
+      <label class="field-label">MEDICAL LICENSE / NPI IDENTIFIER</label>
+      <input type="text" class="text-input" id="profLicense" value="MD-849204-CA · NPI-1948201948"/>
+    </div>
+
+    <div class="field-wrap">
+      <label class="field-label">OFFICIAL EMAIL</label>
+      <input type="email" class="text-input" id="profEmail" value="dr.jenkins@metrohospital.org"/>
+    </div>
+
+    <!-- Settings: Notifications, Biometrics, Auto-Audit -->
+    <div class="field-wrap">
+      <label class="field-label">CLINICAL VAULT SETTINGS</label>
+      <div class="setting-panel">
+        <div class="setting-item-row">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--charcoal);">Clinical Notifications</div>
+            <div style="font-size:11px;color:var(--muted);">Alerts for patient sharing & lab extractions</div>
+          </div>
+          <div class="toggle-switch" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-item-row">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--charcoal);">Biometric Lock & Security</div>
+            <div style="font-size:11px;color:var(--muted);">Fingerprint / FaceID authentication</div>
+          </div>
+          <div class="toggle-switch" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-item-row">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--charcoal);">Automatic Audit Logging</div>
+            <div style="font-size:11px;color:var(--muted);">Record every doctor action to immutable history</div>
+          </div>
+          <div class="toggle-switch" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTE: Per instructions, NO switch account option is present -->
+
+    <!-- Save & Action Buttons -->
+    <button class="btn-save-large" style="margin-top:10px;" onclick="saveDoctorProfile()">Save Profile Changes</button>
+    
+    <div class="profile-bottom-actions">
+      <button class="btn-signout-page" onclick="window.location.href='index.html'">Sign Out</button>
+      <button class="btn-delete-session" onclick="openModal('endSessionModal')">End Active Session</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- BOTTOM NAVIGATION BAR (4 PAGES AS SPECIFIED)                             -->
+<!-- 1. home, 2. upload, 3. history, 4. profile                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<nav class="bottom-nav-bar">
+  <button class="bottom-nav-btn active" id="tab-home" onclick="switchTab('home')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    <span class="bottom-nav-lbl">Home</span>
+  </button>
+
+  <button class="bottom-nav-btn" id="tab-upload" onclick="switchTab('upload')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <span class="bottom-nav-lbl">Upload</span>
+  </button>
+
+  <button class="bottom-nav-btn" id="tab-history" onclick="switchTab('history')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <span class="bottom-nav-lbl">History</span>
+  </button>
+
+  <button class="bottom-nav-btn" id="tab-profile" onclick="switchTab('profile')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    <span class="bottom-nav-lbl">Profile</span>
+  </button>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODALS                                                                   -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+
+<!-- 1. Scan QR Modal -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal-box" style="text-align:center;">
+    <button class="modal-close-x" onclick="closeModal('qrModal')">✕</button>
+    <div style="width:58px;height:58px;border-radius:20px;background:#F5F3FF;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+    </div>
+    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Scan Patient Medical QR</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px;">Point camera at patient's MediVault badge or tap patient below</div>
+    
+    <!-- Camera Viewfinder -->
+    <div style="width:200px;height:200px;background:#0F172A;border-radius:18px;margin:16px auto;position:relative;display:flex;align-items:center;justify-content:center;">
+      <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+      <div style="position:absolute;left:10px;right:10px;height:2px;background:#16A34A;box-shadow:0 0 8px #16A34A;"></div>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-align:left;">Quick Scan Patient:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="qrPatientChipList"></div>
+
+    <div style="display:flex;gap:8px;">
+      <input type="text" class="text-input" id="qrInputManual" placeholder="Enter Patient ID (e.g. MV-2026-PAT-892)"/>
+      <button class="btn-save-large" style="margin-top:0;width:auto;padding:10px 18px;" onclick="processQrConnect()">Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Connected Patients Directory Modal -->
+<div class="modal-overlay" id="patientsModal">
+  <div class="modal-box" style="max-width:540px;">
+    <button class="modal-close-x" onclick="closeModal('patientsModal')">✕</button>
+    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Connected Patients</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;" id="patientsModalSub">8 active patients sharing clinical vault access</div>
+    
+    <div id="patientsModalList" style="max-height:380px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- 3. Target Patient Picker Modal (Upload Step) -->
+<div class="modal-overlay" id="patientPickerModal">
+  <div class="modal-box" style="max-width:540px;">
+    <button class="modal-close-x" onclick="closeModal('patientPickerModal')">✕</button>
+    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Select Destination Patient</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Finalize which patient vault this document belongs to</div>
+    
+    <input type="text" class="text-input" placeholder="Search patient name or ID..." id="patientPickerSearch" oninput="renderPickerPatients(this.value)" style="margin-bottom:12px;"/>
+    
+    <div id="patientPickerList" style="max-height:360px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- 4. Notifications Modal -->
+<div class="modal-overlay" id="notifModal">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('notifModal')">✕</button>
+    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Clinical Notifications</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Alerts & patient updates</div>
+    
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:12px;padding:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--charcoal);">New Patient Connection</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Melroy Almeida shared full clinical vault records with Dr. Sarah Jenkins.</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">15 mins ago</div>
+      </div>
+      <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:12px;padding:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--charcoal);">Lab Extraction Confirmed</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Metabolic Panel structured schema successfully indexed for Melroy Almeida.</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">2 hours ago</div>
+      </div>
+    </div>
+    <button class="btn-save-large" style="margin-top:16px;" onclick="closeModal('notifModal');showToast('All notifications marked as read');">Mark All as Read</button>
+  </div>
+</div>
+
+<!-- 5. End Session Modal -->
+<div class="modal-overlay" id="endSessionModal">
+  <div class="modal-box" style="text-align:center;">
+    <div style="width:56px;height:56px;border-radius:20px;background:#FEF2F2;color:var(--red);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:24px;">⚠️</div>
+    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">End Active Doctor Session?</div>
+    <div style="font-size:12px;color:var(--muted);margin:6px 0 18px;">This will safely close your clinical vault and sign you out back to the landing page.</div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-signout-page" onclick="closeModal('endSessionModal')">Cancel</button>
+      <button class="btn-delete-session" onclick="window.location.href='index.html'">End Session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA STORE ──
+let connectedPatients = [
+  { id: 'p1', name: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', age: '32 yrs', gender: 'Male', blood: 'O+', condition: 'Borderline Hyperglycemia / Pre-diabetes', recordsCount: 6, lastVisit: 'Today', color: '#2563EB' },
+  { id: 'p2', name: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', age: '58 yrs', gender: 'Female', blood: 'A+', condition: 'Hypertension Stage 1 & Echo Review', recordsCount: 4, lastVisit: 'Nov 11, 2026', color: '#16A34A' },
+  { id: 'p3', name: 'James Peterson', patientId: 'MV-2026-PAT-112', age: '45 yrs', gender: 'Male', blood: 'B+', condition: 'Coronary Artery Disease monitoring', recordsCount: 8, lastVisit: 'Nov 08, 2026', color: '#7C3AED' },
+  { id: 'p4', name: 'David Miller', patientId: 'MV-2026-PAT-553', age: '61 yrs', gender: 'Male', blood: 'AB+', condition: 'Post-Stent Routine Cardiac Follow-up', recordsCount: 5, lastVisit: 'Nov 05, 2026', color: '#EA580C' },
+  { id: 'p5', name: 'Elena Rostova', patientId: 'MV-2026-PAT-741', age: '29 yrs', gender: 'Female', blood: 'O-', condition: 'Sinus Arrhythmia Investigation', recordsCount: 3, lastVisit: 'Oct 29, 2026', color: '#0D9488' },
+  { id: 'p6', name: 'Arthur Pendelton', patientId: 'MV-2026-PAT-908', age: '72 yrs', gender: 'Male', blood: 'A-', condition: 'Congestive Heart Failure (Compensated)', recordsCount: 11, lastVisit: 'Oct 22, 2026', color: '#2563EB' },
+  { id: 'p7', name: 'Maya Lin', patientId: 'MV-2026-PAT-620', age: '38 yrs', gender: 'Female', blood: 'B-', condition: 'Mitral Valve Prolapse routine', recordsCount: 4, lastVisit: 'Oct 15, 2026', color: '#7C3AED' },
+  { id: 'p8', name: 'Robert Chang', patientId: 'MV-2026-PAT-439', age: '50 yrs', gender: 'Male', blood: 'O+', condition: 'Dyslipidemia & Metabolic Regimen', recordsCount: 7, lastVisit: 'Oct 02, 2026', color: '#16A34A' }
+];
+
+let targetPatient = connectedPatients[0];
+let activeCategory = 'Lab Report';
+let activeHistoryFilter = 'all';
+
+let historyList = [
+  { id: 'h-1', type: 'upload', title: 'Uploaded Comprehensive Metabolic Panel', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '06:15 AM', details: '6 lab values extracted (Glucose: 104 mg/dL, HbA1c: 5.8%). Document stored in patient Blood & Lab Tests folder.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-2', type: 'connection', title: 'Scanned Patient QR & Verified Vault Access', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '05:45 AM', details: 'Cryptographic token handshake verified. Granted Full Clinical Access for 90 days.', category: 'QR Connection', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-3', type: 'update', title: 'Prescription Regimen Adjusted: Metformin HCl', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Nov 12, 2026', time: '04:20 PM', details: 'Dose: 500mg PO daily with evening meal. Maintained glycemic stabilization protocol.', category: 'Prescription Update', color: '#7C3AED', bg: '#F5F3FF' },
+  { id: 'h-4', type: 'upload', title: 'Uploaded 2D Echocardiogram & Doppler Analysis', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 11, 2026', time: '02:35 PM', details: 'Resting left ventricular ejection fraction 62%. Normal diastolic filling parameters.', category: 'Cardiology Report', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-5', type: 'connection', title: 'Health Proxy Shared Access Linked', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 10, 2026', time: '11:10 AM', details: 'Designated caretaker proxy authorization confirmed by Dr. Sarah Jenkins.', category: 'Access Link', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-6', type: 'upload', title: 'Uploaded Fasting Lipid Profile & Cardiac Biomarkers', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '10:05 AM', details: 'Total Cholesterol: 185 mg/dL, HDL: 48 mg/dL, LDL: 102 mg/dL. Synced to patient profile.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-7', type: 'update', title: 'Clinical Progress Note & Cardiovascular Review', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '09:40 AM', details: 'Blood pressure 126/82 mmHg. Aerobic conditioning compliant. Follow-up in 3 months.', category: 'Clinical Note', color: '#EA580C', bg: '#FFF7ED' },
+  { id: 'h-8', type: 'upload', title: 'Uploaded High-Resolution Chest CT Scan', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '03:15 PM', details: 'No acute parenchymal infiltration. Stable post-cardiac intervention findings.', category: 'Radiology Scan', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-9', type: 'connection', title: 'In-Clinic QR Code Verification', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '02:50 PM', details: 'Scanned patient identification barcode from smartphone MediVault badge.', category: 'QR Connection', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-10', type: 'upload', title: 'Uploaded 24-Hour Holter Rhythm Monitoring', patientName: 'Elena Rostova', patientId: 'MV-2026-PAT-741', date: 'Oct 29, 2026', time: '01:25 PM', details: 'Predominantly normal sinus rhythm throughout 24-hour acquisition with rare isolated PACs.', category: 'Cardiology Report', color: '#16A34A', bg: '#F0FDF4' }
+];
+
+// ── NAVIGATION ──
+function switchTab(tabId) {
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  
+  const targetPage = document.getElementById('page-' + tabId);
+  const targetBtn = document.getElementById('tab-' + tabId);
+  if (targetPage) targetPage.classList.add('active');
+  if (targetBtn) targetBtn.classList.add('active');
+
+  const curveHeader = document.getElementById('homeHeaderCurve');
+  if (tabId === 'home') {
+    curveHeader.style.display = 'block';
+  } else {
+    curveHeader.style.display = 'none';
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3200);
+}
+
+// ── MODALS ──
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'patientPickerModal') renderPickerPatients();
+  if (id === 'patientsModal') renderDirectoryPatients();
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── RENDER HOME RECENT ACTIVITY & PATIENTS ──
+function renderHomeContent() {
+  const container = document.getElementById('homeRecentActivityList');
+  container.innerHTML = historyList.slice(0, 4).map(item => `
+    <div class="activity-card">
+      <div class="activity-icon-wrap" style="background:${item.bg};">
+        ${item.type === 'upload' 
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'}
+      </div>
+      <div class="activity-details">
+        <div class="activity-title">${item.title}</div>
+        <div class="activity-patient-sub">${item.patientName} · <span style="color:#64748B;">${item.date} ${item.time}</span></div>
+      </div>
+      <button class="btn-mini-pdf" onclick="showToast('Opening PDF for ${item.title}')">PDF</button>
+    </div>
+  `).join('');
+
+  const pContainer = document.getElementById('homeConnectedPatientsList');
+  pContainer.innerHTML = connectedPatients.slice(0, 4).map(p => `
+    <div class="patient-row-card">
+      <div class="patient-avatar-circ" style="background:${p.color};">${p.name.split(' ').map(n=>n[0]).join('')}</div>
+      <div class="patient-info-col">
+        <div class="patient-name-txt">${p.name}</div>
+        <div class="patient-sub-txt">${p.patientId} · ${p.age} · ${p.condition}</div>
+      </div>
+      <button class="btn-upload-quick" onclick="selectTargetPatient('${p.id}');switchTab('upload')">Upload</button>
+    </div>
+  `).join('');
+
+  // Quick Chips in QR Modal
+  const qrChips = document.getElementById('qrPatientChipList');
+  qrChips.innerHTML = connectedPatients.slice(0, 3).map(p => `
+    <button class="sample-chip" onclick="handleQrDirect('${p.id}')">${p.name}</button>
+  `).join('');
+}
+
+// ── PATIENT SELECTION ──
+function selectTargetPatient(pId) {
+  const p = connectedPatients.find(x => x.id === pId);
+  if (p) {
+    targetPatient = p;
+    document.getElementById('targetPatientName').textContent = p.name;
+    document.getElementById('targetPatientMeta').textContent = `${p.patientId} · ${p.age} · ${p.gender} · Blood ${p.blood}`;
+    document.getElementById('targetPatientCondition').textContent = p.condition;
+    document.getElementById('targetPatientAvatar').textContent = p.name.split(' ').map(n=>n[0]).join('');
+    document.getElementById('targetPatientAvatar').style.background = p.color;
+    document.getElementById('uploadSaveBtn').textContent = `Upload to ${p.name}'s Vault`;
+  }
+}
+
+function renderPickerPatients(query = '') {
+  const list = document.getElementById('patientPickerList');
+  const filtered = connectedPatients.filter(p => 
+    !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.patientId.toLowerCase().includes(query.toLowerCase())
+  );
+  list.innerHTML = filtered.map(p => {
+    const isSelected = targetPatient.id === p.id;
+    return `
+      <div class="patient-row-card" style="cursor:pointer;${isSelected ? 'border-color:var(--green);background:#F0FDF4;' : ''}" onclick="selectTargetPatient('${p.id}');closeModal('patientPickerModal');showToast('Finalized destination: ${p.name}')">
+        <div class="patient-avatar-circ" style="background:${p.color};">${p.name.split(' ').map(n=>n[0]).join('')}</div>
+        <div class="patient-info-col">
+          <div class="patient-name-txt">${p.name} ${isSelected ? '<span class="finalized-pill">SELECTED</span>' : ''}</div>
+          <div class="patient-sub-txt">${p.patientId} · ${p.age} · Blood: ${p.blood}</div>
+          <div style="font-size:11px;color:var(--blue);">${p.condition}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDirectoryPatients() {
+  const list = document.getElementById('patientsModalList');
+  list.innerHTML = connectedPatients.map(p => `
+    <div class="patient-row-card">
+      <div class="patient-avatar-circ" style="background:${p.color};">${p.name.split(' ').map(n=>n[0]).join('')}</div>
+      <div class="patient-info-col">
+        <div class="patient-name-txt">${p.name}</div>
+        <div class="patient-sub-txt">${p.patientId} · ${p.age} · Blood: ${p.blood}</div>
+        <div style="font-size:11px;color:var(--blue);">${p.condition}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">Records: ${p.recordsCount} · Last Visit: ${p.lastVisit}</div>
+      </div>
+      <button class="btn-upload-quick" onclick="selectTargetPatient('${p.id}');closeModal('patientsModal');switchTab('upload')">Upload</button>
+    </div>
+  `).join('');
+}
+
+// ── UPLOAD ACTIONS ──
+function selectCategory(el, cat) {
+  document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  activeCategory = cat;
+}
+
+function loadSampleDoc(fileName, category, title) {
+  document.getElementById('uploadTitleInput').value = title;
+  const pills = document.querySelectorAll('.category-pills .cat-pill');
+  pills.forEach(p => {
+    if (p.textContent === category) selectCategory(p, category);
+  });
+  generateMockJson(title, fileName);
+}
+
+function handleFileSelected(event) {
+  const file = event.target.files[0];
+  if (file) {
+    document.getElementById('uploadTitleInput').value = file.name.replace(/\.[^/.]+$/, "");
+    generateMockJson(file.name, file.name);
+  }
+}
+
+function handleTextTyping(val) {
+  if (val.trim().length > 15) {
+    generateMockJson(document.getElementById('uploadTitleInput').value || 'Clinical Note', 'Text Input');
+  }
+}
+
+function generateMockJson(title, source) {
+  const mockPayload = {
+    document_metadata: {
+      doc_type: activeCategory.toLowerCase(),
+      provider_name: "Dr. Sarah Jenkins",
+      facility_name: "Metro Hospital & Cardiac Wing",
+      patient_name: targetPatient.name,
+      patient_id: targetPatient.patientId,
+      date: new Date().toISOString().split('T')[0]
+    },
+    findings: [
+      { observation: title, status: "verified", quote: "Verified by attending cardiologist Dr. Sarah Jenkins" }
+    ],
+    summary: `Clinical document (${title}) validated and uploaded to ${targetPatient.name}'s secure MediVault.`
+  };
+  document.getElementById('jsonPreviewBox').style.display = 'block';
+  document.getElementById('jsonCodeDisplay').textContent = JSON.stringify(mockPayload, null, 2);
+}
+
+function copyExtractedJson() {
+  const code = document.getElementById('jsonCodeDisplay').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  showToast('JSON copied to clipboard!');
+}
+
+function saveUploadRecord() {
+  if (!targetPatient) {
+    showToast('⚠️ Please select a target patient first!');
+    openModal('patientPickerModal');
+    return;
+  }
+  const title = document.getElementById('uploadTitleInput').value.trim() || 'Clinical Medical Document';
+  const now = new Date();
+  const dateStr = `Today, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  const newItem = {
+    id: 'h-' + Date.now(),
+    type: 'upload',
+    title: `Uploaded ${title}`,
+    patientName: targetPatient.name,
+    patientId: targetPatient.patientId,
+    date: dateStr,
+    time: timeStr,
+    details: `Verified and synchronized to ${targetPatient.name}'s medical vault under ${activeCategory}.`,
+    category: activeCategory,
+    color: '#16A34A',
+    bg: '#F0FDF4'
+  };
+
+  historyList.unshift(newItem);
+  targetPatient.recordsCount++;
+
+  // Reset form
+  document.getElementById('uploadTitleInput').value = '';
+  document.getElementById('uploadTextInput').value = '';
+  document.getElementById('jsonPreviewBox').style.display = 'none';
+
+  renderHomeContent();
+  renderHistoryList();
+  showToast(`✅ Successfully uploaded to ${targetPatient.name}'s Vault & logged in History!`);
+  setTimeout(() => switchTab('history'), 900);
+}
+
+// ── HISTORY FILTER & RENDER ──
+function setHistoryFilter(el, filter) {
+  document.querySelectorAll('.history-filter-pills .cat-pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  activeHistoryFilter = filter;
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const query = (document.getElementById('historySearchInput')?.value || '').toLowerCase();
+  const filtered = historyList.filter(item => {
+    const matchFilter = activeHistoryFilter === 'all' || item.type === activeHistoryFilter;
+    const matchSearch = !query || 
+      item.title.toLowerCase().includes(query) ||
+      item.patientName.toLowerCase().includes(query) ||
+      item.details.toLowerCase().includes(query);
+    return matchFilter && matchSearch;
+  });
+
+  // Update counters
+  document.getElementById('cntTotal').textContent = historyList.length;
+  document.getElementById('cntUploads').textContent = historyList.filter(h => h.type === 'upload').length;
+  document.getElementById('cntConnect').textContent = historyList.filter(h => h.type === 'connection').length;
+  document.getElementById('cntUpdates').textContent = historyList.filter(h => h.type === 'update').length;
+  document.getElementById('homeHistoryCountSub').textContent = `${historyList.length} Entries`;
+
+  const container = document.getElementById('historyTimelineContainer');
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:36px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:15px;font-weight:700;color:var(--charcoal);">No matching history entries</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Try clearing your search query.</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => `
+    <div class="history-timeline-card">
+      <div class="history-badge-icon" style="background:${item.bg};">
+        ${item.type === 'upload'
+          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
+          : item.type === 'connection'
+          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>'
+          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + item.color + '" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'}
+      </div>
+      <div class="history-card-body">
+        <div class="history-top-meta">
+          <span class="history-tag-pill" style="background:${item.bg};color:${item.color};">${item.category.toUpperCase()}</span>
+          <!-- Date and time clearly presented -->
+          <span class="history-datetime">🕒 ${item.date} · ${item.time}</span>
+        </div>
+        <div class="history-item-heading">${item.title}</div>
+        <div class="history-patient-lbl">Patient: <strong style="color:var(--charcoal);">${item.patientName}</strong> (${item.patientId})</div>
+        <div class="history-desc-txt">${item.details}</div>
+        <div class="history-action-row">
+          <button class="btn-mini-pdf" onclick="showToast('Viewing PDF report for ${item.title}')">📄 View PDF Report</button>
+          <span style="font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;" onclick="showToast('Audit Hash: SHA256-${item.id}')">Audit Trail ➔</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── QR SCAN PROCESS ──
+function handleQrDirect(pId) {
+  selectTargetPatient(pId);
+  closeModal('qrModal');
+  showToast(`Connected with ${targetPatient.name} via QR!`);
+}
+
+function processQrConnect() {
+  const val = document.getElementById('qrInputManual').value.trim() || 'Melroy Almeida';
+  handleQrDirect('p1');
+}
+
+// ── PROFILE ──
+function toggleSwitch(el) {
+  const knob = el.querySelector('.toggle-knob');
+  if (el.style.background === 'rgb(226, 232, 240)' || el.style.background === '#E2E8F0') {
+    el.style.background = 'var(--green)';
+    knob.style.right = '2px';
+    knob.style.left = 'auto';
+  } else {
+    el.style.background = '#E2E8F0';
+    knob.style.right = 'auto';
+    knob.style.left = '2px';
+  }
+}
+
+function saveDoctorProfile() {
+  const name = document.getElementById('profName').value;
+  document.getElementById('docGreetingName').textContent = name;
+  showToast('Doctor profile changes saved!');
+}
+
+// Initial Run
+renderHomeContent();
+renderHistoryList();
+</script>
+
+</body>
+</html>

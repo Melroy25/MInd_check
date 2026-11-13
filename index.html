@@ -444,18 +444,21 @@
       </div>
 
       <!-- Doctor -->
-      <div class="role-card" onclick="showComingSoon('Doctor')" style="cursor:pointer;" title="Doctor Portal (Coming Soon)">
-        <div class="role-icon-wrap">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74A842" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <div class="role-card" onclick="window.location.href='doctor-dashboard.html'" style="cursor:pointer;" title="Open Doctor Portal">
+        <div class="role-icon-wrap" style="background:#EFF6FF;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </div>
         <div class="role-name">Doctor</div>
         <p class="role-desc">
           Access the medical histories and files that patients have explicitly shared
-          with you. Everything is structured, standardised, and immediately
-          available — nothing more than what was granted.
+          with you. Upload verified records directly to patient vaults, scan patient QR badges,
+          and track complete clinical history.
         </p>
+        <div style="margin-top:16px; font-size:13px; font-weight:700; color:var(--blue); display:flex; align-items:center; gap:6px;">
+          Open Doctor Portal &rarr;
+        </div>
       </div>
 
       <!-- Caretaker -->
@@ -570,7 +573,10 @@
     <div style="text-align:right;margin-bottom:4px;">
       <a href="#" style="font-size:12px;color:var(--green);text-decoration:none;font-weight:600;">Forgot password?</a>
     </div>
-    <button class="modal-btn enabled" onclick="goToDashboard()">Sign In</button>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button class="modal-btn enabled" style="margin-top:0;flex:1;" onclick="goToDashboard('Patient')">Sign In (Patient)</button>
+      <button class="modal-btn enabled" style="margin-top:0;flex:1;background:var(--blue);" onclick="goToDashboard('Doctor')">Sign In (Doctor)</button>
+    </div>
     <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:16px;">
       No account? <a href="#" style="color:var(--green);font-weight:700;text-decoration:none;" onclick="closeModal('login');openModal('signup')">Sign up free</a>
     </p>
@@ -580,14 +586,17 @@
 <script>
   let selectedRole = null;
 
-  function goToDashboard() {
-    if (selectedRole === 'Patient') {
+  function goToDashboard(forceRole) {
+    const role = forceRole || selectedRole;
+    if (role === 'Patient') {
       window.location.href = 'patient-dashboard.html';
-    } else if (selectedRole) {
+    } else if (role === 'Doctor') {
+      window.location.href = 'doctor-dashboard.html';
+    } else if (role) {
       closeModal('signup');
-      showComingSoon(selectedRole);
+      showComingSoon(role);
     } else {
-      window.location.href = 'patient-dashboard.html'; // login flow
+      window.location.href = 'patient-dashboard.html'; // default login flow
     }
   }
 

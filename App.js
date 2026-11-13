@@ -8,6 +8,7 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Ellipse, Polygon } from 'react
 import { pickMedicalDocument, extractMedicalDocument } from './services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from './services/pdfService';
 import PatientPortal from './components/PatientPortal';
+import DoctorPortal from './components/DoctorPortal';
 
 // ─── TOKENS ──────────────────────────────────────────────────────────────────
 const G = {
@@ -330,7 +331,7 @@ const INITIAL_PEOPLE = [
 // ═══════════════════════════════════════════════════════════════════════════════
 // PatientPortal is imported from ./components/PatientPortal
 
-function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
+function Navbar({ onLogin, onSignup, onOpenPatient, onOpenDoctor, isDesktop }) {
   return (
     <View style={s.navbarWrap}>
       <View style={[s.navbar, isDesktop && s.navbarDesktop]}>
@@ -358,6 +359,10 @@ function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
             <IconUser size={14} color={G.green}/>
             <Text style={pStyles.btnQuickPatientText}>Patient Portal</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={onOpenDoctor} style={pStyles.btnQuickDoctor} activeOpacity={0.75}>
+            <IconPulse size={14} color={G.blue}/>
+            <Text style={pStyles.btnQuickDoctorText}>Doctor Portal</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={onLogin} style={s.loginBtn} activeOpacity={0.7}>
             <Text style={s.loginBtnText}>Login</Text>
           </TouchableOpacity>
@@ -373,7 +378,7 @@ function Navbar({ onLogin, onSignup, onOpenPatient, isDesktop }) {
   );
 }
 
-function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
+function Hero({ onSignup, onLogin, onOpenPatient, onOpenDoctor, isDesktop }) {
   return (
     <View style={[s.heroWrap, isDesktop && s.heroWrapDesktop]}>
       <View style={[s.heroGrid, isDesktop && s.heroGridDesktop]}>
@@ -406,7 +411,11 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
             </TouchableOpacity>
             <TouchableOpacity style={pStyles.btnHeroPatient} onPress={onOpenPatient} activeOpacity={0.8}>
               <IconUser size={15} color={G.green}/>
-              <Text style={pStyles.btnHeroPatientText}>Open Patient Portal →</Text>
+              <Text style={pStyles.btnHeroPatientText}>Patient Portal →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={pStyles.btnHeroDoctor} onPress={onOpenDoctor} activeOpacity={0.8}>
+              <IconPulse size={15} color={G.blue}/>
+              <Text style={pStyles.btnHeroDoctorText}>Doctor Portal →</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -449,13 +458,18 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
             </View>
           </TouchableOpacity>
 
-          <View style={[s.floatCard, s.fcRight]}>
-            <View style={s.floatIcon}><IconPulse size={16}/></View>
+          {/* Floating card — Doctor (Clickable!) */}
+          <TouchableOpacity
+            style={[s.floatCard, s.fcRight]}
+            onPress={onOpenDoctor}
+            activeOpacity={0.8}
+          >
+            <View style={[s.floatIcon, { backgroundColor: '#EFF6FF' }]}><IconPulse size={16} color={G.blue}/></View>
             <View>
               <Text style={s.floatLabel}>Doctor</Text>
-              <Text style={s.floatSub}>Shared Clinical View</Text>
+              <Text style={s.floatSub}>Clinical Vault (Tap to open)</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           <View style={[s.floatCard, s.fcBottom]}>
             <View style={s.floatIcon}><IconGroup size={16}/></View>
@@ -470,7 +484,7 @@ function Hero({ onSignup, onLogin, onOpenPatient, isDesktop }) {
   );
 }
 
-function RolesSection({ isDesktop, onOpenPatient, onShowNotice }) {
+function RolesSection({ isDesktop, onOpenPatient, onOpenDoctor, onShowNotice }) {
   const cards = [
     {
       roleKey: 'patient',
@@ -480,7 +494,7 @@ function RolesSection({ isDesktop, onOpenPatient, onShowNotice }) {
     {
       roleKey: 'doctor',
       Icon: IconPulse, label: 'Doctor',
-      desc: 'Access the medical histories and files patients have explicitly shared with you. Everything is structured, standardised, and immediately available — nothing beyond what was granted.',
+      desc: 'Access the medical histories and files patients have explicitly shared with you. Upload verified records to patient vaults, scan patient QR badges, and track complete clinical history.',
     },
     {
       roleKey: 'caretaker',
@@ -498,22 +512,35 @@ function RolesSection({ isDesktop, onOpenPatient, onShowNotice }) {
           {cards.map((c) => (
             <TouchableOpacity
               key={c.label}
-              style={[s.roleCard, isDesktop && s.roleCardFlex, c.roleKey === 'patient' && pStyles.roleCardPatientActive]}
+              style={[
+                s.roleCard,
+                isDesktop && s.roleCardFlex,
+                c.roleKey === 'patient' && pStyles.roleCardPatientActive,
+                c.roleKey === 'doctor' && pStyles.roleCardDoctorActive,
+              ]}
               onPress={() => {
                 if (c.roleKey === 'patient') {
                   onOpenPatient();
+                } else if (c.roleKey === 'doctor') {
+                  onOpenDoctor();
                 } else {
-                  onShowNotice(`${c.label} portal coming soon! Currently building Patient experience.`);
+                  onShowNotice(`${c.label} portal coming soon! Currently exploring Patient & Doctor experience.`);
                 }
               }}
               activeOpacity={0.85}
             >
-              <View style={s.roleIconWrap}><c.Icon size={22}/></View>
+              <View style={[s.roleIconWrap, c.roleKey === 'doctor' && { backgroundColor: '#EFF6FF' }]}>
+                <c.Icon size={22} color={c.roleKey === 'doctor' ? G.blue : G.green}/>
+              </View>
               <Text style={s.roleName}>{c.label}</Text>
               <Text style={s.roleDesc}>{c.desc}</Text>
               {c.roleKey === 'patient' ? (
                 <View style={pStyles.openPortalBadge}>
                   <Text style={pStyles.openPortalBadgeText}>Open Patient Portal →</Text>
+                </View>
+              ) : c.roleKey === 'doctor' ? (
+                <View style={[pStyles.openPortalBadge, { backgroundColor: '#EFF6FF' }]}>
+                  <Text style={[pStyles.openPortalBadgeText, { color: G.blue }]}>Open Doctor Portal →</Text>
                 </View>
               ) : (
                 <View style={pStyles.comingSoonBadge}>
@@ -550,14 +577,16 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
     onClose();
     if (selected === 'patient') {
       onSelectRole('patient');
+    } else if (selected === 'doctor') {
+      onSelectRole('doctor');
     } else {
       onSelectRole(selected);
     }
   };
 
-  const handleSignIn = () => {
+  const handleSignIn = (role = 'patient') => {
     onClose();
-    onSignIn();
+    onSignIn(role);
   };
 
   return (
@@ -599,13 +628,13 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
                 activeOpacity={0.8}
               >
                 <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Continue as {selected === 'patient' ? 'Patient' : selected}</Text>
+                  <Text style={s.signupBtnText}>Continue as {selected === 'patient' ? 'Patient' : selected === 'doctor' ? 'Doctor' : selected}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              {[{ label: 'Email', placeholder: 'melroy@example.com' }, { label: 'Password', placeholder: '••••••••' }].map((f) => (
+              {[{ label: 'Email', placeholder: 'doctor.jenkins@metrohospital.org' }, { label: 'Password', placeholder: '••••••••' }].map((f) => (
                 <View key={f.label} style={{ marginBottom: 12 }}>
                   <Text style={s.inputLabel}>{f.label}</Text>
                   <View style={s.inputField}>
@@ -613,11 +642,18 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
                   </View>
                 </View>
               ))}
-              <TouchableOpacity onPress={handleSignIn} activeOpacity={0.8} style={{ marginTop: 8 }}>
-                <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={s.signupBtnText}>Sign In to Patient Portal</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <TouchableOpacity onPress={() => handleSignIn('patient')} activeOpacity={0.8} style={{ flex: 1 }}>
+                  <LinearGradient colors={[G.green, G.greenD]} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                    <Text style={s.signupBtnText}>Patient Portal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleSignIn('doctor')} activeOpacity={0.8} style={{ flex: 1 }}>
+                  <LinearGradient colors={[G.blue, '#1d4ed8']} style={s.modalCta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                    <Text style={s.signupBtnText}>Doctor Portal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -632,7 +668,7 @@ function AppModal({ visible, type, onClose, onSelectRole, onSignIn }) {
 export default function App() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
-  const [screen, setScreen] = useState('landing'); // 'landing' | 'patient'
+  const [screen, setScreen] = useState('landing'); // 'landing' | 'patient' | 'doctor'
   const [modal, setModal] = useState({ open: false, type: 'signup' });
   const [notice, setNotice] = useState(null);
 
@@ -642,6 +678,8 @@ export default function App() {
   const handleSelectRole = (role) => {
     if (role === 'patient') {
       setScreen('patient');
+    } else if (role === 'doctor') {
+      setScreen('doctor');
     } else {
       setNotice(`${role.charAt(0).toUpperCase() + role.slice(1)} portal coming soon! Opening Patient experience.`);
       setTimeout(() => setNotice(null), 3500);
@@ -649,13 +687,26 @@ export default function App() {
     }
   };
 
-  const handleSignIn = () => {
-    setScreen('patient');
+  const handleSignIn = (role = 'patient') => {
+    if (role === 'doctor') {
+      setScreen('doctor');
+    } else {
+      setScreen('patient');
+    }
   };
 
   if (screen === 'patient') {
     return (
       <PatientPortal
+        isDesktop={isDesktop}
+        onSignOut={() => setScreen('landing')}
+      />
+    );
+  }
+
+  if (screen === 'doctor') {
+    return (
+      <DoctorPortal
         isDesktop={isDesktop}
         onSignOut={() => setScreen('landing')}
       />
@@ -676,6 +727,7 @@ export default function App() {
         onLogin={() => open('login')}
         onSignup={() => open('signup')}
         onOpenPatient={() => setScreen('patient')}
+        onOpenDoctor={() => setScreen('doctor')}
         isDesktop={isDesktop}
       />
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -683,11 +735,13 @@ export default function App() {
           onSignup={() => open('signup')}
           onLogin={() => open('login')}
           onOpenPatient={() => setScreen('patient')}
+          onOpenDoctor={() => setScreen('doctor')}
           isDesktop={isDesktop}
         />
         <RolesSection
           isDesktop={isDesktop}
           onOpenPatient={() => setScreen('patient')}
+          onOpenDoctor={() => setScreen('doctor')}
           onShowNotice={(msg) => {
             setNotice(msg);
             setTimeout(() => setNotice(null), 3500);
@@ -798,6 +852,10 @@ const pStyles = StyleSheet.create({
     borderColor: G.green,
     borderWidth: 2,
   },
+  roleCardDoctorActive: {
+    borderColor: G.blue,
+    borderWidth: 2,
+  },
   openPortalBadge: {
     marginTop: 14,
     alignSelf: 'flex-start',
@@ -840,6 +898,22 @@ const pStyles = StyleSheet.create({
     fontWeight: '700',
     color: G.green,
   },
+  btnHeroDoctor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+  },
+  btnHeroDoctorText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: G.blue,
+  },
   btnQuickPatient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -855,6 +929,22 @@ const pStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: G.green,
+  },
+  btnQuickDoctor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  btnQuickDoctorText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: G.blue,
   },
   noticeBar: {
     backgroundColor: G.charcoal,
