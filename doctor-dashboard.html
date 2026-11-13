@@ -932,21 +932,6 @@ body {
   <!-- PAGE 1: HOME DASHBOARD                                                   -->
   <!-- ════════════════════════════════════════════════════════════════════════ -->
   <div id="page-home" class="page-view active">
-    <!-- Doctor Role Banner -->
-    <div class="doctor-role-banner">
-      <div>
-        <div class="doctor-role-tag">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M4.5 3v5a4.5 4.5 0 0 0 9 0V3"/><path d="M9 12.5v3.5a3 3 0 0 0 6 0v-2"/><circle cx="15" cy="14" r="2"/></svg>
-          CLINICAL PRACTITIONER VAULT
-        </div>
-        <div class="doctor-role-sub">Metro Hospital & Cardiac Wing · License MD-849204-CA</div>
-      </div>
-      <div class="hipaa-badge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7z"/></svg>
-        HIPAA Verified
-      </div>
-    </div>
-
     <!-- At your Fingertip Section: Exactly 4 Buttons -->
     <div class="section-title">At your Fingertip</div>
     <div class="fingertip-grid">
@@ -1000,7 +985,6 @@ body {
     <div class="recent-header-row">
       <div>
         <div class="section-title" style="margin-bottom:2px;">Recent Clinical Activity</div>
-        <div style="font-size:11px;color:var(--muted);">Latest uploads & records synced</div>
       </div>
       <div class="link-action" onclick="switchTab('history')">View History &rarr;</div>
     </div>
@@ -1404,16 +1388,16 @@ let activeCategory = 'Lab Report';
 let activeHistoryFilter = 'all';
 
 let historyList = [
-  { id: 'h-1', type: 'upload', title: 'Uploaded Comprehensive Metabolic Panel', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '06:15 AM', details: '6 lab values extracted (Glucose: 104 mg/dL, HbA1c: 5.8%). Document stored in patient Blood & Lab Tests folder.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
-  { id: 'h-2', type: 'connection', title: 'Scanned Patient QR & Verified Vault Access', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '05:45 AM', details: 'Cryptographic token handshake verified. Granted Full Clinical Access for 90 days.', category: 'QR Connection', color: '#2563EB', bg: '#EFF6FF' },
-  { id: 'h-3', type: 'update', title: 'Prescription Regimen Adjusted: Metformin HCl', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Nov 12, 2026', time: '04:20 PM', details: 'Dose: 500mg PO daily with evening meal. Maintained glycemic stabilization protocol.', category: 'Prescription Update', color: '#7C3AED', bg: '#F5F3FF' },
-  { id: 'h-4', type: 'upload', title: 'Uploaded 2D Echocardiogram & Doppler Analysis', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 11, 2026', time: '02:35 PM', details: 'Resting left ventricular ejection fraction 62%. Normal diastolic filling parameters.', category: 'Cardiology Report', color: '#16A34A', bg: '#F0FDF4' },
-  { id: 'h-5', type: 'connection', title: 'Health Proxy Shared Access Linked', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 10, 2026', time: '11:10 AM', details: 'Designated caretaker proxy authorization confirmed by Dr. Sarah Jenkins.', category: 'Access Link', color: '#2563EB', bg: '#EFF6FF' },
-  { id: 'h-6', type: 'upload', title: 'Uploaded Fasting Lipid Profile & Cardiac Biomarkers', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '10:05 AM', details: 'Total Cholesterol: 185 mg/dL, HDL: 48 mg/dL, LDL: 102 mg/dL. Synced to patient profile.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
-  { id: 'h-7', type: 'update', title: 'Clinical Progress Note & Cardiovascular Review', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '09:40 AM', details: 'Blood pressure 126/82 mmHg. Aerobic conditioning compliant. Follow-up in 3 months.', category: 'Clinical Note', color: '#EA580C', bg: '#FFF7ED' },
-  { id: 'h-8', type: 'upload', title: 'Uploaded High-Resolution Chest CT Scan', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '03:15 PM', details: 'No acute parenchymal infiltration. Stable post-cardiac intervention findings.', category: 'Radiology Scan', color: '#16A34A', bg: '#F0FDF4' },
-  { id: 'h-9', type: 'connection', title: 'In-Clinic QR Code Verification', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '02:50 PM', details: 'Scanned patient identification barcode from smartphone MediVault badge.', category: 'QR Connection', color: '#2563EB', bg: '#EFF6FF' },
-  { id: 'h-10', type: 'upload', title: 'Uploaded 24-Hour Holter Rhythm Monitoring', patientName: 'Elena Rostova', patientId: 'MV-2026-PAT-741', date: 'Oct 29, 2026', time: '01:25 PM', details: 'Predominantly normal sinus rhythm throughout 24-hour acquisition with rare isolated PACs.', category: 'Cardiology Report', color: '#16A34A', bg: '#F0FDF4' }
+  { id: 'h-1', type: 'upload', title: 'Metabolic Panel Report', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '06:15 AM', details: '6 lab values extracted (Glucose: 104 mg/dL, HbA1c: 5.8%). Document stored in patient Blood & Lab Tests folder.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-2', type: 'connection', title: 'Patient QR Access', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Today, Nov 13, 2026', time: '05:45 AM', details: 'Cryptographic token handshake verified. Granted Full Clinical Access for 90 days.', category: 'QR Access', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-3', type: 'update', title: 'Rx: Metformin 500mg', patientName: 'Melroy Almeida', patientId: 'MV-2026-PAT-892', date: 'Nov 12, 2026', time: '04:20 PM', details: 'Dose: 500mg PO daily with evening meal. Maintained glycemic stabilization protocol.', category: 'Prescription', color: '#7C3AED', bg: '#F5F3FF' },
+  { id: 'h-4', type: 'upload', title: '2D Echocardiogram Study', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 11, 2026', time: '02:35 PM', details: 'Resting left ventricular ejection fraction 62%. Normal diastolic filling parameters.', category: 'Cardiology', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-5', type: 'connection', title: 'Health Proxy Linked', patientName: 'Sofia Almeida', patientId: 'MV-2026-DEP-304', date: 'Nov 10, 2026', time: '11:10 AM', details: 'Designated caretaker proxy authorization confirmed by Dr. Sarah Jenkins.', category: 'Access Link', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-6', type: 'upload', title: 'Lipid Profile & Biomarkers', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '10:05 AM', details: 'Total Cholesterol: 185 mg/dL, HDL: 48 mg/dL, LDL: 102 mg/dL. Synced to patient profile.', category: 'Lab Report', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-7', type: 'update', title: 'Cardiovascular Progress Note', patientName: 'James Peterson', patientId: 'MV-2026-PAT-112', date: 'Nov 08, 2026', time: '09:40 AM', details: 'Blood pressure 126/82 mmHg. Aerobic conditioning compliant. Follow-up in 3 months.', category: 'Clinical Note', color: '#EA580C', bg: '#FFF7ED' },
+  { id: 'h-8', type: 'upload', title: 'Chest CT Scan Report', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '03:15 PM', details: 'No acute parenchymal infiltration. Stable post-cardiac intervention findings.', category: 'Radiology', color: '#16A34A', bg: '#F0FDF4' },
+  { id: 'h-9', type: 'connection', title: 'Clinic QR Verification', patientName: 'David Miller', patientId: 'MV-2026-PAT-553', date: 'Nov 05, 2026', time: '02:50 PM', details: 'Scanned patient identification barcode from smartphone MediVault badge.', category: 'QR Access', color: '#2563EB', bg: '#EFF6FF' },
+  { id: 'h-10', type: 'upload', title: '24-Hour Holter ECG', patientName: 'Elena Rostova', patientId: 'MV-2026-PAT-741', date: 'Oct 29, 2026', time: '01:25 PM', details: 'Predominantly normal sinus rhythm throughout 24-hour acquisition with rare isolated PACs.', category: 'Cardiology', color: '#16A34A', bg: '#F0FDF4' }
 ];
 
 // ── NAVIGATION ──
@@ -1609,7 +1593,7 @@ function saveUploadRecord() {
   const newItem = {
     id: 'h-' + Date.now(),
     type: 'upload',
-    title: `Uploaded ${title}`,
+    title: title,
     patientName: targetPatient.name,
     patientId: targetPatient.patientId,
     date: dateStr,

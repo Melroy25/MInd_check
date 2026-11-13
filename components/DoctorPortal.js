@@ -335,7 +335,7 @@ const INITIAL_HISTORY = [
   {
     id: 'h-1',
     type: 'upload',
-    title: 'Uploaded Comprehensive Metabolic Panel',
+    title: 'Metabolic Panel Report',
     patientName: 'Melroy Almeida',
     patientId: 'MV-2026-PAT-892',
     date: 'Today, Nov 13, 2026',
@@ -351,14 +351,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-2',
     type: 'connection',
-    title: 'Scanned Patient QR & Verified Vault Access',
+    title: 'Patient QR Access',
     patientName: 'Melroy Almeida',
     patientId: 'MV-2026-PAT-892',
     date: 'Today, Nov 13, 2026',
     time: '05:45 AM',
     timestamp: '2026-11-13T05:45:00',
     details: 'Cryptographic token handshake verified. Granted Full Clinical Access for 90 days.',
-    category: 'QR Connection',
+    category: 'QR Access',
     format: 'TOKEN',
     size: 'Verified',
     badgeColor: C.blue,
@@ -367,14 +367,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-3',
     type: 'update',
-    title: 'Prescription Regimen Adjusted: Metformin HCl',
+    title: 'Rx: Metformin 500mg',
     patientName: 'Melroy Almeida',
     patientId: 'MV-2026-PAT-892',
     date: 'Nov 12, 2026',
     time: '04:20 PM',
     timestamp: '2026-11-12T16:20:00',
     details: 'Dose: 500mg PO daily with evening meal. Maintained glycemic stabilization protocol.',
-    category: 'Prescription Update',
+    category: 'Prescription',
     format: 'RX',
     size: 'Active Rx',
     badgeColor: C.purple,
@@ -383,14 +383,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-4',
     type: 'upload',
-    title: 'Uploaded 2D Echocardiogram & Doppler Analysis',
+    title: '2D Echocardiogram Study',
     patientName: 'Sofia Almeida',
     patientId: 'MV-2026-DEP-304',
     date: 'Nov 11, 2026',
     time: '02:35 PM',
     timestamp: '2026-11-11T14:35:00',
     details: 'Resting left ventricular ejection fraction 62%. Normal diastolic filling parameters.',
-    category: 'Cardiology Report',
+    category: 'Cardiology',
     format: 'PDF',
     size: '3.8 MB',
     badgeColor: C.green,
@@ -399,7 +399,7 @@ const INITIAL_HISTORY = [
   {
     id: 'h-5',
     type: 'connection',
-    title: 'Health Proxy Shared Access Linked',
+    title: 'Health Proxy Linked',
     patientName: 'Sofia Almeida',
     patientId: 'MV-2026-DEP-304',
     date: 'Nov 10, 2026',
@@ -415,7 +415,7 @@ const INITIAL_HISTORY = [
   {
     id: 'h-6',
     type: 'upload',
-    title: 'Uploaded Fasting Lipid Profile & Cardiac Biomarkers',
+    title: 'Lipid Profile & Biomarkers',
     patientName: 'James Peterson',
     patientId: 'MV-2026-PAT-112',
     date: 'Nov 08, 2026',
@@ -431,7 +431,7 @@ const INITIAL_HISTORY = [
   {
     id: 'h-7',
     type: 'update',
-    title: 'Clinical Progress Note & Cardiovascular Review',
+    title: 'Cardiovascular Progress Note',
     patientName: 'James Peterson',
     patientId: 'MV-2026-PAT-112',
     date: 'Nov 08, 2026',
@@ -447,14 +447,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-8',
     type: 'upload',
-    title: 'Uploaded High-Resolution Chest CT Scan',
+    title: 'Chest CT Scan Report',
     patientName: 'David Miller',
     patientId: 'MV-2026-PAT-553',
     date: 'Nov 05, 2026',
     time: '03:15 PM',
     timestamp: '2026-11-05T15:15:00',
     details: 'No acute parenchymal infiltration. Stable post-cardiac intervention findings.',
-    category: 'Radiology Scan',
+    category: 'Radiology',
     format: 'PDF',
     size: '5.2 MB',
     badgeColor: C.green,
@@ -463,14 +463,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-9',
     type: 'connection',
-    title: 'In-Clinic QR Code Verification',
+    title: 'Clinic QR Verification',
     patientName: 'David Miller',
     patientId: 'MV-2026-PAT-553',
     date: 'Nov 05, 2026',
     time: '02:50 PM',
     timestamp: '2026-11-05T14:50:00',
     details: 'Scanned patient identification barcode from smartphone MediVault badge.',
-    category: 'QR Connection',
+    category: 'QR Access',
     format: 'TOKEN',
     size: 'Verified',
     badgeColor: C.blue,
@@ -479,14 +479,14 @@ const INITIAL_HISTORY = [
   {
     id: 'h-10',
     type: 'upload',
-    title: 'Uploaded 24-Hour Holter Rhythm Monitoring',
+    title: '24-Hour Holter ECG',
     patientName: 'Elena Rostova',
     patientId: 'MV-2026-PAT-741',
     date: 'Oct 29, 2026',
     time: '01:25 PM',
     timestamp: '2026-10-29T13:25:00',
     details: 'Predominantly normal sinus rhythm throughout 24-hour acquisition with rare isolated PACs.',
-    category: 'Cardiology Report',
+    category: 'Cardiology',
     format: 'PDF',
     size: '2.6 MB',
     badgeColor: C.green,
@@ -707,7 +707,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
     const newHistoryItem = {
       id: `h-user-${Date.now()}`,
       type: 'upload',
-      title: `Uploaded ${docName}`,
+      title: docName,
       patientName: targetPatient.name,
       patientId: targetPatient.patientId,
       date: formattedDate,
@@ -760,7 +760,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
       const newHistoryItem = {
         id: `h-scan-${Date.now()}`,
         type: 'connection',
-        title: `Scanned QR Code for ${matched.name}`,
+        title: `QR Access: ${matched.name}`,
         patientName: matched.name,
         patientId: matched.patientId,
         date: formattedDate,
@@ -799,7 +799,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
       const newHistoryItem = {
         id: `h-scan-${Date.now()}`,
         type: 'connection',
-        title: `Scanned & Connected New Patient: ${newP.name}`,
+        title: `QR Access: ${newP.name}`,
         patientName: newP.name,
         patientId: newP.patientId,
         date: formattedDate,
@@ -871,23 +871,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'home' && (
           <View style={styles.viewSection}>
-            {/* Clinical Mode Banner */}
-            <View style={styles.doctorRoleBanner}>
-              <View style={styles.doctorRoleBannerLeft}>
-                <View style={styles.doctorRoleTag}>
-                  <IconStethoscope size={13} color={C.green} />
-                  <Text style={styles.doctorRoleTagText}>CLINICAL PRACTITIONER VAULT</Text>
-                </View>
-                <Text style={styles.doctorRoleBannerSub}>
-                  {doctorInfo.clinic} · License {doctorInfo.license}
-                </Text>
-              </View>
-              <View style={styles.doctorBadgeRight}>
-                <IconShield size={16} color={C.green} />
-                <Text style={styles.doctorBadgeRightText}>HIPAA Verified</Text>
-              </View>
-            </View>
-
             {/* At your Fingertip Section */}
             <Text style={styles.sectionTitle}>At your Fingertip</Text>
 
@@ -954,7 +937,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
             <View style={styles.recentSectionHeader}>
               <View>
                 <Text style={styles.subHeading}>Recent Clinical Activity</Text>
-                <Text style={styles.subHeadingCaption}>Latest uploads & patient records synced</Text>
               </View>
               <TouchableOpacity onPress={() => setActiveTab('history')} activeOpacity={0.7}>
                 <Text style={styles.linkText}>View History ({historyList.length}) →</Text>
@@ -977,7 +959,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                   <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={styles.historyTitleMini} numberOfLines={1}>{item.title}</Text>
                     <Text style={styles.historyPatientMini}>
-                      {item.patientName} · <Text style={{ color: C.textSub }}>{item.date} {item.time}</Text>
+                      {item.patientName} · <Text style={{ color: C.textSub, fontWeight: '500' }}>{item.date.replace('Today, ', '')} · {item.time}</Text>
                     </Text>
                   </View>
                   <TouchableOpacity
