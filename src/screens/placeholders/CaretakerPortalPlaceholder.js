@@ -41,7 +41,7 @@ export default function CaretakerPortalPlaceholder({ onLogout }) {
       {/* Header */}
       <View style={s.header}>
         <Image
-          source={require('../../assets/MedFlow_logo.png')}
+          source={require('../../../assets/MedFlow_logo.png')}
           style={s.logo}
           resizeMode="contain"
         />
