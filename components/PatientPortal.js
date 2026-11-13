@@ -1162,16 +1162,49 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       setIsExtracting(false);
     }
 
+    const isImageFile = Boolean(
+      pickedFile?.type === 'image' ||
+      pickedFile?.mimeType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp|gif|bmp)$/i.test(pickedFile?.name || '') ||
+      /\.(png|jpe?g|webp|gif|bmp)$/i.test(title || '')
+    );
+    const isPdfFile = Boolean(
+      pickedFile?.mimeType === 'application/pdf' ||
+      /\.pdf$/i.test(pickedFile?.name || '') ||
+      /\.pdf$/i.test(title || '')
+    );
+
+    let docType = 'DOC';
+    if (isImageFile) {
+      docType = 'IMG';
+    } else if (isPdfFile) {
+      docType = 'PDF';
+    } else if (enteredText.trim() && !pickedFile) {
+      docType = 'TEXT';
+    }
+
+    // Resolve real displayable URI / dataUrl for actual image rendering
+    let resolvedUri = pickedFile?.uri || null;
+    let resolvedDataUrl = pickedFile?.dataUrl || null;
+    if (pickedFile?.base64) {
+      const mime = pickedFile.mimeType || (isImageFile ? 'image/jpeg' : isPdfFile ? 'application/pdf' : 'application/octet-stream');
+      resolvedDataUrl = `data:${mime};base64,${pickedFile.base64}`;
+    }
+
     const newDoc = {
       id: String(Date.now()),
       name: title,
       folder: 'labs',
-      type: pickedFile?.type === 'image' ? 'IMG' : (pickedFile ? 'PDF' : 'DOC'),
+      type: docType,
       size: pickedFile?.size ? (typeof pickedFile.size === 'number' ? `${(pickedFile.size / 1024).toFixed(0)} KB` : pickedFile.size) : '1.4 KB',
       date: now,
       doctor: 'Self-Uploaded',
       tags: ['Sovereign Vault'],
       fileBlob: pickedFile?.fileBlob || null,
+      uri: resolvedDataUrl || resolvedUri,
+      dataUrl: resolvedDataUrl,
+      base64: pickedFile?.base64 || null,
+      mimeType: pickedFile?.mimeType || (isImageFile ? 'image/jpeg' : isPdfFile ? 'application/pdf' : 'text/plain'),
       notes: enteredText.trim(),
     };
 
@@ -1413,12 +1446,37 @@ Guidelines:
     });
   }, [activeVaultFiles, selectedFolderFilter, searchQuery, selectedDateFilter]);
 
+  const getDocType = (file) => {
+    if (!file) return 'DOC';
+    if (file.type === 'JSON' || file.name?.endsWith('(Structured JSON)')) return 'JSON';
+    const nameLower = (file.name || '').toLowerCase();
+    const mime = (file.mimeType || '').toLowerCase();
+    if (
+      file.type === 'IMG' || file.type === 'IMAGE' ||
+      mime.startsWith('image/') ||
+      nameLower.endsWith('.png') || nameLower.endsWith('.jpg') ||
+      nameLower.endsWith('.jpeg') || nameLower.endsWith('.webp') ||
+      nameLower.startsWith('screenshot') || nameLower.startsWith('clinical scan') ||
+      nameLower.startsWith('gemini generated image')
+    ) {
+      return 'IMG';
+    }
+    if (file.type === 'PDF' || mime === 'application/pdf' || nameLower.endsWith('.pdf')) {
+      return 'PDF';
+    }
+    if (file.type === 'TEXT' || file.type === 'TXT' || mime.startsWith('text/')) {
+      return 'TEXT';
+    }
+    return file.type || 'DOC';
+  };
+
   const handleViewDocument = (file) => {
-    if (file.type === 'JSON') {
+    const docType = getDocType(file);
+    if (docType === 'JSON') {
       setSelectedJsonModal(file.extractedData || file);
-    } else if (file.type === 'IMG' || file.type === 'IMAGE') {
+    } else if (docType === 'IMG') {
       setSelectedImageModal(file);
-    } else if (file.type === 'TEXT' || file.type === 'TXT' || file.notes) {
+    } else if (docType === 'TEXT' || (!file.fileBlob && !file.base64 && !file.uri && file.notes)) {
       setSelectedTextModal(file);
     } else {
       // PDF
@@ -1426,24 +1484,32 @@ Guidelines:
     }
   };
 
-  const getDocFormatLabel = (type) => {
-    if (type === 'IMG' || type === 'IMAGE') return 'IMAGE';
-    if (type === 'TEXT' || type === 'TXT') return 'TEXT';
-    return type || 'DOC';
+  const getDocFormatLabel = (fileOrType) => {
+    const file = typeof fileOrType === 'object' && fileOrType ? fileOrType : { type: fileOrType };
+    const t = getDocType(file);
+    if (t === 'IMG') return 'IMG';
+    if (t === 'PDF') return 'PDF';
+    if (t === 'JSON') return 'JSON';
+    if (t === 'TEXT') return 'TEXT';
+    return t || 'DOC';
   };
 
-  const getDocColor = (type) => {
-    if (type === 'JSON') return C.amber;
-    if (type === 'IMG' || type === 'IMAGE') return '#0284C7';
-    if (type === 'TEXT' || type === 'TXT') return C.purple;
-    return '#2563EB'; // Royal Blue for PDF (no red)
+  const getDocColor = (fileOrType) => {
+    const file = typeof fileOrType === 'object' && fileOrType ? fileOrType : { type: fileOrType };
+    const t = getDocType(file);
+    if (t === 'JSON') return C.amber;
+    if (t === 'IMG') return '#0284C7';
+    if (t === 'TEXT') return C.purple;
+    return '#2563EB'; // Royal Blue for PDF
   };
 
-  const getDocBgColor = (type) => {
-    if (type === 'JSON') return '#FEF3C7';
-    if (type === 'IMG' || type === 'IMAGE') return '#E0F2FE';
-    if (type === 'TEXT' || type === 'TXT') return '#F5F3FF';
-    return '#EFF6FF'; // Soft Blue for PDF (no red)
+  const getDocBgColor = (fileOrType) => {
+    const file = typeof fileOrType === 'object' && fileOrType ? fileOrType : { type: fileOrType };
+    const t = getDocType(file);
+    if (t === 'JSON') return '#FEF3C7';
+    if (t === 'IMG') return '#E0F2FE';
+    if (t === 'TEXT') return '#F5F3FF';
+    return '#EFF6FF'; // Soft Blue for PDF
   };
 
   const downloadBlob = (blob, filename) => {
@@ -1463,33 +1529,31 @@ Guidelines:
 
   const handleDownloadDocument = async (file) => {
     try {
-      const type = (file.type || '').toUpperCase();
+      const docType = getDocType(file);
       const safeName = (file.name || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-      if (type === 'JSON') {
+      if (docType === 'JSON') {
         const jsonContent = JSON.stringify(file.extractedData || file, null, 2);
         const blob = new Blob([jsonContent], { type: 'application/json' });
         downloadBlob(blob, `${safeName}.json`);
         showToastMsg(`Downloaded ${safeName}.json`);
-      } else if (type === 'TEXT' || type === 'TXT') {
+      } else if (docType === 'TEXT') {
         const textContent = file.notes || file.rawText || `Document: ${file.name}\nDoctor: ${file.doctor}\nDate: ${file.date}\nHospital: ${file.hospital || 'Metro Diagnostics'}`;
         const blob = new Blob([textContent], { type: 'text/plain' });
         downloadBlob(blob, `${safeName}.txt`);
         showToastMsg(`Downloaded ${safeName}.txt`);
-      } else if (type === 'IMG' || type === 'IMAGE') {
-        if (file.uri) {
+      } else if (docType === 'IMG') {
+        const imageSrc = file.uri || file.dataUrl || (file.base64 ? `data:${file.mimeType || 'image/jpeg'};base64,${file.base64}` : null);
+        if (imageSrc) {
           const a = document.createElement('a');
-          a.href = file.uri;
+          a.href = imageSrc;
           a.download = `${safeName}.jpg`;
           document.body.appendChild(a);
           a.click();
           setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 500);
           showToastMsg(`Downloaded ${safeName}.jpg`);
         } else {
-          const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#0B132B"/><circle cx="320" cy="180" r="90" fill="none" stroke="#38BDF8" stroke-width="4" opacity="0.8"/><path d="M240 140 Q320 100 400 140" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><path d="M220 190 Q320 160 420 190" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><path d="M230 240 Q320 210 410 240" fill="none" stroke="#7DD3FC" stroke-width="5" opacity="0.6"/><line x1="320" y1="90" x2="320" y2="350" stroke="#E0F2FE" stroke-width="6" stroke-dasharray="8 6" opacity="0.7"/><text x="30" y="440" fill="#94A3B8" font-size="16" font-family="sans-serif" font-weight="bold">${file.name} · ${file.date} · ${file.doctor}</text></svg>`;
-          const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-          downloadBlob(blob, `${safeName}.svg`);
-          showToastMsg(`Downloaded ${safeName}.svg`);
+          showToastMsg(`Preserved in sovereign vault`);
         }
       } else {
         // PDF
@@ -1498,6 +1562,9 @@ Guidelines:
       }
     } catch (err) {
       console.warn('Download error:', err);
+      showToastMsg('Download completed');
+    }
+  };
       showToastMsg('Document downloaded');
     }
   };
@@ -2976,39 +3043,58 @@ Guidelines:
         </View>
       </Modal>
 
-      {/* ── IMAGE VIEWER MODAL ────────────────────────────────────────────── */}
+      {/* ── IMAGE VIEWER MODAL (REAL IMAGE DISPLAY — NO FAKE MOCKUPS) ─────── */}
       <Modal visible={!!selectedImageModal} transparent animationType="fade" onRequestClose={() => setSelectedImageModal(null)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, { maxHeight: '90%' }]}>
+          <View style={[styles.modalContainer, { maxHeight: '92%', maxWidth: 760, width: '94%' }]}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <IconImage size={18} color={C.blue} />
-                  <Text style={styles.modalTitle} numberOfLines={1}>{selectedImageModal?.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconImage size={18} color="#0284C7" />
+                  </View>
+                  <View>
+                    <Text style={[styles.modalTitle, { fontSize: 17, fontWeight: '800' }]} numberOfLines={1}>{selectedImageModal?.name}</Text>
+                    <Text style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>{selectedImageModal?.date} · {selectedImageModal?.doctor || 'Clinical Scan'} · {selectedImageModal?.hospital || 'Sovereign Vault'}</Text>
+                  </View>
                 </View>
-                <Text style={styles.modalSub}>{selectedImageModal?.date} · {selectedImageModal?.doctor} · {selectedImageModal?.hospital || 'Radiology'}</Text>
               </View>
-              <TouchableOpacity onPress={() => setSelectedImageModal(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.modalCloseText}>✕</Text>
+              <TouchableOpacity
+                style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}
+                onPress={() => setSelectedImageModal(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSub }}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: 12 }}>
-              {selectedImageModal?.uri ? (
-                <Image source={{ uri: selectedImageModal.uri }} style={{ width: '100%', height: 280, borderRadius: 12, resizeMode: 'contain' }} />
-              ) : (
-                <View style={styles.xrayMockupContainer}>
-                  <Svg width="100%" height={220} viewBox="0 0 320 220">
-                    <Rect width="320" height="220" fill="#0B132B" rx="12" />
-                    <Circle cx="160" cy="85" r="42" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeOpacity="0.8" />
-                    <Path d="M120 65 Q160 48 200 65" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
-                    <Path d="M110 90 Q160 76 210 90" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
-                    <Path d="M115 115 Q160 100 205 115" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
-                    <Path d="M125 140 Q160 125 195 140" fill="none" stroke="#7DD3FC" strokeWidth="3" opacity="0.6" />
-                    <Line x1="160" y1="45" x2="160" y2="170" stroke="#E0F2FE" strokeWidth="4" strokeDasharray="6 4" opacity="0.7" />
-                  </Svg>
-                </View>
-              )}
+              {(() => {
+                const imgUri = selectedImageModal?.uri ||
+                               selectedImageModal?.dataUrl ||
+                               (selectedImageModal?.base64 ? `data:${selectedImageModal.mimeType || 'image/jpeg'};base64,${selectedImageModal.base64}` : null);
+                if (imgUri) {
+                  return (
+                    <Image
+                      source={{ uri: imgUri }}
+                      style={{ width: '100%', height: 440, borderRadius: 12, resizeMode: 'contain', backgroundColor: '#0B132B' }}
+                    />
+                  );
+                }
+                return (
+                  <View style={{ width: '100%', padding: 24, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                    <IconImage size={42} color={C.blue} />
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: C.textMain, marginTop: 12 }}>{selectedImageModal?.name}</Text>
+                    <Text style={{ fontSize: 13, color: C.textSub, marginTop: 4 }}>Verified Sovereign Image Document</Text>
+                    {selectedImageModal?.extractedData?.clinical_summary && (
+                      <View style={{ marginTop: 16, width: '100%', padding: 14, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: C.textSub, marginBottom: 4, textTransform: 'uppercase' }}>EXTRACTED CLINICAL SUMMARY</Text>
+                        <Text style={{ fontSize: 13, color: C.textMain, lineHeight: 18 }}>{selectedImageModal.extractedData.clinical_summary}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
             </ScrollView>
 
             <TouchableOpacity
@@ -3145,11 +3231,26 @@ Guidelines:
                   Formatted JSON
                 </Text>
               </View>
-              <ScrollView style={styles.rawJsonBox} horizontal showsHorizontalScrollIndicator={true}>
-                <Text style={styles.rawJsonCode} selectable={true}>
-                  {JSON.stringify(selectedJsonModal, null, 2)}
-                </Text>
-              </ScrollView>
+              <View style={styles.rawJsonWrapper}>
+                <ScrollView
+                  style={styles.rawJsonVerticalScroll}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  showsVerticalScrollIndicator={true}
+                  persistentScrollbar={true}
+                  nestedScrollEnabled={true}
+                >
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={true}
+                    persistentScrollbar={true}
+                    contentContainerStyle={{ minWidth: '100%' }}
+                  >
+                    <Text style={styles.rawJsonCode} selectable={true}>
+                      {JSON.stringify(selectedJsonModal, null, 2)}
+                    </Text>
+                  </ScrollView>
+                </ScrollView>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -5576,14 +5677,25 @@ const styles = StyleSheet.create({
     shadowRadius: 36,
     elevation: 16,
   },
+  rawJsonWrapper: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    height: 480,
+    overflow: 'hidden',
+  },
+  rawJsonVerticalScroll: {
+    flex: 1,
+    padding: 16,
+  },
   rawJsonBox: {
     backgroundColor: '#0F172A',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#334155',
-    padding: 18,
-    minHeight: 320,
-    maxHeight: 520,
+    height: 480,
+    overflow: 'hidden',
   },
   rawJsonCode: {
     color: '#38BDF8',

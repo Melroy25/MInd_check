@@ -19,6 +19,64 @@ export function generateMedicalHtml(record = {}) {
   const recordName = record.name || 'Emergency Medical Summary';
   const recordDate = record.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+  const extracted = record.extractedData || record.structuredData || {};
+  const labResults = (Array.isArray(extracted.lab_results) && extracted.lab_results.length > 0)
+    ? extracted.lab_results
+    : (Array.isArray(extracted.extracted_entities?.lab_results) && extracted.extracted_entities.lab_results.length > 0)
+    ? extracted.extracted_entities.lab_results
+    : [];
+
+  const medications = (Array.isArray(extracted.medications) && extracted.medications.length > 0)
+    ? extracted.medications
+    : (Array.isArray(extracted.extracted_entities?.medications) && extracted.extracted_entities.medications.length > 0)
+    ? extracted.extracted_entities.medications
+    : [];
+
+  let labRowsHtml = '';
+  if (labResults.length > 0) {
+    labRowsHtml = labResults.map((l) => {
+      const flag = l.flag || 'Normal';
+      const flagLower = String(flag).toLowerCase();
+      const flagColor = flagLower.includes('high') ? '#DC2626' : flagLower.includes('low') ? '#D97706' : '#16A34A';
+      return `
+        <tr>
+          <td><strong>${l.test_name || 'Laboratory Test'}</strong></td>
+          <td>${l.value || '--'} ${l.unit || ''}</td>
+          <td>${l.reference_range || l.range || 'Standard'}</td>
+          <td><span style="color: ${flagColor}; font-weight: 600;">${flag}</span></td>
+        </tr>
+      `;
+    }).join('');
+  } else {
+    labRowsHtml = `
+      <tr>
+        <td colspan="4" style="color: #64748B; font-style: italic; text-align: center; padding: 18px;">
+          No quantitative lab biomarkers documented in this record.
+        </td>
+      </tr>
+    `;
+  }
+
+  let medsRowsHtml = '';
+  if (medications.length > 0) {
+    medsRowsHtml = medications.map((m) => `
+      <tr>
+        <td><strong>${m.name || 'Prescription'}</strong></td>
+        <td>${m.dose_raw || m.dose || 'As directed'} ${m.frequency_raw || m.frequency || ''}</td>
+        <td>${m.indication || 'Clinical Maintenance'}</td>
+        <td><span style="color: #16A34A; font-weight: 600;">${m.status || 'Active'}</span></td>
+      </tr>
+    `).join('');
+  } else {
+    medsRowsHtml = `
+      <tr>
+        <td colspan="4" style="color: #64748B; font-style: italic; text-align: center; padding: 18px;">
+          No active prescription changes recorded in this document.
+        </td>
+      </tr>
+    `;
+  }
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -90,30 +148,7 @@ export function generateMedicalHtml(record = {}) {
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td><strong>Fasting Blood Glucose</strong></td>
-        <td>108 mg/dL</td>
-        <td>70 - 99 mg/dL</td>
-        <td><span style="color: #D97706; font-weight: 600;">Borderline</span></td>
-      </tr>
-      <tr>
-        <td><strong>Hemoglobin A1c (HbA1c)</strong></td>
-        <td>5.8%</td>
-        <td>&lt; 5.7%</td>
-        <td><span style="color: #D97706; font-weight: 600;">Borderline</span></td>
-      </tr>
-      <tr>
-        <td><strong>Total Cholesterol</strong></td>
-        <td>182 mg/dL</td>
-        <td>&lt; 200 mg/dL</td>
-        <td><span style="color: #16A34A; font-weight: 600;">Optimal</span></td>
-      </tr>
-      <tr>
-        <td><strong>Blood Pressure</strong></td>
-        <td>124 / 82 mmHg</td>
-        <td>&lt; 120/80 mmHg</td>
-        <td><span style="color: #16A34A; font-weight: 600;">Controlled</span></td>
-      </tr>
+      ${labRowsHtml}
     </tbody>
   </table>
 
@@ -124,28 +159,11 @@ export function generateMedicalHtml(record = {}) {
         <th>Medication</th>
         <th>Dosage & Frequency</th>
         <th>Indication</th>
-        <th>Compliance</th>
+        <th>Status</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td><strong>Metformin HCl</strong></td>
-        <td>500mg PO Twice Daily with Meals</td>
-        <td>Glycemic Control</td>
-        <td>100% Adherent</td>
-      </tr>
-      <tr>
-        <td><strong>Atorvastatin Calcium</strong></td>
-        <td>10mg PO Daily at Bedtime</td>
-        <td>Lipid Regulation</td>
-        <td>100% Adherent</td>
-      </tr>
-      <tr>
-        <td><strong>Lisinopril</strong></td>
-        <td>10mg PO Daily Morning</td>
-        <td>Cardiovascular Protection</td>
-        <td>100% Adherent</td>
-      </tr>
+      ${medsRowsHtml}
     </tbody>
   </table>
 
@@ -385,9 +403,20 @@ export async function viewMedicalPdf(record) {
       } catch (e) {}
     }
 
-    let blob;
+    let blob = null;
     if (record.fileBlob && (record.fileBlob.type === 'application/pdf' || record.name?.toLowerCase().endsWith('.pdf'))) {
       blob = record.fileBlob;
+    } else if (record.dataUrl && record.dataUrl.startsWith('data:application/pdf')) {
+      const base64Data = record.dataUrl.split(',')[1];
+      const byteChars = atob(base64Data);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      blob = new Blob([new Uint8Array(byteNums)], { type: 'application/pdf' });
+    } else if (record.base64 && (record.mimeType === 'application/pdf' || record.name?.toLowerCase().endsWith('.pdf'))) {
+      const byteChars = atob(record.base64);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      blob = new Blob([new Uint8Array(byteNums)], { type: 'application/pdf' });
     } else {
       const pdfBytes = await generateMedicalPdf(record);
       blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -435,9 +464,20 @@ export async function downloadMedicalPdf(record) {
     }
 
     // 2. Web browser
-    let blob;
+    let blob = null;
     if (record.fileBlob && (record.fileBlob.type === 'application/pdf' || record.name?.toLowerCase().endsWith('.pdf'))) {
       blob = record.fileBlob;
+    } else if (record.dataUrl && record.dataUrl.startsWith('data:application/pdf')) {
+      const base64Data = record.dataUrl.split(',')[1];
+      const byteChars = atob(base64Data);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      blob = new Blob([new Uint8Array(byteNums)], { type: 'application/pdf' });
+    } else if (record.base64 && (record.mimeType === 'application/pdf' || record.name?.toLowerCase().endsWith('.pdf'))) {
+      const byteChars = atob(record.base64);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      blob = new Blob([new Uint8Array(byteNums)], { type: 'application/pdf' });
     } else {
       const pdfBytes = await generateMedicalPdf(record);
       blob = new Blob([pdfBytes], { type: 'application/pdf' });
