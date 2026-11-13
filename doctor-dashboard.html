@@ -997,7 +997,6 @@ body {
     <div class="recent-header-row" style="margin-top:20px;">
       <div>
         <div class="section-title" style="margin-bottom:2px;">Connected Patients</div>
-        <div style="font-size:11px;color:var(--muted);">Active patients under clinical care</div>
       </div>
       <div class="link-action" onclick="openModal('patientsModal')">All Patients &rarr;</div>
     </div>
@@ -1461,7 +1460,6 @@ function renderHomeContent() {
       <div class="patient-avatar-circ" style="background:${p.color};">${p.name.split(' ').map(n=>n[0]).join('')}</div>
       <div class="patient-info-col">
         <div class="patient-name-txt">${p.name}</div>
-        <div class="patient-sub-txt">${p.patientId} · ${p.age} · ${p.condition}</div>
       </div>
       <button class="btn-upload-quick" onclick="selectTargetPatient('${p.id}');switchTab('upload')">Upload</button>
     </div>

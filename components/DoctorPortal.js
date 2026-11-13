@@ -978,7 +978,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
             <View style={[styles.recentSectionHeader, { marginTop: 24 }]}>
               <View>
                 <Text style={styles.subHeading}>Connected Patients</Text>
-                <Text style={styles.subHeadingCaption}>{connectedPatients.length} patients actively linked to your care</Text>
               </View>
               <TouchableOpacity onPress={() => setShowConnectedPatientsModal(true)} activeOpacity={0.7}>
                 <Text style={styles.linkText}>All Patients →</Text>
@@ -1004,9 +1003,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.patientRowName}>{p.name}</Text>
-                    <Text style={styles.patientRowSub}>
-                      {p.patientId} · {p.age} · {p.condition}
-                    </Text>
                   </View>
                   <TouchableOpacity
                     style={styles.patientUploadQuickBtn}
