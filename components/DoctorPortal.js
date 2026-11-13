@@ -205,6 +205,14 @@ const IconFileText = ({ size = 18, color = C.textSub }) => (
   </Svg>
 );
 
+const IconDownload = ({ size = 16, color = '#FFFFFF' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <Polyline points="7 10 12 15 17 10" />
+    <Line x1="12" y1="15" x2="12" y2="3" />
+  </Svg>
+);
+
 // ─── INITIAL MOCK DATA FOR DOCTOR EXPERIENCE ─────────────────────────────────
 const INITIAL_DOCTOR_INFO = {
   name: 'Dr. Sarah Jenkins',
@@ -563,9 +571,8 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
   const [patientPageSearch, setPatientPageSearch] = useState('');
   const [selectedPatientPdfData, setSelectedPatientPdfData] = useState(null);
 
-  const handleOpenPatientPdf = (patient) => {
-    setSelectedPatientPdfData(patient);
-    showToast(`Opening medical PDF & clinical data for ${patient.name}...`);
+  const handleViewPatientPdf = (patient) => {
+    showToast(`Opening clinical PDF for ${patient.name}...`);
     viewMedicalPdf({
       name: `Comprehensive Medical Vault Summary - ${patient.name}`,
       patientName: patient.name,
@@ -582,6 +589,35 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
         summary: `Complete clinical vault records for ${patient.name} (${patient.patientId}). Age: ${patient.age}, Gender: ${patient.gender}, Blood: ${patient.blood}. Primary diagnosis: ${patient.condition}. Synced records count: ${patient.recordsCount}. Access status: ${patient.status}. Last clinical consultation: ${patient.lastVisit} with ${doctorInfo.name} at ${doctorInfo.hospital}.`,
       },
     });
+  };
+
+  const handleDownloadPatientPdf = async (patient) => {
+    showToast(`Downloading clinical PDF for ${patient.name}...`);
+    try {
+      await downloadMedicalPdf({
+        name: `Comprehensive Medical Vault Summary - ${patient.name}`,
+        patientName: patient.name,
+        patientId: patient.patientId,
+        age: patient.age,
+        gender: patient.gender,
+        blood: patient.blood,
+        doctor: doctorInfo.name,
+        facility: doctorInfo.hospital,
+        date: patient.lastVisit,
+        type: 'Clinical PDF Summary',
+        size: '2.4 MB',
+        extractedData: {
+          summary: `Complete clinical vault records for ${patient.name} (${patient.patientId}). Age: ${patient.age}, Gender: ${patient.gender}, Blood: ${patient.blood}. Primary diagnosis: ${patient.condition}. Synced records count: ${patient.recordsCount}. Access status: ${patient.status}. Last clinical consultation: ${patient.lastVisit} with ${doctorInfo.name} at ${doctorInfo.hospital}.`,
+        },
+      });
+      showToast(`Downloaded ${patient.name}'s Medical PDF`);
+    } catch (err) {
+      showToast(`Download started for ${patient.name}`);
+    }
+  };
+
+  const handleOpenPatientPdf = (patient) => {
+    setSelectedPatientPdfData(patient);
   };
 
   // History Filter & Search
@@ -1762,7 +1798,15 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               ) : (
                 filteredPagePatients.map((p) => (
                   <View key={p.id} style={styles.patientFullCard}>
-                    <View style={styles.patientFullCardTop}>
+                    <TouchableOpacity
+                      style={styles.patientFullCardTop}
+                      onPress={() => {
+                        setTargetPatient(p);
+                        setActiveTab('upload');
+                        showToast(`Selected ${p.name} for upload`);
+                      }}
+                      activeOpacity={0.8}
+                    >
                       <View style={[styles.patientFullAvatar, { backgroundColor: p.avatarColor }]}>
                         <Text style={styles.patientFullAvatarText}>
                           {p.name.split(' ').map((n) => n[0]).join('')}
@@ -1774,29 +1818,29 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                           Synced Records: {p.recordsCount} · Last Visit: {p.lastVisit}
                         </Text>
                       </View>
-                    </View>
+                      <View style={styles.patientSelectUploadPill}>
+                        <IconUpload size={12} color={C.green} />
+                        <Text style={styles.patientSelectUploadPillText}>Upload</Text>
+                      </View>
+                    </TouchableOpacity>
 
                     <View style={styles.patientFullCardActions}>
                       <TouchableOpacity
-                        style={styles.patientFullUploadBtn}
-                        onPress={() => {
-                          setTargetPatient(p);
-                          setActiveTab('upload');
-                          showToast(`Selected ${p.name} for upload`);
-                        }}
+                        style={styles.patientFullViewPdfBtn}
+                        onPress={() => handleViewPatientPdf(p)}
                         activeOpacity={0.8}
                       >
-                        <IconUpload size={14} color="#FFFFFF" />
-                        <Text style={styles.patientFullUploadBtnText}>Upload to Vault</Text>
+                        <IconPdfDoc size={14} color="#FFFFFF" />
+                        <Text style={styles.patientFullViewPdfBtnText}>View PDF</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.patientFullPdfBtn}
-                        onPress={() => handleOpenPatientPdf(p)}
+                        style={styles.patientFullDownloadPdfBtn}
+                        onPress={() => handleDownloadPatientPdf(p)}
                         activeOpacity={0.8}
                       >
-                        <IconPdfDoc size={14} color={C.coral} />
-                        <Text style={styles.patientFullPdfBtnText}>PDF</Text>
+                        <IconDownload size={14} color="#0F172A" />
+                        <Text style={styles.patientFullDownloadPdfBtnText}>Download PDF</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2273,43 +2317,28 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                 </View>
               </ScrollView>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: 2 buttons (View PDF and Download PDF) as requested */}
               <View style={styles.pdfModalActions}>
                 <TouchableOpacity
                   style={styles.pdfModalPrimaryBtn}
                   onPress={() => {
-                    viewMedicalPdf({
-                      name: `Comprehensive Medical Vault Summary - ${selectedPatientPdfData.name}`,
-                      patientName: selectedPatientPdfData.name,
-                      patientId: selectedPatientPdfData.patientId,
-                      age: selectedPatientPdfData.age,
-                      gender: selectedPatientPdfData.gender,
-                      blood: selectedPatientPdfData.blood,
-                      doctor: doctorInfo.name,
-                      facility: doctorInfo.hospital,
-                      date: selectedPatientPdfData.lastVisit,
-                      type: 'Clinical PDF Summary',
-                      size: '2.4 MB',
-                    });
+                    handleViewPatientPdf(selectedPatientPdfData);
                   }}
                   activeOpacity={0.8}
                 >
                   <IconPdfDoc size={16} color="#FFFFFF" />
-                  <Text style={styles.pdfModalPrimaryBtnText}>Open A4 PDF</Text>
+                  <Text style={styles.pdfModalPrimaryBtnText}>View PDF</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.pdfModalSecondaryBtn}
+                  style={styles.pdfModalDownloadBtn}
                   onPress={() => {
-                    setTargetPatient(selectedPatientPdfData);
-                    setSelectedPatientPdfData(null);
-                    setActiveTab('upload');
-                    showToast(`Selected ${selectedPatientPdfData.name} for upload`);
+                    handleDownloadPatientPdf(selectedPatientPdfData);
                   }}
                   activeOpacity={0.8}
                 >
-                  <IconUpload size={15} color={C.green} />
-                  <Text style={styles.pdfModalSecondaryBtnText}>Upload to Vault</Text>
+                  <IconDownload size={16} color="#0F172A" />
+                  <Text style={styles.pdfModalDownloadBtnText}>Download PDF</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2894,6 +2923,54 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
+  patientSelectUploadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  patientSelectUploadPillText: {
+    color: C.green,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  patientFullViewPdfBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: C.green,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  patientFullViewPdfBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  patientFullDownloadPdfBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  patientFullDownloadPdfBtnText: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   patientFullUploadBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -3107,13 +3184,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: C.coral,
-    paddingVertical: 10,
+    backgroundColor: C.green,
+    paddingVertical: 11,
     borderRadius: 12,
   },
   pdfModalPrimaryBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pdfModalDownloadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  pdfModalDownloadBtnText: {
+    color: '#0F172A',
+    fontSize: 13,
     fontWeight: '700',
   },
   pdfModalSecondaryBtn: {
