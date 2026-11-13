@@ -3,8 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Image, SafeAreaView,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -12,11 +11,9 @@ const T = {
   primary: '#16A34A',
   accent:  '#F0FDF4',
   slate:   '#0F172A',
-  muted:   '#475569',
+  muted:   '#64748B',
   white:   '#FFFFFF',
-  border:  '#CBD5E1',
-  borderLight: '#F1F5F9',
-  borderA: '#16A34A',
+  border:  '#E2E8F0',
   success: '#16A34A',
 };
 
@@ -29,53 +26,69 @@ function BackIcon({ size = 20, color = T.slate }) {
   );
 }
 
-function CheckIcon({ size = 14, color = T.white }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
 function ArrowRightIcon({ size = 18, color = T.white }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 12h14M12 5l7 7-7 7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M5 12h14M12 5l7 7-7 7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 }
 
-// ─── Role Definitions (Concise, punchy content) ──────────────────────────────
+function PatientIcon({ size = 26, color = '#16A34A' }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>
+  );
+}
+
+function DoctorIcon({ size = 26, color = '#2563EB' }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>
+  );
+}
+
+function CaretakerIcon({ size = 26, color = '#7C3AED' }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Circle cx="9" cy="7" r="4" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>
+  );
+}
+
+// ─── Big Role Buttons Definition ──────────────────────────────────────────────
 const ROLES = [
   {
     id: 'patient',
     label: 'Patient',
+    subtitle: 'Access personal health vault & records',
     color: '#16A34A',
     bgColor: '#F0FDF4',
-    borderCol: '#DCFCE7',
-    image: require('../../../assets/role_patient.png'),
-    description:
-      'Sovereign health vault to upload records and share one-time QR access with doctors.',
+    borderColor: '#16A34A',
+    icon: PatientIcon,
   },
   {
     id: 'doctor',
     label: 'Doctor',
+    subtitle: 'Inspect connected patient timelines & triage',
     color: '#2563EB',
     bgColor: '#EFF6FF',
-    borderCol: '#DBEAFE',
-    image: require('../../../assets/role_doctor.png'),
-    description:
-      'Inspect verified patient health records, lab panels, and consult history instantly.',
+    borderColor: '#2563EB',
+    icon: DoctorIcon,
   },
   {
     id: 'caretaker',
     label: 'Caretaker',
+    subtitle: 'Monitor medication, vitals & emergency SOS',
     color: '#7C3AED',
     bgColor: '#F5F3FF',
-    borderCol: '#EDE9FE',
-    image: require('../../../assets/role_caretaker.png'),
-    description:
-      'Track medication schedules, receive care alerts, and access emergency records.',
+    borderColor: '#7C3AED',
+    icon: CaretakerIcon,
   },
 ];
 
@@ -117,44 +130,58 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
           <Text style={s.promptSub}>Select your primary access mode to continue</Text>
         </View>
 
-        {/* ── Role Cards with Fixed Picture & Bigger Text ── */}
-        <View style={s.cardsContainer}>
+        {/* ── 3 Big Role Buttons (No images, clean & bold) ── */}
+        <View style={s.buttonsContainer}>
           {ROLES.map((role) => {
             const isSelected = selected === role.id;
+            const IconComponent = role.icon;
             return (
               <TouchableOpacity
                 key={role.id}
-                style={[s.card, isSelected && s.cardSelected]}
-                activeOpacity={0.88}
+                style={[
+                  s.bigRoleBtn,
+                  isSelected && {
+                    borderColor: role.borderColor,
+                    backgroundColor: role.bgColor,
+                    shadowColor: role.color,
+                    shadowOpacity: 0.14,
+                    shadowRadius: 14,
+                    elevation: 4,
+                  },
+                ]}
+                activeOpacity={0.85}
                 onPress={() => setSelected(role.id)}
               >
-                {/* Banner Image inside box with generous height */}
-                <View style={s.roleBannerWrap}>
-                  <Image source={role.image} style={s.roleBannerImg} resizeMode="cover" />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(15,23,42,0.4)']}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-
-                  {/* Role Badge */}
-                  <View style={[s.roleBadge, { backgroundColor: role.color }]}>
-                    <Text style={s.roleBadgeText}>{role.label}</Text>
-                  </View>
-
-                  {/* Selected checkmark */}
-                  {isSelected && (
-                    <View style={s.checkCircle}>
-                      <CheckIcon size={12} color="#FFFFFF" />
-                    </View>
-                  )}
+                {/* Icon Box */}
+                <View
+                  style={[
+                    s.iconWrap,
+                    { backgroundColor: isSelected ? '#FFFFFF' : role.bgColor },
+                  ]}
+                >
+                  <IconComponent size={26} color={role.color} />
                 </View>
 
-                {/* Card Content with bigger font and concise description */}
-                <View style={s.cardBody}>
-                  <Text style={[s.roleLabel, { color: role.color }]}>
-                    {role.label} Portal
+                {/* Role Text */}
+                <View style={s.textWrap}>
+                  <Text style={[s.roleTitle, isSelected && { color: role.color }]}>
+                    {role.label}
                   </Text>
-                  <Text style={s.roleDesc}>{role.description}</Text>
+                  <Text style={s.roleSub} numberOfLines={1}>
+                    {role.subtitle}
+                  </Text>
+                </View>
+
+                {/* Radio Selector Indicator */}
+                <View
+                  style={[
+                    s.radioOuter,
+                    isSelected && { borderColor: role.color, backgroundColor: '#FFFFFF' },
+                  ]}
+                >
+                  {isSelected && (
+                    <View style={[s.radioInner, { backgroundColor: role.color }]} />
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -200,14 +227,14 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     backgroundColor: T.white,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: T.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -215,103 +242,85 @@ const s = StyleSheet.create({
   logoWrap: {
     alignItems: 'center',
   },
-  logo: { width: 135, height: 36 },
-  navSpacer: { width: 38 },
+  logo: { width: 140, height: 38 },
+  navSpacer: { width: 40 },
 
-  promptBlock: { alignItems: 'center', marginBottom: 20 },
-  promptTitle: { fontSize: 24, fontWeight: '800', color: T.slate, textAlign: 'center' },
-  promptSub: { fontSize: 14, color: T.muted, marginTop: 4, textAlign: 'center' },
+  promptBlock: { alignItems: 'center', marginBottom: 26 },
+  promptTitle: { fontSize: 26, fontWeight: '800', color: T.slate, textAlign: 'center', letterSpacing: -0.4 },
+  promptSub: { fontSize: 14, color: T.muted, marginTop: 6, textAlign: 'center' },
 
-  cardsContainer: { gap: 16, marginBottom: 24 },
-
-  card: {
+  /* 3 Big Buttons Container */
+  buttonsContainer: {
+    gap: 16,
+    marginBottom: 28,
+  },
+  bigRoleBtn: {
     backgroundColor: T.white,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: T.border,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#0F172A',
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-    position: 'relative',
   },
-  cardSelected: {
-    borderColor: T.primary,
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-
-  roleBannerWrap: {
-    width: '100%',
-    height: 180,
-    position: 'relative',
-    backgroundColor: '#F1F5F9',
-  },
-  roleBannerImg: {
-    width: '100%',
-    height: '100%',
-  },
-  roleBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  roleBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  checkCircle: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: T.primary,
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-
-  cardBody: {
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+  textWrap: {
+    flex: 1,
+    marginLeft: 16,
+    marginRight: 10,
   },
-  roleLabel: {
-    fontSize: 18,
+  roleTitle: {
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 6,
+    color: T.slate,
+    letterSpacing: -0.3,
   },
-  roleDesc: {
-    fontSize: 15,
+  roleSub: {
+    fontSize: 12.5,
     color: T.muted,
-    lineHeight: 22,
+    marginTop: 3,
     fontWeight: '500',
   },
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
 
+  /* Bottom CTA Continue Button */
   ctaBtn: {
     backgroundColor: T.primary,
-    borderRadius: 14,
-    paddingVertical: 15,
+    borderRadius: 16,
+    paddingVertical: 17,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     shadowColor: T.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
@@ -320,5 +329,5 @@ const s = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
-  ctaBtnText: { fontSize: 16, fontWeight: '700', color: T.white },
+  ctaBtnText: { fontSize: 16.5, fontWeight: '700', color: T.white },
 });
