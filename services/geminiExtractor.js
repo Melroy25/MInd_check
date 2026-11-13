@@ -16,8 +16,8 @@ export const GEMINI_CONFIG = {
     (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GEMINI_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
     '',
-  primaryModel: 'gemini-3.1-flash-lite',
-  fallbackModel: 'gemini-3.5-flash-lite',
+  primaryModel: 'gemini-2.5-flash-lite',
+  fallbackModel: 'gemini-2.5-flash',
   backendUrl: 'http://127.0.0.1:8000',
 };
 
