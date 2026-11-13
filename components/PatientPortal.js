@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
-import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64 } from '../services/geminiExtractor';
+import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64, audioRecorder } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -248,6 +248,15 @@ const IconRefreshCw = ({ size = 16, color = C.blue }) => (
     <Path d="M23 4v6h-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     <Path d="M1 20v-6h6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     <Path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const IconMic = ({ size = 16, color = C.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <Line x1="12" y1="19" x2="12" y2="23" />
+    <Line x1="8" y1="23" x2="16" y2="23" />
   </Svg>
 );
 
@@ -646,6 +655,8 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [showRagSampleFlags, setShowRagSampleFlags] = useState(false);
   const [liveExtractedJson, setLiveExtractedJson] = useState(null);
   const [extractionError, setExtractionError] = useState(null);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -839,6 +850,83 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       }
     };
     input.click();
+  };
+
+  // Direct Audio Voice Dictation Recording
+  const handleToggleAudioRecord = async () => {
+    if (isRecordingAudio) {
+      // STOP recording
+      setIsRecordingAudio(false);
+      setIsTranscribingAudio(true);
+      showToastMsg('Finalizing audio transcription...');
+
+      try {
+        // 1. Stop SpeechRecognition if active
+        audioRecorder.stopSpeechRecognition();
+
+        // 2. Stop MediaRecorder if active
+        const audioData = await audioRecorder.stopMediaRecording();
+        if (audioData && audioData.base64) {
+          try {
+            const transcript = await audioRecorder.transcribeAudioWithGemini({
+              base64: audioData.base64,
+              mimeType: audioData.mimeType,
+            });
+            if (transcript && transcript.trim()) {
+              setEnteredText((prev) => {
+                const combined = prev && prev.trim() ? `${prev.trim()}\n${transcript.trim()}` : transcript.trim();
+                return combined;
+              });
+              showToastMsg('Audio transcribed successfully!');
+            }
+          } catch (geminiErr) {
+            console.log('Gemini audio transcription fallback:', geminiErr?.message);
+          }
+        }
+      } catch (err) {
+        console.warn('Audio recording notice:', err);
+      } finally {
+        setIsTranscribingAudio(false);
+      }
+    } else {
+      // START recording
+      try {
+        setExtractionError(null);
+        showToastMsg('🎙️ Listening... Speak clinical notes or prescription');
+        setIsRecordingAudio(true);
+
+        // Try Live SpeechRecognition first for real-time text feedback
+        let startedSpeech = false;
+        try {
+          startedSpeech = audioRecorder.startSpeechRecognition({
+            onTranscript: (liveText) => {
+              setEnteredText(liveText);
+            },
+            onError: (err) => {
+              console.log('Live speech notice:', err);
+            },
+            onEnd: (finalText) => {
+              if (finalText) setEnteredText(finalText);
+            },
+          });
+        } catch (e) {
+          startedSpeech = false;
+        }
+
+        // Also start MediaRecorder for high-fidelity Gemini capture
+        try {
+          await audioRecorder.startMediaRecording();
+        } catch (mediaErr) {
+          if (!startedSpeech) {
+            throw mediaErr;
+          }
+        }
+      } catch (err) {
+        console.warn('Microphone error:', err);
+        setIsRecordingAudio(false);
+        showToastMsg('Microphone: ' + (err?.message || 'Check browser permissions'));
+      }
+    }
   };
 
   // Avatar Picker (Gallery / Camera)
@@ -1575,11 +1663,36 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* 4. Paste Text Area */}
+              {/* 4. Paste Text Area & Voice Dictation */}
               <View style={styles.uploadFieldWrap}>
+                <View style={styles.textAreaHeaderRow}>
+                  <Text style={styles.cleanFieldLabel}>CLINICAL TEXT / VOICE NOTES</Text>
+
+                  {/* Voice Record Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.voiceRecordBtn,
+                      isRecordingAudio && styles.voiceRecordBtnActive
+                    ]}
+                    onPress={handleToggleAudioRecord}
+                    activeOpacity={0.8}
+                  >
+                    <IconMic size={14} color={isRecordingAudio ? '#DC2626' : '#2563EB'} />
+                    <Text style={[
+                      styles.voiceRecordBtnText,
+                      isRecordingAudio && styles.voiceRecordBtnTextActive
+                    ]}>
+                      {isRecordingAudio ? (isTranscribingAudio ? 'Transcribing...' : 'Stop Recording') : 'Record Voice'}
+                    </Text>
+                    {isRecordingAudio && !isTranscribingAudio && (
+                      <View style={styles.recordingPulseDot} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 <TextInput
                   style={[styles.cleanInputField, styles.cleanInputArea]}
-                  placeholder="Paste lab findings, prescription details, or clinical notes here..."
+                  placeholder="Paste lab findings, prescription details, or clinical notes here... (or tap Record Voice)"
                   placeholderTextColor="#94A3B8"
                   value={enteredText}
                   onChangeText={(val) => {
@@ -5856,6 +5969,43 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 12,
     fontWeight: '700',
+  },
+
+  /* Text Area Header & Voice Dictation */
+  textAreaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  voiceRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  voiceRecordBtnActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  voiceRecordBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  voiceRecordBtnTextActive: {
+    color: '#DC2626',
+  },
+  recordingPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#DC2626',
   },
 
   /* Extract from Text Action */

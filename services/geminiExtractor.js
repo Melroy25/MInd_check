@@ -136,6 +136,13 @@ export async function pickMedicalDocument() {
         'image/jpeg',
         'image/jpg',
         'image/webp',
+        'audio/*',
+        'audio/mpeg',
+        'audio/mp3',
+        'audio/wav',
+        'audio/m4a',
+        'audio/x-m4a',
+        'audio/webm',
         'text/plain',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/msword',
@@ -495,6 +502,11 @@ function inferMimeType(name) {
   if (lower.endsWith('.png')) return 'image/png';
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
   if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.mp3')) return 'audio/mp3';
+  if (lower.endsWith('.wav')) return 'audio/wav';
+  if (lower.endsWith('.m4a')) return 'audio/m4a';
+  if (lower.endsWith('.webm')) return 'audio/webm';
+  if (lower.endsWith('.ogg')) return 'audio/ogg';
   if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (lower.endsWith('.txt')) return 'text/plain';
   return 'application/pdf';
@@ -507,3 +519,225 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
+
+/**
+ * Audio Recording & Medical Speech Transcription Service
+ * Supports:
+ * - Live browser Web Speech API (webkitSpeechRecognition)
+ * - MediaRecorder audio capture with Gemini Multimodal AI transcription
+ */
+export class AudioRecorderService {
+  constructor() {
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.stream = null;
+    this.speechRecognition = null;
+    this.isRecording = false;
+  }
+
+  isSupported() {
+    if (typeof window === 'undefined') return false;
+    const hasSpeechRec = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const hasMedia = !!(navigator?.mediaDevices?.getUserMedia);
+    return hasSpeechRec || hasMedia;
+  }
+
+  startSpeechRecognition({ onTranscript, onError, onEnd }) {
+    if (typeof window === 'undefined') return false;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return false;
+
+    try {
+      this.speechRecognition = new SpeechRecognition();
+      this.speechRecognition.continuous = true;
+      this.speechRecognition.interimResults = true;
+      this.speechRecognition.lang = 'en-US';
+
+      let accumulated = '';
+
+      this.speechRecognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            accumulated += event.results[i][0].transcript + ' ';
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        const full = (accumulated + interim).trim();
+        if (onTranscript) onTranscript(full);
+      };
+
+      this.speechRecognition.onerror = (event) => {
+        console.warn('[SpeechRecognition] Error:', event.error);
+        if (onError) onError(event.error);
+      };
+
+      this.speechRecognition.onend = () => {
+        this.isRecording = false;
+        if (onEnd) onEnd(accumulated.trim());
+      };
+
+      this.speechRecognition.start();
+      this.isRecording = true;
+      return true;
+    } catch (err) {
+      console.warn('[SpeechRecognition] Failed to start:', err);
+      return false;
+    }
+  }
+
+  stopSpeechRecognition() {
+    if (this.speechRecognition) {
+      try {
+        this.speechRecognition.stop();
+      } catch (e) {
+        // Ignore
+      }
+      this.speechRecognition = null;
+    }
+    this.isRecording = false;
+  }
+
+  async startMediaRecording() {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Audio recording is not supported in this environment');
+    }
+
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.audioChunks = [];
+
+    const options = {};
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options.mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options.mimeType = 'audio/mp4';
+      }
+    }
+
+    this.mediaRecorder = new MediaRecorder(this.stream, options);
+
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
+
+    this.mediaRecorder.start(250);
+    this.isRecording = true;
+    return true;
+  }
+
+  async stopMediaRecording() {
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        resolve(null);
+        return;
+      }
+
+      this.mediaRecorder.onstop = async () => {
+        try {
+          const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
+          const audioBlob = new Blob(this.audioChunks, { type: mimeType });
+
+          // Stop mic tracks
+          if (this.stream) {
+            this.stream.getTracks().forEach((track) => track.stop());
+            this.stream = null;
+          }
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64 = typeof dataUrl === 'string'
+              ? (dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl)
+              : null;
+
+            resolve({
+              blob: audioBlob,
+              mimeType: mimeType.split(';')[0],
+              base64: base64 ? base64.trim() : null,
+              sizeBytes: audioBlob.size,
+            });
+          };
+          reader.onerror = (e) => reject(e);
+          reader.readAsDataURL(audioBlob);
+        } catch (err) {
+          reject(err);
+        } finally {
+          this.isRecording = false;
+          this.mediaRecorder = null;
+        }
+      };
+
+      try {
+        this.mediaRecorder.stop();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  async transcribeAudioWithGemini({ base64, mimeType }) {
+    if (!base64) {
+      throw new Error('No audio data provided for transcription');
+    }
+
+    const apiKey = GEMINI_CONFIG.apiKey;
+    const model = GEMINI_CONFIG.primaryModel || 'gemini-3.1-flash-lite';
+    const effectiveMime = (mimeType || 'audio/webm').split(';')[0];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const prompt = `You are a medical transcription expert.
+Listen to this medical voice note / clinical dictation.
+Transcribe it verbatim into clear clinical text.
+Preserve all drug names, doses, units, lab findings, patient details, and clinical instructions accurately.
+Return ONLY the transcribed plain text. Do not include markdown formatting, timestamps, or conversational filler.`;
+
+    const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
+
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              inline_data: {
+                mime_type: effectiveMime,
+                data: cleanBase64,
+              },
+            },
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+      },
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini transcription error (${res.status}): ${errText}`);
+    }
+
+    const data = await res.json();
+    const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!transcript) {
+      throw new Error('Gemini could not detect speech in the audio recording.');
+    }
+
+    return transcript.trim();
+  }
+}
+
+export const audioRecorder = new AudioRecorderService();
