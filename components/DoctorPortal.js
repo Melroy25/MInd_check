@@ -554,11 +554,14 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
   // Modals
   const [showQrScanModal, setShowQrScanModal] = useState(false);
-  const [showConnectedPatientsModal, setShowConnectedPatientsModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showHistoryDetailModal, setShowHistoryDetailModal] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [qrScanInput, setQrScanInput] = useState('');
+
+  // Connected Patients Page Filter & Search
+  const [patientPageSearch, setPatientPageSearch] = useState('');
+  const [patientPageFilterTag, setPatientPageFilterTag] = useState('all');
 
   // History Filter & Search
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all' | 'upload' | 'connection' | 'update'
@@ -596,6 +599,37 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
         p.condition.toLowerCase().includes(q)
     );
   }, [connectedPatients, patientPickerSearch]);
+
+  // ─── FILTERED PATIENT LIST FOR CONNECTED PATIENTS PAGE ─────────────────────
+  const filteredPagePatients = useMemo(() => {
+    return connectedPatients.filter((p) => {
+      const q = patientPageSearch.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.patientId.toLowerCase().includes(q) ||
+        (p.condition && p.condition.toLowerCase().includes(q));
+
+      if (!matchSearch) return false;
+
+      if (patientPageFilterTag === 'cardio') {
+        return (
+          (p.condition || '').toLowerCase().includes('cardiac') ||
+          (p.condition || '').toLowerCase().includes('coronary') ||
+          (p.condition || '').toLowerCase().includes('echo') ||
+          (p.condition || '').toLowerCase().includes('hypertension')
+        );
+      }
+      if (patientPageFilterTag === 'recent') {
+        return (
+          (p.lastVisit || '').toLowerCase().includes('today') ||
+          (p.lastVisit || '').toLowerCase().includes('nov 12') ||
+          (p.lastVisit || '').toLowerCase().includes('nov 11')
+        );
+      }
+      return true;
+    });
+  }, [connectedPatients, patientPageSearch, patientPageFilterTag]);
 
   // ─── UPLOAD ACTION: CHOOSE FILE ──────────────────────────────────────────────
   const handlePickDocument = async () => {
@@ -893,7 +927,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               {/* Button 2: No of patients connected (count no) */}
               <TouchableOpacity
                 style={styles.boxCardFour}
-                onPress={() => setShowConnectedPatientsModal(true)}
+                onPress={() => setActiveTab('patients')}
                 activeOpacity={0.8}
               >
                 <View style={[styles.boxIconWrap, { backgroundColor: C.blueBg }]}>
@@ -979,7 +1013,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               <View>
                 <Text style={styles.subHeading}>Connected Patients</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowConnectedPatientsModal(true)} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => setActiveTab('patients')} activeOpacity={0.7}>
                 <Text style={styles.linkText}>All Patients →</Text>
               </TouchableOpacity>
             </View>
@@ -1712,6 +1746,151 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
             </View>
           </View>
         )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* SEPARATE PAGE: CONNECTED PATIENTS DIRECTORY (DEDICATED FULL VIEW)   */}
+        {/* "make this in a seperate page like when i click on it sepeate page shpuld open like when i click on ipload it opens sepearte page ryt same thing" */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'patients' && (
+          <View style={[styles.viewSection, styles.patientsViewSection]}>
+            {/* Top Header with Back Arrow to Home */}
+            <TouchableOpacity
+              style={styles.subPageHeaderRow}
+              onPress={() => setActiveTab('home')}
+              activeOpacity={0.75}
+            >
+              <IconArrowLeft size={22} color={C.textMain} />
+              <View>
+                <Text style={styles.subPageTitle}>Connected Patients</Text>
+                <Text style={styles.subPageSubTitle}>
+                  {connectedPatients.length} active patients sharing clinical access
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Quick Action Banner: Scan QR to Connect New Patient */}
+            <TouchableOpacity
+              style={styles.patientsPageBanner}
+              onPress={() => setShowQrScanModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.patientsPageBannerLeft}>
+                <View style={styles.patientsPageBannerIconWrap}>
+                  <IconQrCode size={22} color={C.purple} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.patientsPageBannerTitle}>Connect New Patient</Text>
+                  <Text style={styles.patientsPageBannerSub}>
+                    Scan patient QR code to establish vault access
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.patientsPageBannerBtn}>
+                <Text style={styles.patientsPageBannerBtnText}>Scan QR</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Search Input Bar */}
+            <View style={styles.patientsSearchRow}>
+              <IconSearch size={18} color={C.textSub} />
+              <TextInput
+                style={styles.patientsSearchInput}
+                placeholder="Search patient by name, ID, or condition..."
+                placeholderTextColor={C.textSub}
+                value={patientPageSearch}
+                onChangeText={setPatientPageSearch}
+              />
+              {patientPageSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setPatientPageSearch('')}>
+                  <Text style={styles.searchClearBtn}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Filter Pills */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patientsFilterRow}>
+              {[
+                { id: 'all', label: `All (${connectedPatients.length})` },
+                { id: 'cardio', label: 'Cardiology' },
+                { id: 'recent', label: 'Recent Visit' },
+              ].map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[styles.patientsFilterPill, patientPageFilterTag === f.id && styles.patientsFilterPillActive]}
+                  onPress={() => setPatientPageFilterTag(f.id)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.patientsFilterPillText, patientPageFilterTag === f.id && styles.patientsFilterPillTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Patients List Cards */}
+            <View style={styles.patientsPageListWrap}>
+              {filteredPagePatients.length === 0 ? (
+                <View style={styles.emptyPatientsPageBox}>
+                  <IconUsers size={36} color={C.textSub} />
+                  <Text style={styles.emptyPatientsTitle}>No Patients Found</Text>
+                  <Text style={styles.emptyPatientsSub}>Try adjusting your search query or filter</Text>
+                </View>
+              ) : (
+                filteredPagePatients.map((p) => (
+                  <View key={p.id} style={styles.patientFullCard}>
+                    <View style={styles.patientFullCardTop}>
+                      <View style={[styles.patientFullAvatar, { backgroundColor: p.avatarColor }]}>
+                        <Text style={styles.patientFullAvatarText}>
+                          {p.name.split(' ').map((n) => n[0]).join('')}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                        <Text style={styles.patientFullCardName}>{p.name}</Text>
+                        <Text style={styles.patientFullCardId}>
+                          {p.patientId} · {p.age} · Blood: {p.blood} · {p.gender}
+                        </Text>
+                        <View style={styles.patientConditionBadge}>
+                          <Text style={styles.patientConditionBadgeText}>{p.condition}</Text>
+                        </View>
+                        <Text style={styles.patientFullCardMeta}>
+                          Synced Records: {p.recordsCount} · Last Visit: {p.lastVisit}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.patientFullCardActions}>
+                      <TouchableOpacity
+                        style={styles.patientFullUploadBtn}
+                        onPress={() => {
+                          setTargetPatient(p);
+                          setActiveTab('upload');
+                          showToast(`Selected ${p.name} for upload`);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <IconUpload size={14} color="#FFFFFF" />
+                        <Text style={styles.patientFullUploadBtnText}>Upload to Vault</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.patientFullHistoryBtn}
+                        onPress={() => {
+                          setHistorySearch(p.name);
+                          setActiveTab('history');
+                          showToast(`Showing history for ${p.name}`);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <IconClock size={14} color={C.blue} />
+                        <Text style={styles.patientFullHistoryBtnText}>View History</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION BAR (4 PAGES AS SPECIFIED) ──────────────────── */}
@@ -1723,8 +1902,8 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
           onPress={() => setActiveTab('home')}
           activeOpacity={0.75}
         >
-          <IconHome size={22} color={activeTab === 'home' ? C.green : C.textSub} />
-          <Text style={[styles.bottomNavText, activeTab === 'home' && styles.bottomNavTextActive]}>
+          <IconHome size={22} color={activeTab === 'home' || activeTab === 'patients' ? C.green : C.textSub} />
+          <Text style={[styles.bottomNavText, (activeTab === 'home' || activeTab === 'patients') && styles.bottomNavTextActive]}>
             Home
           </Text>
         </TouchableOpacity>
@@ -1832,70 +2011,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
       </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 2: CONNECTED PATIENTS DIRECTORY MODAL                         */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={showConnectedPatientsModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowConnectedPatientsModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, styles.modalContainerLarge]}>
-            <View style={styles.modalHeaderRow}>
-              <View>
-                <Text style={styles.modalHeading}>Connected Patients</Text>
-                <Text style={styles.modalSubheading}>
-                  {connectedPatients.length} active patients sharing clinical access
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtnCircle}
-                onPress={() => setShowConnectedPatientsModal(false)}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
-              {connectedPatients.map((p) => (
-                <View key={p.id} style={styles.patientDirectoryCard}>
-                  <View style={[styles.patientAvatarMedium, { backgroundColor: p.avatarColor }]}>
-                    <Text style={styles.patientAvatarMediumText}>
-                      {p.name.split(' ').map((n) => n[0]).join('')}
-                    </Text>
-                  </View>
-
-                  <View style={{ flex: 1, paddingHorizontal: 12 }}>
-                    <Text style={styles.patientDirName}>{p.name}</Text>
-                    <Text style={styles.patientDirId}>{p.patientId} · {p.age} · Blood: {p.blood}</Text>
-                    <Text style={styles.patientDirCondition}>{p.condition}</Text>
-                    <Text style={styles.patientDirMeta}>
-                      Records: {p.recordsCount} · Last Visit: {p.lastVisit}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.patientDirUploadBtn}
-                    onPress={() => {
-                      setTargetPatient(p);
-                      setShowConnectedPatientsModal(false);
-                      setActiveTab('upload');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <IconUpload size={14} color="white" />
-                    <Text style={styles.patientDirUploadBtnText}>Upload</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 3: TARGET PATIENT PICKER MODAL (FOR UPLOAD DESTINATION)       */}
+      {/* MODAL 2: TARGET PATIENT PICKER MODAL (FOR UPLOAD DESTINATION)       */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <Modal
         visible={showPatientPickerModal}
@@ -2523,6 +2639,221 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: C.textMain,
     letterSpacing: -0.3,
+  },
+  subPageSubTitle: {
+    fontSize: 12,
+    color: C.textSub,
+    marginTop: 2,
+  },
+
+  /* ── CONNECTED PATIENTS PAGE STYLES ─────────────────────────────────────── */
+  patientsViewSection: {
+    paddingBottom: 28,
+  },
+  patientsPageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F5F3FF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    marginBottom: 16,
+  },
+  patientsPageBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  patientsPageBannerIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  patientsPageBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6D28D9',
+  },
+  patientsPageBannerSub: {
+    fontSize: 11,
+    color: '#7C3AED',
+    marginTop: 1,
+  },
+  patientsPageBannerBtn: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  patientsPageBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  patientsSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  patientsSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: C.textMain,
+    padding: 0,
+  },
+  patientsFilterRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  patientsFilterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginRight: 8,
+  },
+  patientsFilterPillActive: {
+    backgroundColor: C.charcoal,
+    borderColor: C.charcoal,
+  },
+  patientsFilterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.textSub,
+  },
+  patientsFilterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  patientsPageListWrap: {
+    gap: 12,
+  },
+  patientFullCard: {
+    backgroundColor: C.white,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  patientFullCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  patientFullAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  patientFullAvatarText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  patientFullCardName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.textMain,
+  },
+  patientFullCardId: {
+    fontSize: 11,
+    color: C.textSub,
+    marginTop: 2,
+  },
+  patientConditionBadge: {
+    backgroundColor: C.blueBg,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  patientConditionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.blue,
+  },
+  patientFullCardMeta: {
+    fontSize: 11,
+    color: C.textSub,
+    marginTop: 4,
+  },
+  patientFullCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  patientFullUploadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: C.green,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  patientFullUploadBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  patientFullHistoryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  patientFullHistoryBtnText: {
+    color: C.blue,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyPatientsPageBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyPatientsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textMain,
+    marginTop: 10,
+  },
+  emptyPatientsSub: {
+    fontSize: 12,
+    color: C.textSub,
+    marginTop: 4,
   },
 
   /* ── UPLOAD VIEW STYLES ─────────────────────────────────────────────────── */

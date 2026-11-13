@@ -947,7 +947,7 @@ body {
       </div>
 
       <!-- 2. No of patients connected (count no) -->
-      <div class="fingertip-card" onclick="openModal('patientsModal')">
+      <div class="fingertip-card" onclick="switchTab('patients')">
         <div class="fingertip-icon-wrap" style="background:#EFF6FF;">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -998,12 +998,56 @@ body {
       <div>
         <div class="section-title" style="margin-bottom:2px;">Connected Patients</div>
       </div>
-      <div class="link-action" onclick="openModal('patientsModal')">All Patients &rarr;</div>
+      <div class="link-action" onclick="switchTab('patients')">All Patients &rarr;</div>
     </div>
 
     <div id="homeConnectedPatientsList">
       <!-- Populated via JS -->
     </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE: CONNECTED PATIENTS DIRECTORY (DEDICATED FULL PAGE VIEW)          -->
+  <!-- "make this in a seperate page like when i click on it sepeate page shpuld open like when i click on ipload it opens sepearte page ryt same thing" -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-patients" class="page-view">
+    <div class="subpage-header-row" onclick="switchTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <div>
+        <div class="subpage-title">Connected Patients</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="patientsPageCountSub">8 active patients sharing clinical vault access</div>
+      </div>
+    </div>
+
+    <!-- Banner to Connect New Patient -->
+    <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#6D28D9;">Connect New Patient</div>
+          <div style="font-size:11px;color:#7C3AED;">Scan patient QR code to establish vault access</div>
+        </div>
+      </div>
+      <button class="btn-primary" style="padding:6px 14px;font-size:12px;background:#7C3AED;" onclick="openModal('qrModal')">Scan QR</button>
+    </div>
+
+    <!-- Search Input -->
+    <div class="search-box" style="margin-bottom:14px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search patient by name, ID, or condition..." id="patientsPageSearch" oninput="filterPatientsPage(this.value)" style="border:none;outline:none;width:100%;font-size:13px;background:transparent;"/>
+    </div>
+
+    <!-- Patient Filter Pills -->
+    <div class="category-pills" style="margin-bottom:16px;">
+      <button class="cat-pill active" id="patFilterAll" onclick="setPatientPageFilter('all')">All Patients</button>
+      <button class="cat-pill" id="patFilterCardio" onclick="setPatientPageFilter('cardio')">Cardiology</button>
+      <button class="cat-pill" id="patFilterRecent" onclick="setPatientPageFilter('recent')">Recent Visit</button>
+    </div>
+
+    <!-- Patients List -->
+    <div id="patientsPageList" style="display:flex;flex-direction:column;gap:12px;"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════════════ -->
@@ -1309,17 +1353,6 @@ body {
   </div>
 </div>
 
-<!-- 2. Connected Patients Directory Modal -->
-<div class="modal-overlay" id="patientsModal">
-  <div class="modal-box" style="max-width:540px;">
-    <button class="modal-close-x" onclick="closeModal('patientsModal')">✕</button>
-    <div style="font-size:18px;font-weight:800;color:var(--charcoal);">Connected Patients</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;" id="patientsModalSub">8 active patients sharing clinical vault access</div>
-    
-    <div id="patientsModalList" style="max-height:380px;overflow-y:auto;"></div>
-  </div>
-</div>
-
 <!-- 3. Target Patient Picker Modal (Upload Step) -->
 <div class="modal-overlay" id="patientPickerModal">
   <div class="modal-box" style="max-width:540px;">
@@ -1415,6 +1448,13 @@ function switchTab(tabId) {
   } else {
     curveHeader.style.display = 'none';
   }
+
+  if (tabId === 'patients') {
+    renderPatientsPage();
+    const homeBtn = document.getElementById('tab-home');
+    if (homeBtn) homeBtn.classList.add('active');
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1430,7 +1470,6 @@ function showToast(msg) {
 function openModal(id) {
   document.getElementById(id).classList.add('open');
   if (id === 'patientPickerModal') renderPickerPatients();
-  if (id === 'patientsModal') renderDirectoryPatients();
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
@@ -1506,18 +1545,85 @@ function renderPickerPatients(query = '') {
   }).join('');
 }
 
-function renderDirectoryPatients() {
-  const list = document.getElementById('patientsModalList');
-  list.innerHTML = connectedPatients.map(p => `
-    <div class="patient-row-card">
-      <div class="patient-avatar-circ" style="background:${p.color};">${p.name.split(' ').map(n=>n[0]).join('')}</div>
-      <div class="patient-info-col">
-        <div class="patient-name-txt">${p.name}</div>
-        <div class="patient-sub-txt">${p.patientId} · ${p.age} · Blood: ${p.blood}</div>
-        <div style="font-size:11px;color:var(--blue);">${p.condition}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;">Records: ${p.recordsCount} · Last Visit: ${p.lastVisit}</div>
+let activePatientFilter = 'all';
+let patientPageQuery = '';
+
+function setPatientPageFilter(filter) {
+  activePatientFilter = filter;
+  document.querySelectorAll('#page-patients .category-pills .cat-pill').forEach(b => b.classList.remove('active'));
+  const btnId = filter === 'all' ? 'patFilterAll' : filter === 'cardio' ? 'patFilterCardio' : 'patFilterRecent';
+  const el = document.getElementById(btnId);
+  if (el) el.classList.add('active');
+  renderPatientsPage();
+}
+
+function filterPatientsPage(val) {
+  patientPageQuery = (val || '').toLowerCase().trim();
+  renderPatientsPage();
+}
+
+function renderPatientsPage() {
+  const list = document.getElementById('patientsPageList');
+  if (!list) return;
+
+  const countEl = document.getElementById('patientsPageCountSub');
+  if (countEl) countEl.textContent = `${connectedPatients.length} active patients sharing clinical vault access`;
+
+  const filtered = connectedPatients.filter(p => {
+    const matchesSearch = !patientPageQuery ||
+      p.name.toLowerCase().includes(patientPageQuery) ||
+      p.patientId.toLowerCase().includes(patientPageQuery) ||
+      (p.condition && p.condition.toLowerCase().includes(patientPageQuery));
+
+    if (!matchesSearch) return false;
+
+    if (activePatientFilter === 'cardio') {
+      return (p.condition || '').toLowerCase().includes('cardiac') ||
+             (p.condition || '').toLowerCase().includes('coronary') ||
+             (p.condition || '').toLowerCase().includes('echo') ||
+             (p.condition || '').toLowerCase().includes('hypertension');
+    }
+    if (activePatientFilter === 'recent') {
+      return (p.lastVisit || '').toLowerCase().includes('today') ||
+             (p.lastVisit || '').toLowerCase().includes('nov 12') ||
+             (p.lastVisit || '').toLowerCase().includes('nov 11');
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:40px 10px;color:var(--muted);">
+        <div style="font-weight:700;color:var(--charcoal);font-size:15px;margin-bottom:4px;">No Patients Found</div>
+        <div style="font-size:12px;">Try adjusting your search query or filter</div>
       </div>
-      <button class="btn-upload-quick" onclick="selectTargetPatient('${p.id}');closeModal('patientsModal');switchTab('upload')">Upload</button>
+    `;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => `
+    <div style="background:#fff;border-radius:16px;padding:14px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+      <div style="display:flex;align-items:flex-start;">
+        <div class="patient-avatar-circ" style="background:${p.color};width:44px;height:44px;font-size:15px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;">
+          ${p.name.split(' ').map(n=>n[0]).join('')}
+        </div>
+        <div style="flex:1;padding-left:12px;">
+          <div style="font-size:15px;font-weight:800;color:var(--charcoal);">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.patientId} · ${p.age} · Blood: ${p.blood} · ${p.gender}</div>
+          <div style="display:inline-block;background:#EFF6FF;color:#2563EB;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-top:4px;">${p.condition}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Synced Records: ${p.recordsCount} · Last Visit: ${p.lastVisit}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #F1F5F9;">
+        <button class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;font-size:12px;" onclick="selectTargetPatient('${p.id}');switchTab('upload')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload to Vault
+        </button>
+        <button style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;font-size:12px;background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;border-radius:999px;font-weight:700;cursor:pointer;" onclick="document.getElementById('historySearchInput').value='${p.name}';filterHistory('${p.name}');switchTab('history');">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          View History
+        </button>
+      </div>
     </div>
   `).join('');
 }
