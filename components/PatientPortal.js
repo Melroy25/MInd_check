@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
   StyleSheet, TextInput, ActivityIndicator, Platform, Image,
@@ -8,6 +8,8 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-s
 import QRCode from 'react-native-qrcode-svg';
 import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64, audioRecorder } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
+import { QRScannerModal, EmergencySosModal } from './common';
+import { storageService } from '../services/storageService';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -439,6 +441,19 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [caretakers, setCaretakers] = useState(INITIAL_CARETAKERS);
   const [clinicalDoctors, setClinicalDoctors] = useState(INITIAL_CLINICAL);
   const [pendingRequests, setPendingRequests] = useState(INITIAL_PENDING_REQUESTS);
+
+  // ── Load Persisted Vault Records on Mount ──
+  useEffect(() => {
+    async function loadStoredFiles() {
+      try {
+        const stored = await storageService.getFiles();
+        if (stored && stored.length > 0) setFiles(stored);
+      } catch (e) {
+        console.warn('[PatientPortal] Error loading stored files:', e);
+      }
+    }
+    loadStoredFiles();
+  }, []);
   const [connectSubView, setConnectSubView] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
   const [shareCodeCategory, setShareCodeCategory] = useState(null); // null | 'benefactor' | 'caretaker' | 'clinical'
   const [inviteName, setInviteName] = useState('');
@@ -1032,7 +1047,9 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       extractedData: structuredClinicalPayload,
     };
 
-    setFiles((prev) => [newDoc, newJsonDoc, ...prev]);
+    const nextFiles = [newDoc, newJsonDoc, ...files];
+    setFiles(nextFiles);
+    storageService.saveFiles(nextFiles);
     setFolders((prev) =>
       prev.map((f) => (f.id === 'labs' ? { ...f, count: f.count + 2, date: 'Just now' } : f))
     );
@@ -3565,122 +3582,18 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       </Modal>
 
       {/* ── MODAL: SCAN QR TO CONNECT (CARETAKER OR BENEFACTOR) ─────────────── */}
-      <Modal
+      <QRScannerModal
         visible={showScanQrModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowScanQrModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modernModalCard, { maxHeight: '90%' }]}>
-            <View style={styles.modernModalHeader}>
-              <View>
-                <Text style={styles.modernModalTitle}>Scan QR to Connect</Text>
-                <Text style={styles.modernModalSub}>Join as a caretaker or benefactor</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.modernModalCloseBtn}
-                onPress={() => setShowScanQrModal(false)}
-              >
-                <Text style={styles.modernModalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }}>
-              {/* Role Selector */}
-              <Text style={[styles.cleanFieldLabel, { marginTop: 12, marginBottom: 8 }]}>JOIN AS</Text>
-              <View style={styles.scanRoleTabsRow}>
-                <TouchableOpacity
-                  style={[styles.scanRoleTab, scanJoinRole === 'caretaker' && styles.scanRoleTabActive]}
-                  onPress={() => setScanJoinRole('caretaker')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.scanRoleTabText, scanJoinRole === 'caretaker' && styles.scanRoleTabTextActive]}>
-                    Caretaker Proxy
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.scanRoleTab, scanJoinRole === 'benefactor' && styles.scanRoleTabActive]}
-                  onPress={() => setScanJoinRole('benefactor')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.scanRoleTabText, scanJoinRole === 'benefactor' && styles.scanRoleTabTextActive]}>
-                    Benefactor Sponsor
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Viewfinder Camera Box */}
-              <View style={styles.scanViewfinderWrap}>
-                <View style={styles.scanViewfinderBox}>
-                  {/* 4 Corner Reticles */}
-                  <View style={[styles.scanReticle, styles.reticleTL]} />
-                  <View style={[styles.scanReticle, styles.reticleTR]} />
-                  <View style={[styles.scanReticle, styles.reticleBL]} />
-                  <View style={[styles.scanReticle, styles.reticleBR]} />
-                  {/* Animated Laser Line */}
-                  <View style={styles.scanLaserLine} />
-                  <IconQrCode size={56} color="#6366F1" />
-                  <Text style={styles.scanViewfinderHint}>Point camera at patient's invite QR code</Text>
-                </View>
-              </View>
-
-              {/* Manual Code Input Option */}
-              <View style={[styles.uploadFieldWrap, { marginTop: 14 }]}>
-                <Text style={styles.cleanFieldLabel}>OR ENTER CONNECTION CODE</Text>
-                <TextInput
-                  style={styles.cleanInputField}
-                  placeholder={scanJoinRole === 'caretaker' ? 'e.g. CAR-4892' : 'e.g. BEN-9199'}
-                  placeholderTextColor="#94A3B8"
-                  value={scanJoinCode}
-                  onChangeText={setScanJoinCode}
-                  autoCapitalize="characters"
-                />
-              </View>
-
-              {/* Action Button: Connect to Vault */}
-              <TouchableOpacity
-                style={[styles.cleanSaveBtn, { marginTop: 14 }]}
-                onPress={() => {
-                  const code = scanJoinCode.trim() || (scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199');
-                  setShowScanQrModal(false);
-                  setScanJoinCode('');
-                  showToastMsg(`Connected as ${scanJoinRole === 'caretaker' ? 'Caretaker' : 'Benefactor'} (${code})!`);
-                }}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={[C.green, C.greenDark]}
-                  style={styles.cleanSaveBtnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.cleanSaveBtnText}>Connect to Vault</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Simulate Scan Quick Action */}
-              <TouchableOpacity
-                style={styles.simulateScanBtn}
-                onPress={() => {
-                  const demoCode = scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199';
-                  setScanJoinCode(demoCode);
-                  setTimeout(() => {
-                    setShowScanQrModal(false);
-                    setScanJoinCode('');
-                    showToastMsg(`QR Scanned: Connected as ${scanJoinRole === 'caretaker' ? 'Caretaker' : 'Benefactor'} (${demoCode})!`);
-                  }, 300);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.simulateScanBtnText}>
-                  Simulate QR Scan ({scanJoinRole === 'caretaker' ? 'CAR-4892' : 'BEN-9199'})
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowScanQrModal(false)}
+        title="Scan Medical QR Code"
+        subtitle="Point camera at Caretaker or Doctor QR invite, or paste access token"
+        accentColor="#4F46E5"
+        onScan={(token, parsed) => {
+          setShowScanQrModal(false);
+          const code = String(token || 'CAR-4892');
+          showToastMsg(`Connected via QR (${code})!`);
+        }}
+      />
 
       {/* ── MODAL: SWITCH ACCOUNT ─────────────────────────────────────────── */}
       <Modal

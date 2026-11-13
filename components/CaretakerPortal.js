@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView,
   StyleSheet, TextInput, ActivityIndicator, SafeAreaView, StatusBar,
@@ -7,6 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
 import PatientPortal from './PatientPortal';
 import { INITIAL_CARETAKER_WARDS, INITIAL_AUDIT_LOGS } from '../constants/mockData';
+import { storageService } from '../services/storageService';
+import { QRScannerModal, EmergencySosModal } from './common';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -142,6 +144,22 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
   const [toastMsg, setToastMsg] = useState(null);
   const [qrCodeInput, setQrCodeInput] = useState('');
 
+  // ── Load Persisted Local State on Mount ──────────────────────────────────────
+  useEffect(() => {
+    async function loadPersistedData() {
+      try {
+        const storedWards = await storageService.getWards();
+        if (storedWards && storedWards.length > 0) setWards(storedWards);
+
+        const storedLogs = await storageService.getAuditLogs();
+        if (storedLogs && storedLogs.length > 0) setChanges(storedLogs);
+      } catch (err) {
+        console.warn('[CaretakerPortal] Error loading local storage:', err);
+      }
+    }
+    loadPersistedData();
+  }, []);
+
   const activeWard = wards.find((w) => w.id === selectedWardId) || wards[0];
 
   const showToast = (msg) => {
@@ -162,24 +180,25 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
     let updatedMedName = '';
     let isNowTaken = false;
 
-    setWards((prev) =>
-      prev.map((p) => {
-        if (p.id !== wardId) return p;
-        const newMeds = p.meds.map((m) => {
-          if (m.id === medId) {
-            updatedMedName = m.name;
-            isNowTaken = !m.taken;
-            return {
-              ...m,
-              taken: !m.taken,
-              lastUpdated: `Just now by Vikram`,
-            };
-          }
-          return m;
-        });
-        return { ...p, meds: newMeds };
-      })
-    );
+    const nextWards = wards.map((p) => {
+      if (p.id !== wardId) return p;
+      const newMeds = p.meds.map((m) => {
+        if (m.id === medId) {
+          updatedMedName = m.name;
+          isNowTaken = !m.taken;
+          return {
+            ...m,
+            taken: !m.taken,
+            lastUpdated: `Just now by Vikram`,
+          };
+        }
+        return m;
+      });
+      return { ...p, meds: newMeds };
+    });
+
+    setWards(nextWards);
+    storageService.saveWards(nextWards);
 
     // Create a Git-style Commit Record
     const newCommit = {
@@ -193,20 +212,22 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
       status: 'applied',
     };
 
-    setChanges((prev) => [newCommit, ...prev]);
+    const nextChanges = [newCommit, ...changes];
+    setChanges(nextChanges);
+    storageService.saveAuditLogs(nextChanges);
     showToast(`Change committed: ${ward.name} notified (Reversible)`);
   };
 
   // ── GitHub-style Revert / Rollback Action ────────────────────────────────────
   const handleRevertChange = (commitId) => {
-    setChanges((prev) =>
-      prev.map((c) => {
-        if (c.id === commitId) {
-          return { ...c, status: 'reverted' };
-        }
-        return c;
-      })
-    );
+    const nextChanges = changes.map((c) => {
+      if (c.id === commitId) {
+        return { ...c, status: 'reverted' };
+      }
+      return c;
+    });
+    setChanges(nextChanges);
+    storageService.saveAuditLogs(nextChanges);
     showToast(`Rollback complete: Reverted change on patient vault`);
   };
 
@@ -781,98 +802,54 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
         </View>
       </Modal>
 
-      {/* ── MODAL: SCAN QR ── */}
-      <Modal
+      {/* ── MODAL 1: REAL-TIME QR SCANNER ── */}
+      <QRScannerModal
         visible={showQrModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowQrModal(false)}
-      >
-        <View style={s.modalBackdrop}>
-          <View style={s.modernModalCard}>
-            <View style={s.modernModalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.modernModalTitle}>Link Ward by QR</Text>
-                <Text style={s.modernModalSub}>Scan patient's temporary access code</Text>
-              </View>
-              <TouchableOpacity
-                style={s.modalCloseBtn}
-                onPress={() => setShowQrModal(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={s.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
+        onClose={() => setShowQrModal(false)}
+        title="Link Patient Ward by QR"
+        subtitle="Point camera at patient's Caretaker QR invite or paste code below"
+        accentColor={C.purple}
+        onScan={(token, parsed) => {
+          setShowQrModal(false);
+          const rawToken = String(token || '').toUpperCase();
+          const match = wards.find(
+            (w) =>
+              w.name.toUpperCase().includes(rawToken) ||
+              w.id.toUpperCase() === rawToken ||
+              (w.code && w.code.toUpperCase() === rawToken)
+          );
+          if (match) {
+            setSelectedWardId(match.id);
+            showToast(`Linked to ${match.name}'s verified health vault`);
+          } else {
+            showToast(`Access code ${token} claimed with Caretaker permissions`);
+          }
+        }}
+      />
 
-            <View style={s.qrBoxWrap}>
-              <IconQrCode size={64} color={C.purple} />
-              <Text style={{ fontSize: 13, color: C.textSub, marginTop: 12, textAlign: 'center' }}>
-                Position camera over patient's QR code or simulate entering code below
-              </Text>
-            </View>
-
-            <TextInput
-              style={[s.searchInput, { borderWidth: 1, borderColor: C.border, marginTop: 14 }]}
-              placeholder="e.g. CAR-8821-MEL"
-              placeholderTextColor={C.textSub}
-              value={qrCodeInput}
-              onChangeText={setQrCodeInput}
-            />
-
-            <TouchableOpacity
-              style={[s.actionBtn, { backgroundColor: C.purple, marginTop: 14 }]}
-              onPress={() => {
-                setShowQrModal(false);
-                setQrCodeInput('');
-                showToast('Connected to new ward vault with Caretaker scopes!');
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={s.actionBtnText}>Link Ward</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── MODAL: EMERGENCY SOS ── */}
-      <Modal
+      {/* ── MODAL 2: CRITICAL EMERGENCY SOS DISPATCH ── */}
+      <EmergencySosModal
         visible={showSosModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSosModal(false)}
-      >
-        <View style={s.modalBackdrop}>
-          <View style={s.modernModalCard}>
-            <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-              <View style={[s.quickIconBox, { width: 64, height: 64, borderRadius: 32, backgroundColor: C.redBg }]}>
-                <IconAlertTriangle size={32} color={C.red} />
-              </View>
-              <Text style={[s.modernModalTitle, { marginTop: 12, color: C.red }]}>Emergency SOS Alert</Text>
-              <Text style={[s.modernModalSub, { textAlign: 'center', marginTop: 6, lineHeight: 18 }]}>
-                This immediately broadcasts an urgent alert with live GPS coordinates to Dr. Sarah Jenkins and emergency dispatch for {activeWard.name}.
-              </Text>
-
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: C.red, width: '100%', marginTop: 20 }]}
-                onPress={() => {
-                  setShowSosModal(false);
-                  showToast('🚨 SOS Broadcast Sent: Doctor & Contacts Notified');
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={s.actionBtnText}>Confirm SOS Broadcast</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{ paddingVertical: 12, marginTop: 6 }}
-                onPress={() => setShowSosModal(false)}
-              >
-                <Text style={{ fontSize: 14, color: C.textSub, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowSosModal(false)}
+        patientName={activeWard.name}
+        bloodType={activeWard.blood}
+        onBroadcastSuccess={(details) => {
+          const sosCommit = {
+            id: `c_sos_${Date.now()}`,
+            commitHash: Math.random().toString(16).substring(2, 9),
+            patientId: activeWard.id,
+            patientName: activeWard.name,
+            title: `Emergency Beacon Broadcasted`,
+            detail: `Telemetry: ${details.gps}. Attending doctor & contacts alerted.`,
+            timestamp: 'Just now',
+            status: 'applied',
+          };
+          const nextLogs = [sosCommit, ...changes];
+          setChanges(nextLogs);
+          storageService.saveAuditLogs(nextLogs);
+          showToast(`Emergency alert broadcasted for ${activeWard.name}`);
+        }}
+      />
     </SafeAreaView>
   );
 }

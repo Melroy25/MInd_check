@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
 import { pickMedicalDocument, extractMedicalDocument } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
+import { QRScannerModal } from './common';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -1847,69 +1848,19 @@ export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout })
       </View>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 1: SCAN QR CODE MODAL                                         */}
+      {/* MODAL 1: REAL-TIME QR CAMERA SCANNER                                 */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Modal visible={showQrScanModal} transparent animationType="fade" onRequestClose={() => setShowQrScanModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContainer, { alignItems: 'center' }]}>
-            <TouchableOpacity style={styles.modalCloseCorner} onPress={() => setShowQrScanModal(false)}>
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-
-            <View style={styles.qrScannerIconCircle}>
-              <IconQrCode size={30} color={C.purple} />
-            </View>
-
-            <Text style={styles.modalHeading}>Scan Patient Medical QR</Text>
-            <Text style={styles.modalSubheading}>
-              Point camera at patient's MediVault QR badge or enter their ID to link records.
-            </Text>
-
-            {/* Camera Viewfinder Mock */}
-            <View style={styles.cameraViewfinderWrap}>
-              <View style={styles.viewfinderCornerTL} />
-              <View style={styles.viewfinderCornerTR} />
-              <View style={styles.viewfinderCornerBL} />
-              <View style={styles.viewfinderCornerBR} />
-              <IconQrCode size={120} color="#94A3B8" />
-              <View style={styles.laserScanLine} />
-            </View>
-
-            {/* Quick Patient Direct Links */}
-            <View style={{ width: '100%', marginTop: 14 }}>
-              <Text style={styles.qrQuickSelectTitle}>Or select connected patient:</Text>
-              <View style={styles.qrPatientChipRow}>
-                {connectedPatients.slice(0, 3).map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={styles.qrPatientChip}
-                    onPress={() => handleProcessQrScan(p.patientId)}
-                  >
-                    <Text style={styles.qrPatientChipText}>{p.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Manual Patient ID Input */}
-            <View style={styles.qrInputRow}>
-              <TextInput
-                style={styles.qrInputField}
-                placeholder="Enter Patient ID (e.g. MV-2026-PAT-892)"
-                placeholderTextColor="#94A3B8"
-                value={qrScanInput}
-                onChangeText={setQrScanInput}
-              />
-              <TouchableOpacity
-                style={styles.qrConfirmBtn}
-                onPress={() => handleProcessQrScan(qrScanInput || 'Melroy Almeida')}
-              >
-                <Text style={styles.qrConfirmBtnText}>Connect</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <QRScannerModal
+        visible={showQrScanModal}
+        onClose={() => setShowQrScanModal(false)}
+        title="Scan Patient Medical QR"
+        subtitle="Point camera at patient's MediVault QR badge or select a quick code"
+        accentColor={C.blue}
+        onScan={(token, parsed) => {
+          setShowQrScanModal(false);
+          handleProcessQrScan(String(token || 'Melroy Almeida'));
+        }}
+      />
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MODAL 2: TARGET PATIENT PICKER MODAL (FOR UPLOAD DESTINATION)       */}
