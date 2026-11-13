@@ -1078,8 +1078,8 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       type: 'JSON',
       size: '12.4 KB',
       date: now,
-      doctor: 'Gemini AI',
-      tags: ['Gemini Extracted'],
+      doctor: 'Clinical AI',
+      tags: ['Structured JSON'],
       extractedData: structuredClinicalPayload,
     };
 
@@ -1671,7 +1671,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                       </View>
                       <View>
                         <Text style={styles.uploadJsonTitle}>Extracted Clinical JSON</Text>
-                        <Text style={styles.uploadJsonSub}>Gemini AI structured entity payload</Text>
+                        <Text style={styles.uploadJsonSub}>Structured clinical entity payload</Text>
                       </View>
                     </View>
 
@@ -1692,12 +1692,11 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                     )}
                   </View>
 
-                  {/* Dark Code Box matching user 2nd image */}
+                  {/* Dark Code Box */}
                   <View style={styles.jsonCodeBlockWrap}>
                     {isExtracting ? (
                       <View style={styles.jsonExtractingOverlay}>
-                        <ActivityIndicator size="small" color="#38BDF8" />
-                        <Text style={styles.jsonExtractingText}>Extracting structured clinical JSON with Gemini AI...</Text>
+                        <ActivityIndicator size="large" color="#38BDF8" />
                       </View>
                     ) : (
                       <ScrollView

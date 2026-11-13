@@ -1357,7 +1357,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                     activeOpacity={0.8}
                   >
                     <IconCode size={15} color={C.green} />
-                    <Text style={styles.extractFromTextBtnText}>Extract Structured JSON with Gemini AI</Text>
+                    <Text style={styles.extractFromTextBtnText}>Extract Structured Clinical JSON</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1372,7 +1372,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                       </View>
                       <View>
                         <Text style={styles.uploadJsonTitle}>Extracted Clinical JSON</Text>
-                        <Text style={styles.uploadJsonSub}>Gemini AI schema payload</Text>
+                        <Text style={styles.uploadJsonSub}>Structured clinical entity payload</Text>
                       </View>
                     </View>
 
@@ -1396,8 +1396,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                   <View style={styles.jsonCodeBlockWrap}>
                     {isExtracting ? (
                       <View style={styles.jsonExtractingOverlay}>
-                        <ActivityIndicator size="small" color="#38BDF8" />
-                        <Text style={styles.jsonExtractingText}>Extracting structured schema with Gemini AI...</Text>
+                        <ActivityIndicator size="large" color="#38BDF8" />
                       </View>
                     ) : (
                       <ScrollView style={styles.jsonCodeScrollView} nestedScrollEnabled={true}>
