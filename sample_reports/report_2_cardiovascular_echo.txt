@@ -1,0 +1,37 @@
+APEX HEART & VASCULAR INSTITUTE
+COMPREHENSIVE CARDIOLOGY & 2D ECHOCARDIOGRAM REPORT
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Date of Encounter: November 04, 2026
+Attending Cardiologist: Dr. Mark Vance, MD, FACC (License #CARD-77219)
+Encounter Type: Cardiovascular Risk Stratification & 2D Transthoracic Echo
+
+CLINICAL INDICATIONS & DIAGNOSES:
+1. Essential Hypertension - Stage 2 (ICD-10 I10) - Active, Controlled
+2. Atherogenic Dyslipidemia with Elevated Triglycerides (ICD-10 E78.2) - Active
+
+ECHOCARDIOGRAPHIC MEASUREMENTS:
+- Left Ventricular Ejection Fraction (LVEF): 62 % [Preserved systolic function]
+- Left Ventricular Internal Diameter End-Diastole: 4.8 cm [Normal]
+- Resting Blood Pressure: 138/88 mmHg
+- Resting Heart Rate: 72 bpm (Normal Sinus Rhythm)
+- Valve Assessment: Trivial mitral regurgitation, no aortic stenosis.
+
+LIPID PANEL & CARDIAC BIOMARKERS:
+- Total Cholesterol: 218 mg/dL [High] (Reference Range: < 200 mg/dL)
+- LDL Cholesterol (Calculated): 138 mg/dL [High] (Reference Range: < 100 mg/dL)
+- HDL Cholesterol: 38 mg/dL [Low] (Reference Range: > 40 mg/dL)
+- Serum Triglycerides: 210 mg/dL [High] (Reference Range: < 150 mg/dL)
+- High-Sensitivity CRP (hs-CRP): 2.4 mg/L [Moderate Vascular Risk]
+
+ACTIVE PHARMACOLOGICAL REGIMEN:
+1. Telmisartan: 40 mg oral tablet once daily in the morning. Indication: Essential Hypertension. Status: Active.
+2. Rosuvastatin Calcium: 10 mg oral tablet once daily at bedtime. Indication: Atherosclerotic cardiovascular prophylaxis. Status: Active.
+3. Aspirin (Enteric Coated): 81 mg oral tablet once daily with food. Indication: Antiplatelet therapy. Status: Active.
+
+DOCUMENTED ALLERGIES & SENSITIVITIES:
+- Sulfa Drugs (Sulfonamides): Moderate-to-severe morbilliform cutaneous rash with facial swelling. Strict avoidance of Bactrim and related sulfa compounds.
+
+CARDIOLOGY DIRECTIVES:
+Continue Telmisartan 40mg and Rosuvastatin 10mg. Aerobic cardiovascular exercise 30 minutes 5 days weekly. Follow-up carotid ultrasound in 6 months.

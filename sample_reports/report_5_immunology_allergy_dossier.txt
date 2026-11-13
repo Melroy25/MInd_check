@@ -1,0 +1,32 @@
+NATIONAL ALLERGY & IMMUNOLOGY DIAGNOSTIC CLINIC
+IMMUNOLOGY & SEVERE ALLERGY EVALUATION DOSSIER
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Date of Evaluation: October 02, 2026
+Board-Certified Allergist & Immunologist: Dr. Elizabeth Chen, MD, FAAAAI (License #IMM-61205)
+Diagnostic Protocol: Quantitative ImmunoCAP Serum Specific IgE Assay
+
+PRIMARY CLINICAL DIAGNOSES:
+1. Severe IgE-Mediated Peanut Anaphylaxis (ICD-10 Z91.010 / T78.01XA) - Confirmed Critical
+2. Beta-Lactam Antibiotic Hypersensitivity (ICD-10 Z88.0) - Confirmed Severe
+3. Shellfish & Crustacean Allergy (ICD-10 Z91.018) - Confirmed Moderate
+
+SERUM SPECIFIC IgE ASSAY FINDINGS:
+- Peanut Specific IgE (f13): 24.8 kU/L [Class IV - Very High Sensitization] (Ref: < 0.35 kU/L)
+- Recombinant Ara h 2 Allergen: 18.2 kU/L [High Anaphylaxis Predictive Value]
+- Shrimp Specific IgE (f24): 8.2 kU/L [Class III - High Sensitization] (Ref: < 0.35 kU/L)
+- Penicillin Major Determinant IgE (c1): Positive 4.6 kU/L [Clinically Reactive]
+- Total Serum IgE: 320 IU/mL [High Elevated Atopic Profile] (Reference Range: < 100 IU/mL)
+
+MANDATORY CONTRAINDICATIONS & HAZARDS:
+- Peanuts & Tree Nut Derivatives: Severe systemic anaphylactic shock, laryngeal edema, acute hypotension.
+- All Beta-Lactam Antibiotics (Penicillin G, Amoxicillin, Ampicillin, Piperacillin): Severe bronchospasm and generalized urticaria. Avoid all first-generation cephalosporins.
+- Crustacean Shellfish (Shrimp, Lobster, Crab): Acute generalized urticaria and periorbital edema.
+
+EMERGENCY PHARMACOTHERAPY PRESCRIBED:
+1. Epinephrine Auto-Injector (EpiPen): 0.3 mg intramuscular auto-injector. Administer immediately into anterolateral thigh for accidental exposure or early anaphylaxis signs. Carry 2 twin-packs at all times. Status: Active.
+2. Cetirizine HCl: 10 mg oral tablet once daily as needed for mild contact allergic pruritus. Status: Active.
+
+DIRECTIVES:
+Patient must wear Medical Alert bracelet stating: "Severe Anaphylaxis to Peanuts & Penicillin". Ensure spouse and workplace have active emergency action plan.

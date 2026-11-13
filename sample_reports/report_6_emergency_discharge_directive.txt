@@ -1,0 +1,33 @@
+METRO TRAUMA & EMERGENCY HOSPITAL
+EMERGENCY DEPARTMENT ACUTE ENCOUNTER & DISCHARGE DIRECTIVE
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Emergency Encounter Date: September 22, 2026
+Attending Emergency Physician: Dr. Marcus Holloway, MD, FACEP (License #ER-38291)
+Triage Category: Level 2 - Urgent Resuscitation
+
+PRESENTING EMERGENCY COMPLAINT:
+Sudden onset of dyspnea, expiratory wheezing, and facial pruritus 35 minutes following accidental dietary allergen exposure. Patient administered rescue albuterol without complete resolution.
+
+ADMISSION EMERGENCY VITALS:
+- Blood Pressure: 142/90 mmHg
+- Heart Rate: 104 bpm (Sinus Tachycardia)
+- Respiratory Rate: 24 breaths/min
+- Oxygen Saturation (SpO2): 92 % on ambient room air
+- Confirmed Blood Group: O+ (O Rh-Positive, Verified by Hospital Transfusion Service)
+
+EMERGENCY MEDICATIONS ADMINISTERED IN ER:
+1. Albuterol Sulfate 2.5 mg / Ipratropium Bromide 0.5 mg Nebulized Solution (DuoNeb) x 2 cycles - Bronchial spasm resolved.
+2. Dexamethasone: 10 mg IV push single dose - Systemic anti-inflammatory stabilization.
+3. Diphenhydramine HCl: 50 mg IV push single dose - Resolution of facial hives.
+
+DISCHARGE DISPOSITION & VITAL STATUS:
+Patient stabilized, wheezing resolved. SpO2: 98% room air. Discharge home under care of spouse.
+
+FIRST-RESPONDER EMERGENCY DIRECTIVES:
+- Confirmed Blood Group: O+ (Positive)
+- Emergency Contact: Maria Almeida (Spouse) - Phone: +1 (555) 019-2834
+- Critical Allergies: Severe Anaphylaxis to Peanuts & Penicillin; Avoid all NSAIDs.
+- Essential Maintenance Regimen: Metformin 1000mg ER, Telmisartan 40mg, Symbicort Inhaler.
+- Emergency Rescue Protocol: Administer EpiPen 0.3mg IM immediately and dial 911 if breathing difficulty recurs.

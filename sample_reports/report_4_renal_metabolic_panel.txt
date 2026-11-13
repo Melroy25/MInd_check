@@ -1,0 +1,31 @@
+QUEST CLINICAL DIAGNOSTICS & NEPHROLOGY CENTER
+RENAL FUNCTION & COMPREHENSIVE METABOLIC PANEL (CMP)
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Date of Specimen Collection: October 18, 2026
+Attending Nephrologist: Dr. Kenneth Wu, MD (License #NEPH-92134)
+Laboratory Director: Dr. Eleanor Brooks, PhD
+
+CLINICAL IMPRESSIONS:
+1. Microalbuminuria Secondary to Diabetic Glycemic Variability (ICD-10 R80.9) - Monitored
+2. Stage 1 Chronic Kidney Disease with Preserved GFR (ICD-10 N18.1) - Confirmed
+
+QUANTITATIVE SERUM ELECTROLYTES & RENAL BIOMARKERS:
+- Serum Creatinine: 1.05 mg/dL [Normal] (Reference Range: 0.70 - 1.30 mg/dL)
+- Blood Urea Nitrogen (BUN): 18 mg/dL [Normal] (Reference Range: 7 - 20 mg/dL)
+- Estimated GFR (CKD-EPI Formula): 91 mL/min/1.73m2 [Preserved Renal Function] (Reference Range: > 90 mL/min)
+- Serum Potassium: 4.4 mmol/L [Normal] (Reference Range: 3.5 - 5.1 mmol/L)
+- Serum Sodium: 140 mmol/L [Normal] (Reference Range: 135 - 145 mmol/L)
+- Serum Chloride: 102 mmol/L [Normal] (Reference Range: 96 - 106 mmol/L)
+- Serum Calcium: 9.4 mg/dL [Normal] (Reference Range: 8.5 - 10.5 mg/dL)
+- Urine Albumin-to-Creatinine Ratio (UACR): 42 mg/g [Mildly Elevated Microalbuminuria] (Reference Range: < 30 mg/g)
+
+PRESCRIBED RENOPROTECTIVE REGIMEN:
+1. Losartan Potassium: 50 mg oral tablet once daily in the morning. Indication: Renoprotective angiotensin receptor blockade for microalbuminuria. Status: Active.
+
+ALLERGY DOCUMENTATION:
+- Radiocontrast Media (Iodinated Contrast): Patient exhibits mild pruritus and facial erythema. Pre-hydration and prophylactic antihistamines required if contrast CT is indicated.
+
+NEPHROLOGY GUIDELINES:
+Maintain target blood pressure < 130/80 mmHg. Maintain low sodium diet (< 2000 mg/day). Repeat spot urine albumin-to-creatinine ratio in 4 months.

@@ -1,0 +1,30 @@
+ST. JUDE RESPIRATORY & PULMONARY CLINIC
+PULMONARY SPIROMETRY & ASTHMA MANAGEMENT RECORD
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Date of Encounter: October 28, 2026
+Attending Pulmonologist: Dr. Anita Desai, MD (License #PULM-44102)
+Encounter Type: Pulmonary Function Testing & Bronchial Assessment
+
+CLINICAL DIAGNOSES:
+1. Moderate Persistent Asthma with Nocturnal Cough (ICD-10 J45.40) - Active
+2. Perennial Allergic Rhinitis (ICD-10 J30.89) - Active
+
+PULMONARY FUNCTION TEST (SPIROMETRY):
+- FEV1 / FVC Ratio: 71 % (Pre-Bronchodilator) [Mild Obstructive Defect]
+- Post-Bronchodilator FEV1 Improvement: 15 % (Significant Reversibility)
+- Baseline Peak Expiratory Flow: 420 L/min
+- Resting Oxygen Saturation (SpO2): 98 % on room air
+- Fractional Exhaled Nitric Oxide (FeNO): 38 ppb [Moderate Eosinophilic Airway Inflammation]
+
+ACTIVE RESPIRATORY PHARMACOTHERAPY:
+1. Budesonide / Formoterol (Symbicort) Turbuhaler: 160/4.5 mcg per inhalation, 2 inhalations twice daily. Indication: Maintenance anti-inflammatory bronchodilator. Status: Active.
+2. Albuterol Sulfate HFA (Ventolin): 90 mcg per actuation, 2 inhalations every 4 to 6 hours as needed for acute shortness of breath or wheezing. Status: Active (Rescue).
+3. Montelukast Sodium: 10 mg oral tablet once daily in the evening. Indication: Leukotriene receptor antagonist for allergic airway reactivity. Status: Active.
+
+CRITICAL ALLERGIC CONTRAINDICATIONS:
+- Aspirin and Non-Steroidal Anti-Inflammatory Drugs (NSAIDs): Induces acute bronchospasm and severe wheezing (Aspirin-Exacerbated Respiratory Disease / Samter's Triad variant). Absolute contraindication to Ibuprofen, Naproxen, and Ketorolac.
+
+PULMONOLOGY DIRECTIVES:
+Rinse mouth thoroughly after steroid inhaler administration. Keep rescue inhaler accessible at all times. Re-evaluate spirometry in 6 months.

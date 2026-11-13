@@ -1,0 +1,32 @@
+METRO CENTER FOR DIABETES & ENDOCRINOLOGY
+CONSULTATION & METABOLIC LABORATORY REPORT
+
+Patient Name: Melroy Almeida
+Patient ID: MV-2026-PAT-892
+Date of Encounter: November 10, 2026
+Attending Endocrinologist: Dr. Robert Lang, MD (License #END-89412)
+Encounter Type: Routine Endocrinology Follow-up & Glycemic Assessment
+
+CHIEF COMPLAINT:
+Patient presents for 3-month glycemic follow-up. Reports occasional mild post-prandial fatigue. Denies hypoglycemic episodes, dizziness, or peripheral vision changes.
+
+CLINICAL DIAGNOSES & CONDITIONS:
+1. Type 2 Diabetes Mellitus with Mild Diabetic Neuropathy (ICD-10 E11.40) - Active, Confirmed
+2. Metabolic Syndrome with Hyperinsulinemia (ICD-10 E88.81) - Active, Confirmed
+
+QUANTITATIVE LABORATORY BIOMARKERS:
+- Fasting Blood Sugar: 148 mg/dL [High] (Reference Range: 70 - 99 mg/dL)
+- Glycated Hemoglobin (HbA1c): 7.4 % [High] (Reference Range: < 5.7 %)
+- Post-Prandial Blood Glucose: 192 mg/dL [High] (Reference Range: < 140 mg/dL)
+- Serum C-Peptide: 3.1 ng/mL [Normal] (Reference Range: 1.1 - 4.4 ng/mL)
+- Urine Microalbumin: 28 mg/L [Normal] (Reference Range: < 30 mg/L)
+
+ACTIVE PHARMACOLOGICAL REGIMEN:
+1. Metformin HCl Extended Release: 1000 mg oral tablet once daily with evening meal. Indication: Type 2 Diabetes glycemic control. Status: Active.
+2. Empagliflozin (Jardiance): 10 mg oral tablet once daily in the morning with water. Indication: Renal & Cardiovascular glycemic protection. Status: Active.
+
+DOCUMENTED ALLERGIES & SENSITIVITIES:
+- Penicillin: Severe allergic reaction resulting in generalized urticaria and acute bronchospasm. Absolute contraindication to all beta-lactams.
+
+PHYSICIAN DIRECTIVES & PLAN:
+Maintain current SGLT2 inhibitor and biguanide regimen. Maintain carb-consistent diet (< 45g per meal). Recheck HbA1c and lipid panel in 90 days.
