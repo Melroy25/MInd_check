@@ -596,6 +596,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [extractionError, setExtractionError] = useState(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -1133,13 +1134,96 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
 
   const handleSimulateRequest = handleQueueIncomingRequest;
 
-  const handleSaveUploadedRecord = async () => {
-    const title = uploadTitle.trim() || (pickedFile ? pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : (enteredText.trim() ? 'Clinical Note' : 'Medical Record'));
+  const handleRecheckExtraction = () => {
+    setDuplicateWarning(null);
+    extractDocJson(pickedFile, uploadTitle, enteredText);
+    showToastMsg('Re-analyzing clinical record...');
+  };
+
+  const handleSaveUploadedRecord = async (forceSave = false) => {
+    let title = uploadTitle.trim();
+    if (!title) {
+      if (pickedFile?.name) {
+        title = pickedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      } else if (enteredText.trim()) {
+        const lines = enteredText.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+        const candidate = lines.find((l) => l.length > 3 && l.length < 80 && !l.toLowerCase().startsWith('patient')) || lines[0] || '';
+        title = candidate.replace(/[:#*_-]/g, ' ').replace(/\s+/g, ' ').trim() || `Clinical Report ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      } else {
+        title = `Clinical Document ${Date.now().toString().slice(-4)}`;
+      }
+    }
     const now = 'Just now';
 
     if (!pickedFile && !enteredText.trim() && !uploadTitle.trim()) {
       showToastMsg('Please choose a file or enter text');
       return;
+    }
+
+    // ── DUPLICATE DETECTION CHECK ──
+    if (!forceSave) {
+      const isGeneric = (t) => {
+        const lower = (t || '').toLowerCase().trim();
+        return ['clinical note', 'clinical report', 'medical record', 'document'].includes(lower);
+      };
+
+      const targetTitle = title.toLowerCase().trim();
+      const pickedFileName = (pickedFile?.name || '').toLowerCase().trim();
+      const enteredTextClean = enteredText.trim().toLowerCase();
+
+      const isDuplicate = files.some((f) => {
+        const existingName = (f.name || '').toLowerCase().trim();
+        const existingNotes = (f.notes || '').toLowerCase().trim();
+
+        // 1. If explicit non-generic title provided
+        if (!isGeneric(title)) {
+          // Exact filename match
+          if (pickedFileName && existingName === pickedFileName) {
+            return true;
+          }
+          const cleanExisting = existingName.replace(/\.[^/.]+$/, '').replace(/\(structured json\)/i, '').trim();
+          const cleanTarget = targetTitle.replace(/\.[^/.]+$/, '').trim();
+          if (cleanExisting === cleanTarget) {
+            // If titles match, check if notes match too or if it's the exact same document
+            if (enteredTextClean && existingNotes) {
+              return existingNotes === enteredTextClean || existingNotes.slice(0, 100) === enteredTextClean.slice(0, 100);
+            }
+            return true;
+          }
+        }
+
+        // 2. Exact content text match (only if text is identical)
+        if (enteredTextClean && enteredTextClean.length > 40 && existingNotes) {
+          if (existingNotes === enteredTextClean) {
+            return true;
+          }
+        }
+
+        // 3. Exact binary file match
+        if (pickedFile?.base64 && f.base64 && pickedFile.base64 === f.base64) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (isDuplicate) {
+        setDuplicateWarning({
+          title,
+          message: `A record matching "${title}" already exists in your vault.`,
+        });
+        showToastMsg(`Duplicate Detected: "${title}" already exists.`);
+        return;
+      }
+    }
+
+    // If forceSave is true, auto-version title if it collides with existing title
+    if (forceSave) {
+      setDuplicateWarning(null);
+      const existingMatches = files.filter((f) => (f.name || '').toLowerCase().startsWith(title.toLowerCase()));
+      if (existingMatches.length > 0) {
+        title = `${title} (v${existingMatches.length + 1})`;
+      }
     }
 
     setIsExtracting(true);
@@ -1937,21 +2021,32 @@ Guidelines:
                       </View>
                     </View>
 
-                    {liveExtractedJson && !isExtracting && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <TouchableOpacity
-                        style={styles.copyJsonBtn}
-                        onPress={() => {
-                          const jsonStr = JSON.stringify(liveExtractedJson, null, 2);
-                          if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                            navigator.clipboard.writeText(jsonStr);
-                          }
-                          showToastMsg('JSON copied to clipboard!');
-                        }}
+                        style={styles.recheckJsonBtn}
+                        onPress={handleRecheckExtraction}
                         activeOpacity={0.75}
                       >
-                        <Text style={styles.copyJsonBtnText}>Copy JSON</Text>
+                        <IconRefreshCw size={12} color="#D97706" />
+                        <Text style={styles.recheckJsonBtnText}>Re-check</Text>
                       </TouchableOpacity>
-                    )}
+
+                      {liveExtractedJson && !isExtracting && (
+                        <TouchableOpacity
+                          style={styles.copyJsonBtn}
+                          onPress={() => {
+                            const jsonStr = JSON.stringify(liveExtractedJson, null, 2);
+                            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                              navigator.clipboard.writeText(jsonStr);
+                            }
+                            showToastMsg('JSON copied to clipboard!');
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={styles.copyJsonBtnText}>Copy JSON</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
 
                   {/* Dark Code Box */}
@@ -1984,9 +2079,39 @@ Guidelines:
 
             {/* Save Button Kept Cleanly at the Bottom */}
             <View style={styles.uploadBottomWrap}>
+              {duplicateWarning && (
+                <View style={styles.duplicateWarningBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <IconAlertCircle size={16} color="#DC2626" />
+                    <Text style={styles.duplicateWarningTitle}>Duplicate Document Notice</Text>
+                  </View>
+                  <Text style={styles.duplicateWarningText}>
+                    {duplicateWarning.message}
+                  </Text>
+                  <View style={styles.duplicateBtnRow}>
+                    <TouchableOpacity
+                      style={styles.duplicateRecheckBtn}
+                      onPress={handleRecheckExtraction}
+                      activeOpacity={0.8}
+                    >
+                      <IconRefreshCw size={12} color="#D97706" />
+                      <Text style={styles.duplicateRecheckBtnText}>Re-check Extraction</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.duplicateForceSaveBtn}
+                      onPress={() => handleSaveUploadedRecord(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.duplicateForceSaveBtnText}>Save as New Version</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               <TouchableOpacity
                 style={styles.cleanSaveBtn}
-                onPress={handleSaveUploadedRecord}
+                onPress={() => handleSaveUploadedRecord(false)}
                 activeOpacity={0.8}
                 disabled={isExtracting}
               >
@@ -6401,6 +6526,73 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: '#B45309',
+  },
+  recheckJsonBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  recheckJsonBtnText: {
+    color: '#D97706',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  duplicateWarningBox: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  duplicateWarningTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  duplicateWarningText: {
+    fontSize: 12,
+    color: '#991B1B',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  duplicateBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  duplicateRecheckBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  duplicateRecheckBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  duplicateForceSaveBtn: {
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  duplicateForceSaveBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   /* Profile Account Card Row */
