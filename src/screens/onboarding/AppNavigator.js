@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import LandingScreen             from './LandingScreen';
-import RoleSelectionScreen       from './RoleSelectionScreen';
-import SignInScreen               from './SignInScreen';
-import CreateAccountScreen       from './CreateAccountScreen';
-import DoctorPortalPlaceholder   from '../placeholders/DoctorPortalPlaceholder';
-import CaretakerPortalPlaceholder from '../placeholders/CaretakerPortalPlaceholder';
-import PatientPortal             from '../../../components/PatientPortal';
+import LandingScreen       from './LandingScreen';
+import RoleSelectionScreen from './RoleSelectionScreen';
+import SignInScreen         from './SignInScreen';
+import CreateAccountScreen from './CreateAccountScreen';
+import PatientPortal       from '../../../components/PatientPortal';
 
 // ─── Screen IDs ───────────────────────────────────────────────────────────────
 // 'landing' | 'role_select' | 'sign_in' | 'create_account'
-// 'patient'  | 'doctor'     | 'caretaker'
+// 'patient' | 'doctor'      | 'caretaker'
 
 export default function AppNavigator({ isDesktop }) {
   const [screen,       setScreen]       = useState('landing');
@@ -21,12 +19,11 @@ export default function AppNavigator({ isDesktop }) {
     setScreen(nextScreen);
   };
 
-  /** After login / account creation, route to the right portal */
+  /** After login / account creation, route to the selected portal */
   const handleLogin = (role) => {
-    setSelectedRole(role);
-    if (role === 'patient')    setScreen('patient');
-    else if (role === 'doctor') setScreen('doctor');
-    else                        setScreen('caretaker');
+    const targetRole = role || selectedRole || 'patient';
+    setSelectedRole(targetRole);
+    setScreen(targetRole);
   };
 
   switch (screen) {
@@ -42,7 +39,7 @@ export default function AppNavigator({ isDesktop }) {
     case 'sign_in':
       return (
         <SignInScreen
-          role={selectedRole}
+          role={selectedRole || 'patient'}
           onBack={() => goTo('role_select')}
           onLogin={handleLogin}
           onCreateAccount={(role) => goTo('create_account', role)}
@@ -52,7 +49,7 @@ export default function AppNavigator({ isDesktop }) {
     case 'create_account':
       return (
         <CreateAccountScreen
-          role={selectedRole}
+          role={selectedRole || 'patient'}
           onBack={() => goTo('sign_in')}
           onCreateAccount={handleLogin}
           onGoToSignIn={(role) => goTo('sign_in', role)}
@@ -60,24 +57,13 @@ export default function AppNavigator({ isDesktop }) {
       );
 
     case 'patient':
+    case 'doctor':
+    case 'caretaker':
       return (
         <PatientPortal
           isDesktop={isDesktop}
+          userRole={screen}
           onSignOut={() => goTo('landing', null)}
-        />
-      );
-
-    case 'doctor':
-      return (
-        <DoctorPortalPlaceholder
-          onLogout={() => goTo('landing', null)}
-        />
-      );
-
-    case 'caretaker':
-      return (
-        <CaretakerPortalPlaceholder
-          onLogout={() => goTo('landing', null)}
         />
       );
 
@@ -90,4 +76,3 @@ export default function AppNavigator({ isDesktop }) {
       );
   }
 }
-

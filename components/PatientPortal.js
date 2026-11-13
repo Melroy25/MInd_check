@@ -546,24 +546,51 @@ const buildStructuredJson = (title, file, text, patient) => {
   };
 };
 
-export default function PatientPortal({ onSignOut, isDesktop }) {
+export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient' }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
 
-  // Account Role Switching: 'patient' | 'benefactor'
-  const [currentAccountRole, setCurrentAccountRole] = useState('patient');
+  // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
+  const [currentAccountRole, setCurrentAccountRole] = useState(
+    userRole === 'doctor' ? 'doctor' : userRole === 'caretaker' ? 'caretaker' : 'patient'
+  );
   const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
   const [showNoAccountsModal, setShowNoAccountsModal] = useState(false);
   const [hasOtherAccounts, setHasOtherAccounts] = useState(true);
 
-  // Patient Profile Information
-  const [patientInfo, setPatientInfo] = useState({
-    name: 'Melroy Almeida',
-    vaultId: 'MV-2026-PAT-892',
-    bloodType: 'O+ (Positive)',
-    emergencyContact: '+1 (555) 019-2834',
-    primaryHospital: 'Metro Diagnostics',
-    attendingDoctor: 'Dr. Sarah Jenkins',
+  // Profile Information based on logged in role
+  const [patientInfo, setPatientInfo] = useState(() => {
+    if (userRole === 'doctor') {
+      return {
+        name: 'Dr. Sarah Jenkins',
+        vaultId: 'MV-2026-DOC-401',
+        bloodType: 'Clinical Attending',
+        emergencyContact: '+1 (555) 019-9110',
+        primaryHospital: 'Metro Diagnostics & General',
+        attendingDoctor: 'Dr. Sarah Jenkins (MD)',
+        roleLabel: 'Doctor (Attending)',
+      };
+    }
+    if (userRole === 'caretaker') {
+      return {
+        name: 'Vikram Almeida',
+        vaultId: 'MV-2026-CARE-112',
+        bloodType: 'Family Delegate',
+        emergencyContact: '+1 (555) 019-2834',
+        primaryHospital: 'Metro Diagnostics',
+        attendingDoctor: 'Dr. Sarah Jenkins',
+        roleLabel: 'Caretaker (Family Proxy)',
+      };
+    }
+    return {
+      name: 'Melroy Almeida',
+      vaultId: 'MV-2026-PAT-892',
+      bloodType: 'O+ (Positive)',
+      emergencyContact: '+1 (555) 019-2834',
+      primaryHospital: 'Metro Diagnostics',
+      attendingDoctor: 'Dr. Sarah Jenkins',
+      roleLabel: 'Patient (Primary)',
+    };
   });
 
   const [avatarUri, setAvatarUri] = useState(null);

@@ -9,22 +9,22 @@ import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
   bg:      '#F8FAFC',
-  primary: '#0F6E7A',
-  accent:  '#E0F2F4',
+  primary: '#16A34A',
+  accent:  '#F0FDF4',
   slate:   '#0F172A',
   muted:   '#64748B',
   white:   '#FFFFFF',
-  border:  '#CBD5E1',
+  border:  '#E2E8F0',
   inputBg: '#F8FAFC',
-  success: '#059669',
+  success: '#16A34A',
   warn:    '#D97706',
   error:   '#DC2626',
 };
 
 // ─── Role Config ──────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
-  patient:   { label: 'Patient',   iconBg: '#E0F2F4', iconColor: T.primary,  pillColor: T.primary },
-  doctor:    { label: 'Doctor',    iconBg: '#EFF6FF', iconColor: '#1D4ED8',  pillColor: '#1D4ED8' },
+  patient:   { label: 'Patient',   iconBg: '#F0FDF4', iconColor: '#16A34A',  pillColor: '#16A34A' },
+  doctor:    { label: 'Doctor',    iconBg: '#EFF6FF', iconColor: '#2563EB',  pillColor: '#2563EB' },
   caretaker: { label: 'Caretaker', iconBg: '#F5F3FF', iconColor: '#7C3AED',  pillColor: '#7C3AED' },
 };
 
@@ -32,34 +32,34 @@ const ROLE_CONFIG = {
 function BackIcon({ size = 20, color = T.slate }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M19 12H5M12 19l-7-7 7-7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M19 12H5M12 19l-7-7 7-7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 }
 
-function PersonIcon({ size = 36, color = T.primary }) {
+function PersonIcon({ size = 32, color = '#16A34A' }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.6"/>
+      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.8"/>
     </Svg>
   );
 }
 
-function MedKitIcon({ size = 36, color = '#1D4ED8' }) {
+function MedKitIcon({ size = 32, color = '#2563EB' }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="2" y="7" width="20" height="14" rx="3" stroke={color} strokeWidth="1.6"/>
-      <Path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M12 12v4M10 14h4" stroke={color} strokeWidth="1.6" strokeLinecap="round"/>
+      <Rect x="2" y="7" width="20" height="14" rx="3" stroke={color} strokeWidth="1.8"/>
+      <Path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M12 12v4M10 14h4" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
     </Svg>
   );
 }
 
-function ShieldIcon({ size = 36, color = '#7C3AED' }) {
+function ShieldIcon({ size = 32, color = '#7C3AED' }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <Path d="M9 12l2 2 4-4" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M9 12l2 2 4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 }
@@ -120,81 +120,42 @@ function EyeOffIcon({ size = 18, color = T.muted }) {
 function CheckSquareIcon({ size = 20, color = T.primary, filled = false }) {
   return filled ? (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="3" width="18" height="18" rx="3" fill={color}/>
+      <Rect x="3" y="3" width="18" height="18" rx="4" fill={color}/>
       <Path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   ) : (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="3" width="18" height="18" rx="3" stroke={color} strokeWidth="1.8"/>
+      <Rect x="3" y="3" width="18" height="18" rx="4" stroke={color} strokeWidth="1.8"/>
     </Svg>
   );
 }
 
-// ─── Password Strength ────────────────────────────────────────────────────────
-function getPasswordStrength(password) {
-  if (!password) return { score: 0, label: '', color: T.border };
-  let score = 0;
-  if (password.length >= 8)  score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  const configs = [
-    { label: '', color: T.border },
-    { label: 'Weak',   color: T.error },
-    { label: 'Fair',   color: T.warn },
-    { label: 'Good',   color: '#84CC16' },
-    { label: 'Strong', color: T.success },
-  ];
-  return { score, ...configs[score] };
-}
-
-function StrengthBar({ password }) {
-  const { score, label, color } = getPasswordStrength(password);
-  if (!password) return null;
-  return (
-    <View style={{ marginTop: 8 }}>
-      <View style={{ flexDirection: 'row', gap: 4 }}>
-        {[1, 2, 3, 4].map((i) => (
-          <View
-            key={i}
-            style={{
-              flex: 1, height: 4, borderRadius: 999,
-              backgroundColor: i <= score ? color : T.border,
-            }}
-          />
-        ))}
-      </View>
-      {label ? (
-        <Text style={{ fontSize: 11, color, fontWeight: '600', marginTop: 4 }}>
-          Password strength: {label}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
-// ─── Role Avatar ──────────────────────────────────────────────────────────────
 function RoleAvatar({ role, cfg }) {
   const Icon = role === 'doctor' ? MedKitIcon : role === 'caretaker' ? ShieldIcon : PersonIcon;
   return (
     <View style={[s.avatarCircle, { backgroundColor: cfg.iconBg }]}>
-      <Icon size={40} color={cfg.iconColor} />
+      <Icon size={36} color={cfg.iconColor} />
     </View>
   );
 }
 
 // ─── CreateAccountScreen ──────────────────────────────────────────────────────
-export default function CreateAccountScreen({ role = 'patient', onBack, onCreateAccount, onGoToSignIn }) {
+export default function CreateAccountScreen({
+  role = 'patient',
+  onBack,
+  onCreateAccount,
+  onGoToSignIn,
+}) {
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.patient;
 
-  const [name,         setName]         = useState('');
-  const [email,        setEmail]        = useState('');
-  const [phone,        setPhone]        = useState('');
-  const [password,     setPassword]     = useState('');
-  const [confirmPass,  setConfirmPass]  = useState('');
+  const [fullName,     setFullName]     = useState('Melroy Almeida');
+  const [email,        setEmail]        = useState('melroy@medflow.org');
+  const [phone,        setPhone]        = useState('98765 43210');
+  const [password,     setPassword]     = useState('demo123');
+  const [confirmPass,  setConfirmPass]  = useState('demo123');
   const [showPass,     setShowPass]     = useState(false);
   const [showConfirm,  setShowConfirm]  = useState(false);
-  const [agreedTerms,  setAgreedTerms]  = useState(false);
+  const [agreedTerms,  setAgreedTerms]  = useState(true);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -211,7 +172,7 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
         >
           {/* ── Top Nav ── */}
           <View style={s.topNav}>
-            <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
+            <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.75}>
               <BackIcon size={20} color={T.slate} />
             </TouchableOpacity>
             <Image
@@ -233,17 +194,16 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
 
           {/* ── Form Card ── */}
           <View style={s.formCard}>
-
             {/* Full Name */}
             <Text style={s.fieldLabel}>Full Legal Name</Text>
             <View style={s.inputRow}>
               <View style={s.inputIcon}><UserIcon size={17} /></View>
               <TextInput
                 style={s.textInput}
-                placeholder="e.g. Rajesh Kumar"
+                placeholder="e.g. Melroy Almeida"
                 placeholderTextColor={T.muted}
-                value={name}
-                onChangeText={setName}
+                value={fullName}
+                onChangeText={setFullName}
                 autoCapitalize="words"
               />
             </View>
@@ -297,14 +257,10 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
                 {showPass ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
               </TouchableOpacity>
             </View>
-            <StrengthBar password={password} />
 
             {/* Confirm Password */}
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>Confirm Password</Text>
-            <View style={[
-              s.inputRow,
-              confirmPass && password !== confirmPass && { borderColor: T.error },
-            ]}>
+            <View style={s.inputRow}>
               <View style={s.inputIcon}><LockIcon size={17} /></View>
               <TextInput
                 style={[s.textInput, { flex: 1 }]}
@@ -319,9 +275,6 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
                 {showConfirm ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
               </TouchableOpacity>
             </View>
-            {confirmPass && password !== confirmPass && (
-              <Text style={{ fontSize: 11, color: T.error, marginTop: 4 }}>Passwords do not match</Text>
-            )}
 
             {/* Terms */}
             <TouchableOpacity
@@ -329,24 +282,22 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
               onPress={() => setAgreedTerms((v) => !v)}
               activeOpacity={0.7}
             >
-              <CheckSquareIcon size={20} color={T.primary} filled={agreedTerms} />
+              <CheckSquareIcon size={20} color={cfg.pillColor} filled={agreedTerms} />
               <Text style={s.termsText}>
                 I agree to the{' '}
-                <Text style={{ color: T.primary, fontWeight: '700' }}>Terms of Service</Text>
+                <Text style={{ color: cfg.pillColor, fontWeight: '700' }}>Terms of Service</Text>
                 {' '}&amp;{' '}
-                <Text style={{ color: T.primary, fontWeight: '700' }}>Privacy Policy</Text>
+                <Text style={{ color: cfg.pillColor, fontWeight: '700' }}>Privacy Policy</Text>
               </Text>
             </TouchableOpacity>
 
-            {/* CTA */}
+            {/* CTA in App Green */}
             <TouchableOpacity
               style={[
                 s.primaryBtn,
-                { backgroundColor: T.primary },
-                !agreedTerms && { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
+                { backgroundColor: cfg.pillColor },
               ]}
-              activeOpacity={agreedTerms ? 0.85 : 1}
-              disabled={!agreedTerms}
+              activeOpacity={0.85}
               onPress={() => onCreateAccount(role)}
             >
               <Text style={s.primaryBtnText}>Create an Account  →</Text>
@@ -357,7 +308,7 @@ export default function CreateAccountScreen({ role = 'patient', onBack, onCreate
           <View style={s.loginRow}>
             <Text style={s.loginText}>Already have an account?</Text>
             <TouchableOpacity onPress={() => onGoToSignIn(role)} activeOpacity={0.7}>
-              <Text style={[s.linkText, { color: T.primary, fontWeight: '700' }]}>  Login</Text>
+              <Text style={[s.linkText, { color: cfg.pillColor, fontWeight: '700' }]}>  Login</Text>
             </TouchableOpacity>
           </View>
 
@@ -378,32 +329,48 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: T.white, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: T.border,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: T.white,
+    borderWidth: 1,
+    borderColor: T.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  logo:     { width: 120, height: 36 },
-  rolePill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  rolePillText: { fontSize: 11, fontWeight: '700', color: T.white },
+  logo: { width: 130, height: 36 },
+  rolePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  rolePillText: { fontSize: 12, fontWeight: '700', color: T.white },
 
-  heroBlock:    { alignItems: 'center', marginBottom: 24 },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  heroTitle:    { fontSize: 22, fontWeight: '800', color: T.slate, marginBottom: 6 },
-  heroSub:      { fontSize: 13, color: T.muted, textAlign: 'center' },
+  heroBlock: { alignItems: 'center', marginBottom: 20 },
+  avatarCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: T.slate, textAlign: 'center' },
+  heroSub:   { fontSize: 13.5, color: T.muted, marginTop: 4, textAlign: 'center' },
 
   formCard: {
     backgroundColor: T.white,
     borderRadius: 20,
     padding: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: T.border,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
     marginBottom: 20,
   },
@@ -419,36 +386,36 @@ const s = StyleSheet.create({
     borderColor: T.border,
     paddingHorizontal: 12,
     paddingVertical: 2,
-    minHeight: 50,
+    minHeight: 48,
   },
+  inputIcon: { marginRight: 10 },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: T.slate,
+    paddingVertical: 10,
+  },
+  eyeBtn: { padding: 6 },
+
   countryPill: {
-    backgroundColor: T.accent,
+    backgroundColor: '#E2E8F0',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginRight: 8,
   },
-  countryCode: { fontSize: 13, fontWeight: '700', color: T.primary },
-  inputIcon:   { marginRight: 10 },
-  textInput:   { flex: 1, fontSize: 14, color: T.slate, paddingVertical: 10 },
-  eyeBtn:      { padding: 6 },
+  countryCode: { fontSize: 12, fontWeight: '700', color: T.slate },
 
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  termsText: { flex: 1, fontSize: 13, color: T.muted, lineHeight: 20 },
+  termsRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 20 },
+  termsText: { fontSize: 12.5, color: T.muted, flex: 1, lineHeight: 18 },
 
   primaryBtn: {
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: T.primary,
-    shadowOpacity: 0.3,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
@@ -456,7 +423,6 @@ const s = StyleSheet.create({
   primaryBtnText: { fontSize: 15, fontWeight: '700', color: T.white },
 
   loginRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  loginText: { fontSize: 14, color: T.muted },
-  linkText:  { fontSize: 13, color: T.primary },
+  loginText: { fontSize: 13.5, color: T.muted },
+  linkText:  { fontSize: 13.5 },
 });
-

@@ -3,7 +3,8 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Image, SafeAreaView,
 } from 'react-native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -14,43 +15,21 @@ const T = {
   muted:   '#64748B',
   white:   '#FFFFFF',
   border:  '#CBD5E1',
+  borderLight: '#F1F5F9',
   borderA: '#16A34A',
   success: '#16A34A',
 };
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
-function PatientIcon({ size = 32, color = T.primary }) {
+function BackIcon({ size = 20, color = T.slate }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.8"/>
-      <Path d="M12 11v4M10 13h4" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+      <Path d="M19 12H5M12 19l-7-7 7-7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 }
 
-function DoctorIcon({ size = 32, color = '#1D4ED8' }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.8"/>
-      <Path d="M8 21c0-2 2-3 2-3h4s2 1 2 3" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
-      <Path d="M12 17v3M10.5 18.5h3" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
-    </Svg>
-  );
-}
-
-function CaretakerIcon({ size = 32, color = '#7C3AED' }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      <Circle cx="9" cy="7" r="4" stroke={color} strokeWidth="1.8"/>
-      <Path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function CheckIcon({ size = 16, color = T.white }) {
+function CheckIcon({ size = 14, color = T.white }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -71,29 +50,32 @@ const ROLES = [
   {
     id: 'patient',
     label: 'Patient',
-    description: 'Manage personal health history & approvals',
-    features: ['Smart Timeline', 'Consent Management', 'Instant QR Share'],
-    iconColor: '#16A34A',
+    color: '#16A34A',
     bgColor: '#F0FDF4',
-    Icon: PatientIcon,
+    borderCol: '#DCFCE7',
+    image: require('../../../assets/role_patient.png'),
+    description:
+      'Take full sovereign ownership of your lifelong clinical history. Securely upload lab reports, record voice notes, and grant temporary QR access to healthcare providers on your terms.',
   },
   {
     id: 'doctor',
     label: 'Doctor',
-    description: 'Clinical timelines & verified consultations',
-    features: ['Drug Interactions', 'Verified Consults', 'Fast Triage Mode'],
-    iconColor: '#2563EB',
+    color: '#2563EB',
     bgColor: '#EFF6FF',
-    Icon: DoctorIcon,
+    borderCol: '#DBEAFE',
+    image: require('../../../assets/role_doctor.png'),
+    description:
+      'Instantly inspect patient-approved health timelines and Gemini-extracted clinical panels. Verify drug interactions and review lab biomarkers with high accuracy and zero paperwork friction.',
   },
   {
     id: 'caretaker',
     label: 'Caretaker',
-    description: 'Granular permissions & emergency SOS tracking',
-    features: ['Emergency SOS', 'Daily Medication Checklist', 'Break-Glass Override'],
-    iconColor: '#7C3AED',
+    color: '#7C3AED',
     bgColor: '#F5F3FF',
-    Icon: CaretakerIcon,
+    borderCol: '#EDE9FE',
+    image: require('../../../assets/role_caretaker.png'),
+    description:
+      'Stay connected with daily medication checklists, emergency SOS alerts, and vital medical history access for elderly parents or family members under your continuous care.',
   },
 ];
 
@@ -114,23 +96,28 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <Image
-            source={require('../../../assets/MedFlow_logo.png')}
-            style={s.logo}
-            resizeMode="contain"
-          />
-          <Text style={s.headerSub}>YOUR COMPLETE HEALTH HISTORY ENGINE</Text>
+        {/* ── Top Header with Back Button (ad back option on top) ── */}
+        <View style={s.topNavRow}>
+          <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.75}>
+            <BackIcon size={20} color={T.slate} />
+          </TouchableOpacity>
+          <View style={s.logoWrap}>
+            <Image
+              source={require('../../../assets/MedFlow_logo.png')}
+              style={s.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={s.navSpacer} />
         </View>
 
-        {/* ── Prompt ── */}
+        {/* ── Prompt Title ── */}
         <View style={s.promptBlock}>
           <Text style={s.promptTitle}>What's your role?</Text>
           <Text style={s.promptSub}>Select your primary access mode to continue</Text>
         </View>
 
-        {/* ── Role Cards ── */}
+        {/* ── Role Cards with Image Banner & Descriptive Text (No Keywords) ── */}
         <View style={s.cardsContainer}>
           {ROLES.map((role) => {
             const isSelected = selected === role.id;
@@ -138,54 +125,43 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
               <TouchableOpacity
                 key={role.id}
                 style={[s.card, isSelected && s.cardSelected]}
-                activeOpacity={0.82}
+                activeOpacity={0.88}
                 onPress={() => setSelected(role.id)}
               >
-                {/* Selected checkmark */}
-                {isSelected && (
-                  <View style={[s.checkCircle, { backgroundColor: T.primary }]}>
-                    <CheckIcon size={12} color={T.white} />
-                  </View>
-                )}
+                {/* Banner Image inside box header */}
+                <View style={s.roleBannerWrap}>
+                  <Image source={role.image} style={s.roleBannerImg} resizeMode="cover" />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(15,23,42,0.45)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
 
-                {/* Icon */}
-                <View style={[s.iconCircle, { backgroundColor: role.bgColor }]}>
-                  <role.Icon size={30} color={role.iconColor} />
+                  {/* Role Badge */}
+                  <View style={[s.roleBadge, { backgroundColor: role.color }]}>
+                    <Text style={s.roleBadgeText}>{role.label}</Text>
+                  </View>
+
+                  {/* Selected checkmark */}
+                  {isSelected && (
+                    <View style={s.checkCircle}>
+                      <CheckIcon size={12} color="#FFFFFF" />
+                    </View>
+                  )}
                 </View>
 
-                {/* Text */}
-                <Text style={[s.roleLabel, isSelected && { color: T.primary }]}>
-                  {role.label}
-                </Text>
-                <Text style={s.roleDesc}>{role.description}</Text>
-
-                {/* Feature pills */}
-                <View style={s.featureRow}>
-                  {role.features.map((f) => (
-                    <View
-                      key={f}
-                      style={[
-                        s.featurePill,
-                        isSelected && { backgroundColor: T.accent, borderColor: T.primary },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.featurePillText,
-                          isSelected && { color: T.primary },
-                        ]}
-                      >
-                        {f}
-                      </Text>
-                    </View>
-                  ))}
+                {/* Card Content with explanatory sentence */}
+                <View style={s.cardBody}>
+                  <Text style={[s.roleLabel, { color: role.color }]}>
+                    {role.label} Portal
+                  </Text>
+                  <Text style={s.roleDesc}>{role.description}</Text>
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* ── CTA Button ── */}
+        {/* ── CTA Continue Button ── */}
         <TouchableOpacity
           style={[s.ctaBtn, !selected && s.ctaBtnDisabled]}
           activeOpacity={selected ? 0.85 : 1}
@@ -210,33 +186,45 @@ export default function RoleSelectionScreen({ onBack, onSelectRole }) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.bg },
   scroll: { flex: 1 },
-  container: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
+  container: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
 
-  header: { alignItems: 'center', marginBottom: 28 },
-  logo: { width: 160, height: 48 },
-  headerSub: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: T.muted,
-    letterSpacing: 1.6,
-    marginTop: 6,
-    textAlign: 'center',
+  /* Top Nav with Back Option */
+  topNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: T.white,
+    borderWidth: 1,
+    borderColor: T.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrap: {
+    alignItems: 'center',
+  },
+  logo: { width: 135, height: 36 },
+  navSpacer: { width: 38 },
 
-  promptBlock: { alignItems: 'center', marginBottom: 24 },
+  promptBlock: { alignItems: 'center', marginBottom: 20 },
   promptTitle: { fontSize: 24, fontWeight: '800', color: T.slate, textAlign: 'center' },
-  promptSub: { fontSize: 14, color: T.muted, marginTop: 6, textAlign: 'center' },
+  promptSub: { fontSize: 13.5, color: T.muted, marginTop: 4, textAlign: 'center' },
 
-  cardsContainer: { gap: 14, marginBottom: 28 },
+  cardsContainer: { gap: 16, marginBottom: 24 },
 
   card: {
     backgroundColor: T.white,
     borderRadius: 20,
-    padding: 20,
     borderWidth: 2,
     borderColor: T.border,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
@@ -249,54 +237,64 @@ const s = StyleSheet.create({
     elevation: 4,
   },
 
+  roleBannerWrap: {
+    width: '100%',
+    height: 130,
+    position: 'relative',
+    backgroundColor: '#F1F5F9',
+  },
+  roleBannerImg: {
+    width: '100%',
+    height: '100%',
+  },
+  roleBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  roleBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   checkCircle: {
     position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 12,
+    right: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: T.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+  cardBody: {
+    padding: 16,
   },
-
   roleLabel: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    color: T.slate,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   roleDesc: {
     fontSize: 13,
     color: T.muted,
-    lineHeight: 18,
-    marginBottom: 14,
+    lineHeight: 19.5,
   },
-
-  featureRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  featurePill: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: T.border,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  featurePillText: { fontSize: 11, fontWeight: '600', color: T.muted },
 
   ctaBtn: {
     backgroundColor: T.primary,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
@@ -306,13 +304,12 @@ const s = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    elevation: 4,
   },
   ctaBtnDisabled: {
     backgroundColor: '#94A3B8',
     shadowOpacity: 0,
     elevation: 0,
   },
-  ctaBtnText: { fontSize: 16, fontWeight: '700', color: T.white },
+  ctaBtnText: { fontSize: 15.5, fontWeight: '700', color: T.white },
 });
-
