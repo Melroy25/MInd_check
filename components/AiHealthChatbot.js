@@ -695,7 +695,7 @@ STRICT SAFETY RULES:
           )}
           <View>
             <Text style={styles.headerTitle}>AI Clinical Assistant</Text>
-            <Text style={styles.headerSub}>Grok AI • NIH DailyMed Formulary</Text>
+            <Text style={styles.headerSub}>Clinical Intelligence • NIH DailyMed Formulary</Text>
           </View>
         </View>
 

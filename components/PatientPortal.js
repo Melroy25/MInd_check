@@ -1353,7 +1353,7 @@ Guidelines:
       } else if (lower.includes('summar') || lower.includes('overview') || lower.includes('health')) {
         fallback = `Patient Health Summary for ${patientDisplayName}:\n• Sovereign ID: MV-2026-PAT-892\n• Active Conditions: Pre-diabetes / Poor glycemic control\n• Total Organized Vault Records: ${files.length}`;
       } else {
-        fallback = `MedFlow AI response: I encountered a network issue reaching the Grok API (${err.message || 'offline'}). Your records remain safely stored in your sovereign vault.`;
+        fallback = `MedFlow AI response: I encountered a network issue reaching the clinical AI service (${err.message || 'offline'}). Your records remain safely stored in your sovereign vault.`;
       }
       setChatMessages((prev) => [...prev, { id: String(Date.now() + 1), sender: 'bot', text: fallback }]);
     } finally {
