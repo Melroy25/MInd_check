@@ -546,20 +546,32 @@ const buildStructuredJson = (title, file, text, patient) => {
   };
 };
 
-export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient' }) {
+export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient', proxyPatient = null }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
 
   // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
-  const [currentAccountRole, setCurrentAccountRole] = useState(
-    userRole === 'doctor' ? 'doctor' : userRole === 'caretaker' ? 'caretaker' : 'patient'
-  );
+  const [currentAccountRole, setCurrentAccountRole] = useState(() => {
+    if (proxyPatient?.id === 'p2') return 'benefactor';
+    return userRole === 'doctor' ? 'doctor' : userRole === 'caretaker' ? 'caretaker' : 'patient';
+  });
   const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
   const [showNoAccountsModal, setShowNoAccountsModal] = useState(false);
   const [hasOtherAccounts, setHasOtherAccounts] = useState(true);
 
   // Profile Information based on logged in role
   const [patientInfo, setPatientInfo] = useState(() => {
+    if (proxyPatient) {
+      return {
+        name: proxyPatient.name || 'Melroy Almeida',
+        vaultId: proxyPatient.id === 'p2' ? 'MV-2026-PAT-441' : proxyPatient.id === 'p3' ? 'MV-2026-PAT-712' : 'MV-2026-PAT-892',
+        bloodType: proxyPatient.blood ? `${proxyPatient.blood} (Ward)` : 'O+ (Positive)',
+        emergencyContact: '+1 (555) 019-2834',
+        primaryHospital: 'Metro Diagnostics',
+        attendingDoctor: 'Dr. Sarah Jenkins',
+        roleLabel: `Patient (${proxyPatient.relation || 'Assigned Ward'})`,
+      };
+    }
     if (userRole === 'doctor') {
       return {
         name: 'Dr. Sarah Jenkins',

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
+import PatientPortal from './PatientPortal';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -232,6 +233,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
   const [changes, setChanges] = useState(INITIAL_CHANGES);
   const [selectedWardId, setSelectedWardId] = useState('p1');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openWardVault, setOpenWardVault] = useState(null);
   const [showWardVaultModal, setShowWardVaultModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSosModal, setShowSosModal] = useState(false);
@@ -317,6 +319,47 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
         w.blood.toLowerCase().includes(q)
     );
   }, [wards, searchQuery]);
+
+  // ── FULL WARD VAULT WORKSPACE ──────────────────────────────────────────────
+  if (openWardVault) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        {/* Caretaker Proxy Bar */}
+        <SafeAreaView style={{ backgroundColor: '#7C3AED' }}>
+          <View style={s.proxyTopBar}>
+            <TouchableOpacity
+              style={s.proxyExitBtn}
+              onPress={() => setOpenWardVault(null)}
+              activeOpacity={0.8}
+            >
+              <IconBack size={16} color="#7C3AED" />
+              <Text style={s.proxyExitBtnText}>← Return to Caretaker Portal</Text>
+            </TouchableOpacity>
+
+            <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={s.proxyDot} />
+                <Text style={s.proxyWardName} numberOfLines={1}>
+                  {openWardVault.name}
+                </Text>
+              </View>
+              <Text style={s.proxyRelationText}>
+                Viewing Vault · {openWardVault.relation}
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        {/* Patient Vault Content */}
+        <PatientPortal
+          isDesktop={isDesktop}
+          userRole="patient"
+          proxyPatient={openWardVault}
+          onSignOut={() => setOpenWardVault(null)}
+        />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -422,8 +465,49 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
               </TouchableOpacity>
             </View>
 
+            {/* Search & Select Assigned Patient */}
+            <View style={[s.searchWrap, { marginTop: 18, marginBottom: 8 }]}>
+              <IconSearch size={18} color={C.textSub} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search assigned patient by name or relation..."
+                placeholderTextColor={C.textSub}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+
+            {searchQuery.trim().length > 0 && (
+              <View style={{ marginBottom: 16, gap: 10 }}>
+                {filteredWards.map((w) => (
+                  <TouchableOpacity
+                    key={w.id}
+                    style={[s.card, { paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderColor: C.purpleBorder, backgroundColor: C.purpleBg }]}
+                    onPress={() => setOpenWardVault(w)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={[s.avatarCircle, { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF' }]}>
+                        <Text style={[s.avatarText, { fontSize: 13, color: w.avatarText }]}>
+                          {w.name.split(' ').map((n) => n[0]).join('')}
+                        </Text>
+                      </View>
+                      <View style={{ marginLeft: 10 }}>
+                        <Text style={[s.wardName, { fontSize: 14.5 }]}>{w.name}</Text>
+                        <Text style={[s.wardSub, { fontSize: 11 }]}>{w.relation} · Blood: {w.blood}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.purple, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#FFFFFF' }}>Open Vault</Text>
+                      <IconChevronRight size={14} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {/* Ward Quick Selector & Today's Care Plan */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 12 }}>
               <Text style={s.sectionTitle}>Daily Care Plan</Text>
               <Text style={s.activeWardText}>{activeWard.name} ({activeWard.relation})</Text>
             </View>
@@ -512,7 +596,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
 
               <TouchableOpacity
                 style={s.openVaultBtn}
-                onPress={() => setShowWardVaultModal(true)}
+                onPress={() => setOpenWardVault(activeWard)}
                 activeOpacity={0.8}
               >
                 <Text style={s.openVaultBtnText}>Open {activeWard.name}'s Full Vault →</Text>
@@ -589,13 +673,10 @@ export default function CaretakerPortal({ onSignOut, isDesktop }) {
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                     <TouchableOpacity
                       style={[s.actionBtn, { flex: 1, backgroundColor: C.purple }]}
-                      onPress={() => {
-                        setSelectedWardId(w.id);
-                        setShowWardVaultModal(true);
-                      }}
+                      onPress={() => setOpenWardVault(w)}
                       activeOpacity={0.8}
                     >
-                      <Text style={s.actionBtnText}>Open Vault</Text>
+                      <Text style={s.actionBtnText}>Open Patient Vault →</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: C.purpleBg, borderWidth: 1, borderColor: C.purpleBorder }]}
@@ -1265,5 +1346,45 @@ const s = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: C.purple,
     marginTop: 10,
+  },
+
+  /* Caretaker Proxy Bar */
+  proxyTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  proxyExitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  proxyExitBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  proxyWardName: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  proxyRelationText: {
+    fontSize: 11,
+    color: '#EDE9FE',
+    fontWeight: '500',
+  },
+  proxyDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#4ADE80',
   },
 });
