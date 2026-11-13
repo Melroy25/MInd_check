@@ -316,8 +316,8 @@ const buildStructuredJson = (title, file, text, patient) => {
       },
       extracted_at: new Date().toISOString(),
       extractor: {
-        provider: "gemini",
-        model: "gemini-2.5-flash-lite"
+        provider: "pure_python",
+        model: "python-clinical-extractor-v1"
       }
     },
     clinical_summary: text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${effectiveTitle}. All critical observations, units, and evidence preserved with zero hallucinations.`,
@@ -445,7 +445,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [settings, setSettings] = useState({
     biometrics: true,
     sovereignEncryption: true,
-    autoGeminiExtract: true,
+    autoClinicalExtract: true,
     notifications: true,
   });
 
@@ -612,7 +612,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       });
 
       if (!extraction || !extraction.data) {
-        throw new Error('Gemini AI returned empty clinical data. Please check document clarity.');
+        throw new Error('Clinical extractor returned empty data. Please check document clarity.');
       }
 
       const meta = extraction.data.document_metadata || {};
@@ -623,7 +623,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       const labResults = Array.isArray(extraction.data.lab_results) ? extraction.data.lab_results : [];
       const allergies = extraction.data.allergies || { status: 'not_documented', items: [] };
 
-      // Strictly map what Gemini extracted — NO FAKE / DUMMY FALLBACK DATA!
+      // Strictly map what was extracted — NO FAKE / DUMMY FALLBACK DATA!
       const structured = {
         schema_version: "1.0",
         document: {
@@ -642,17 +642,17 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
             country: meta.country || null,
           },
           patient: {
-            name: extraction.patient_name || meta.patient_name || null,
-            age: extraction.patient_age || meta.patient_age || null,
-            sex: extraction.patient_sex || meta.patient_sex || null,
+            name: extraction.patient_name || meta.patient_name || extraction.data?.patient?.name || null,
+            age: extraction.patient_age || meta.patient_age || extraction.data?.patient?.age || null,
+            sex: extraction.patient_sex || meta.patient_sex || extraction.data?.patient?.sex || null,
           },
           extracted_at: new Date().toISOString(),
           extractor: {
-            provider: "gemini",
-            model: "gemini-3.1-flash-lite"
+            provider: "pure_python",
+            model: "python-clinical-extractor-v1"
           }
         },
-        clinical_summary: extraction.data.summary || (text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${doc?.name || title}.`),
+        clinical_summary: extraction.data.summary || (text && text.trim() ? text.trim() : `Verified clinical extraction for ${doc?.name || title}.`),
         extracted_entities: {
           conditions,
           medications,
@@ -665,10 +665,10 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
       setExtractionError(null);
       showToastMsg('Clinical data extracted successfully!');
     } catch (err) {
-      console.error('Gemini extraction error:', err);
+      console.error('Clinical extraction error:', err);
       // STRICT REQUIREMENT: Do NOT show fake data! Show error!
       setLiveExtractedJson(null);
-      setExtractionError(err?.message || 'Gemini extraction failed. Please ensure the document is clear or retry.');
+      setExtractionError(err?.message || 'Extraction failed. Please ensure the document is clear or retry.');
       showToastMsg('Extraction failed: ' + (err?.message || 'Error'));
     } finally {
       setIsExtracting(false);
@@ -2524,7 +2524,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
                 <IconShield size={16} color={C.green} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.notifTitle}>Gemini AI Extraction Complete</Text>
+                <Text style={styles.notifTitle}>Clinical Extraction Complete</Text>
                 <Text style={styles.notifSub}>Comprehensive Metabolic Panel processed into structured JSON.</Text>
                 <Text style={styles.notifTime}>Today, 10:15 AM</Text>
               </View>

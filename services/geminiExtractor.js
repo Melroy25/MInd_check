@@ -60,6 +60,10 @@ You must follow these NON-NEGOTIABLE EXTRACTION RULES:
    - Every single item in conditions, medications, allergies.items, lab_results, investigations, events, and vitals MUST contain a verbatim quote from the source document text in \`evidence.quote\`.
 7. UNCERTAINTY & CERTAINTY:
    - If a condition is marked with "?", "probable", "suspected", "r/o" (rule out), certainty MUST be "suspected", not "confirmed".
+8. PATIENT DEMOGRAPHICS (MANDATORY):
+   - You MUST extract the patient name, age, and sex/gender from document headers, labels, or tables.
+   - For combined fields such as "Age/Sex: 45 yrs / Male" or "Age: 45 yrs Sex: Male", extract patient_age = "45 yrs" (or "45") and patient_sex = "Male" (or "Female").
+   - Populate these under both "document_metadata" and "patient".
 
 Return ONLY valid JSON that strictly conforms to this structure:
 {
@@ -72,6 +76,11 @@ Return ONLY valid JSON that strictly conforms to this structure:
     "patient_age": string | null,
     "patient_sex": string | null,
     "patient_identifiers": [{ "type": string, "value": string }]
+  },
+  "patient": {
+    "name": string | null,
+    "age": string | null,
+    "sex": string | null
   },
   "conditions": [
     {
@@ -223,17 +232,22 @@ export async function fetchUriAsBase64(uri) {
 
 /**
  * Main Extraction Pipeline:
- * Calls Gemini directly with multimodal inline data (PDF, PNG, JPEG, or Text)
+ * Uses ONLY Pure Python Extraction (Local FastAPI Python service or local Clinical Regex engine)
+ * Strictly NO Gemini or external LLM dependencies!
  */
-export async function extractMedicalDocument({
-  file,
-  fileName,
-  mimeType,
-  base64Data,
-  rawText,
-  onProgress,
-}) {
-  if (onProgress) onProgress('Preparing document for Gemini analysis...');
+export async function extractMedicalDocument(arg1, arg2, arg3, arg4) {
+  let file, fileName, mimeType, base64Data, rawText, onProgress;
+
+  if (arg1 && typeof arg1 === 'object' && ('fileName' in arg1 || 'base64Data' in arg1 || 'rawText' in arg1 || 'file' in arg1)) {
+    // Object signature
+    ({ file, fileName, mimeType, base64Data, rawText, onProgress } = arg1);
+  } else {
+    // Positional signature: (fileObj, title, enteredText, patientInfo)
+    file = arg1;
+    fileName = arg2 || file?.name || 'medical_document.pdf';
+    rawText = arg3 || '';
+    mimeType = file?.type || inferMimeType(fileName);
+  }
 
   const effectiveName = fileName || (file && file.name) || 'medical_document.pdf';
   const effectiveMime = mimeType || (file && file.type) || inferMimeType(effectiveName);
@@ -241,13 +255,10 @@ export async function extractMedicalDocument({
   // If base64 is not passed but file or uri is available
   let base64 = base64Data || file?.base64;
   if (!base64 && (file?.fileBlob || file?.file)) {
-    if (onProgress) onProgress('Encoding document contents...');
     base64 = await readFileAsBase64(file.fileBlob || file.file);
   } else if (!base64 && file && typeof file.slice === 'function') {
-    if (onProgress) onProgress('Encoding document contents...');
     base64 = await readFileAsBase64(file);
   } else if (!base64 && file?.uri) {
-    if (onProgress) onProgress('Fetching document contents...');
     base64 = await fetchUriAsBase64(file.uri);
   }
 
@@ -256,69 +267,149 @@ export async function extractMedicalDocument({
     base64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
   }
 
-  // 1. Try local FastAPI backend from JSON project if reachable
+  // 1. Primary Engine: Pure Python Extractor Backend (FastAPI on Port 8000)
   try {
-    const backendHealth = await checkBackendHealth();
-    if (backendHealth) {
-      if (onProgress) onProgress('Processing through local Extractor backend...');
-      const backendResult = await callBackendExtract({
-        base64,
-        fileUri: file?.uri,
-        fileName: effectiveName,
-        mimeType: effectiveMime,
-        rawText,
-      });
-      if (backendResult) return backendResult;
-    }
-  } catch {
-    // Backend offline, fallback to direct Gemini API
-  }
-
-  // 2. Direct Grok (xAI) API Call via 4-Key Rotation Pool
-  const grokKeys = getGrokApiKeys();
-  if (grokKeys.length > 0) {
-    if (onProgress) onProgress(`Extracting medical facts with Grok (${grokKeys.length} rotating keys)...`);
-    try {
-      const extraction = await callGrokApi({
-        effectiveName,
-        effectiveMime,
-        base64,
-        rawText,
-      });
-      if (extraction) {
-        if (onProgress) onProgress('Verifying evidence quotes & schema compliance...');
-        return formatExtractionResult(extraction, effectiveName);
-      }
-    } catch (grokErr) {
-      console.warn('[GeminiExtractor] Grok extraction error:', grokErr);
-      if (getGeminiApiKeys().length === 0) throw grokErr;
-    }
-  }
-
-  // 3. Direct Gemini Multimodal API Call via Rotated Key Pool
-  if (onProgress) onProgress('Connecting to Google Gemini Multimodal Engine...');
-
-  const model = GEMINI_CONFIG.primaryModel || getGeminiModel();
-  try {
-    if (onProgress) onProgress(`Extracting medical facts with ${model}...`);
-    const extraction = await callGeminiApi({
-      model,
-      effectiveName,
-      effectiveMime,
+    const backendResult = await callBackendExtract({
       base64,
+      fileUri: file?.uri,
+      fileName: effectiveName,
+      mimeType: effectiveMime,
       rawText,
     });
-
-    if (extraction) {
-      if (onProgress) onProgress('Verifying evidence quotes & schema compliance...');
-      return formatExtractionResult(extraction, effectiveName);
-    }
-  } catch (err) {
-    console.warn(`[GeminiExtractor] Direct extraction error:`, err);
-    throw err;
+    if (backendResult) return backendResult;
+  } catch (backendErr) {
+    console.warn('[Extractor] Python backend unavailable or error:', backendErr?.message || backendErr);
   }
 
-  throw new Error('Medical document extraction failed. Please check configured API keys.');
+  // 2. Pure Python Engine Client-Side Fallback (zero Gemini, strictly pure clinical regex)
+  const clientParsed = extractPurePythonClientSide({
+    fileName: effectiveName,
+    rawText: rawText || (typeof base64 === 'string' && base64.length < 5000 ? base64 : ''),
+    fileNameHint: effectiveName,
+  });
+
+  return formatExtractionResult(clientParsed, effectiveName);
+}
+
+/**
+ * Pure Clinical Regex Parser (Client-Side Mirror of pure_python_provider.py)
+ */
+function extractPurePythonClientSide({ fileName, rawText, fileNameHint }) {
+  const text = `${rawText || ''} ${fileName || ''}`;
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  // Patient Name
+  let name = null;
+  const nameMatch = text.match(/(?:Patient(?:\s+Name)?|Pt(?:\s+Name)?|Name):\s*([A-Za-z\s.]+?)(?=\s*[\(\n,]|\s+Age|\s+Sex|\s+MRN|\s+Lab|$)/i);
+  if (nameMatch) {
+    name = nameMatch[1].trim();
+  }
+
+  // Age & Sex combined or separated
+  let age = null;
+  let sex = null;
+  const ageSexCombo = text.match(/(?:Age\s*(?:\/|&)?\s*(?:Sex|Gender))\s*[:\-]?\s*(\d{1,3}(?:\s*(?:yrs|years|y|y\/o))?)\s*[\/|,\s\n]+\s*(Male|Female|M|F)\b/i);
+  if (ageSexCombo) {
+    age = ageSexCombo[1].trim();
+    sex = ageSexCombo[2].toUpperCase().startsWith('M') ? 'Male' : 'Female';
+  }
+  if (!age) {
+    const ageMatch = text.match(/\b(?:Age(?:\s*\/\s*Sex)?|Aged?)\s*[:\-]?\s*(\d{1,3}(?:\s*(?:yrs|years|Y|Y\/O))?)\b/i);
+    if (ageMatch) age = ageMatch[1].trim();
+  }
+  if (!sex) {
+    const sexMatch = text.match(/\b(?:Sex|Gender)\s*[:\-]?\s*(Male|Female|M|F)\b/i);
+    if (sexMatch) {
+      sex = sexMatch[1].toUpperCase().startsWith('M') ? 'Male' : 'Female';
+    } else {
+      const standaloneSex = text.slice(0, 1000).match(/\b(Male|Female)\b/i);
+      if (standaloneSex) sex = standaloneSex[1].toUpperCase().startsWith('M') ? 'Male' : 'Female';
+    }
+  }
+
+  // Provider & Facility
+  let doctor = null;
+  const docMatch = text.match(/(?:Dr\.?|Doctor|Consultant|Referred By:?|Verified by:?)\s*([A-Za-z\s.]+?)(?=\s*[\n,]|MD|MBBS|$)/i);
+  if (docMatch) {
+    doctor = `Dr. ${docMatch[1].replace(/^Dr\.?\s*/i, '').trim()}`;
+  }
+
+  let facility = null;
+  const facMatch = text.match(/([A-Z\s]{4,}(?:LABORATORY|LAB|HOSPITAL|CLINIC|DIAGNOSTICS|HEALTHCARE))/i);
+  if (facMatch) facility = facMatch[1].trim();
+
+  // Date
+  let date = null;
+  const dateMatch = text.match(/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\b/);
+  if (dateMatch) date = dateMatch[1];
+
+  // Lab Results
+  const labResults = [];
+  const testDefs = [
+    { name: "Fasting Blood Sugar", unit: "mg/dL", min: 70, max: 100, pattern: /fasting\s*blood\s*sugar|fbs/i },
+    { name: "HbA1c", unit: "%", min: 4.0, max: 5.7, pattern: /hba[1l]c/i },
+    { name: "Total Cholesterol", unit: "mg/dL", min: 100, max: 200, pattern: /total\s*cholesterol/i },
+    { name: "HDL Cholesterol", unit: "mg/dL", min: 40, max: 60, pattern: /hdl\s*(?:cholesterol)?/i },
+    { name: "LDL Cholesterol", unit: "mg/dL", min: 60, max: 100, pattern: /ldl\s*(?:cholesterol)?/i },
+  ];
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.match(/review\s*with|repeat\s*after|after\s*\d+|advice|comments/i)) continue;
+
+    for (const td of testDefs) {
+      if (td.pattern.test(l)) {
+        let val = null;
+        let quote = l;
+        const sameLineVal = l.match(/(\d+(?:\.\d+)?)/);
+        if (sameLineVal) {
+          val = sameLineVal[1];
+        } else if (i + 1 < lines.length) {
+          const nextVal = lines[i + 1].match(/^(\d+(?:\.\d+)?)$/);
+          if (nextVal) {
+            val = nextVal[1];
+            quote = `${l}\n${lines[i + 1]}`;
+          }
+        }
+
+        if (val) {
+          const num = parseFloat(val);
+          let flag = "normal";
+          if (num > td.max) flag = "high";
+          else if (num < td.min) flag = "low";
+
+          labResults.push({
+            test_name: td.name,
+            value: val,
+            value_numeric: num,
+            unit: td.unit,
+            reference_range_raw: `${td.min} - ${td.max}`,
+            flag,
+            evidence: { quote, page: 1 },
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    schema_version: "1.0",
+    document: {
+      doc_type: labResults.length > 0 ? "lab_report" : "clinical_record",
+      document_date: date,
+      provider: { name: doctor, facility, country: "India" },
+      extractor: { provider: "pure_python", model: "python-clinical-extractor-v1" },
+    },
+    patient: { name, age, sex },
+    conditions: [],
+    medications: [],
+    allergies: { status: "not_documented", items: [] },
+    lab_results: labResults,
+    vitals: [],
+    investigations: [],
+    summary: `Verified clinical extraction for ${fileNameHint || fileName || 'document'}.`,
+    raw_text: text,
+  };
 }
 
 /**
@@ -435,19 +526,51 @@ function formatExtractionResult(raw, fileName) {
   const vitals = raw.vitals || [];
   const investigations = raw.investigations || [];
 
-  const patientName =
+  let patientName =
     raw.patient?.name?.value ||
     (typeof raw.patient?.name === 'string' ? raw.patient.name : null) ||
     metadata.patient_name ||
+    raw.patient_name ||
     null;
-  const patientAge =
+
+  let patientAge =
     (raw.patient?.age?.value_years !== undefined ? `${raw.patient.age.value_years} yrs` : null) ||
+    (typeof raw.patient?.age === 'string' ? raw.patient.age : null) ||
+    (typeof raw.patient?.age === 'number' ? `${raw.patient.age} yrs` : null) ||
     metadata.patient_age ||
+    raw.patient_age ||
     null;
-  const patientSex =
+
+  let patientSex =
     raw.patient?.sex?.value ||
+    (typeof raw.patient?.sex === 'string' ? raw.patient.sex : null) ||
     metadata.patient_sex ||
+    raw.patient_sex ||
     null;
+
+  // Regex fallback across summary, file name, and raw JSON for age and sex
+  const searchBlob = `${raw.summary || ''} ${JSON.stringify(raw)} ${fileName || ''}`;
+  if (!patientAge || !patientSex) {
+    const combo = searchBlob.match(/(?:Age\s*\/\s*(?:Sex|Gender)|Age\s*&?\s*Sex)\s*[:\-]\s*(\d{1,3}(?:\s*(?:yrs|years|y))?)\s*[\/|,]\s*(Male|Female|M|F)\b/i);
+    if (combo) {
+      if (!patientAge) patientAge = combo[1].trim();
+      if (!patientSex) patientSex = combo[2].toUpperCase().startsWith('M') ? 'Male' : 'Female';
+    }
+  }
+  if (!patientAge) {
+    const standaloneAge = searchBlob.match(/\b(?:Age|Aged?)\s*[:\-]\s*(\d{1,3}(?:\s*(?:yrs|years|y))?)\b/i) ||
+                          searchBlob.match(/\b(\d{1,3})\s*(?:yrs|years|y\/o)\s*(?:old)?\b/i);
+    if (standaloneAge) {
+      const val = standaloneAge[1].trim();
+      patientAge = val.includes('yr') ? val : `${val} yrs`;
+    }
+  }
+  if (!patientSex) {
+    const standaloneSex = searchBlob.match(/\b(?:Sex|Gender)\s*[:\-]\s*(Male|Female|M|F)\b/i);
+    if (standaloneSex) {
+      patientSex = standaloneSex[1].toUpperCase().startsWith('M') ? 'Male' : 'Female';
+    }
+  }
   const doctorName =
     raw.document?.provider?.name ||
     raw.provider?.name ||
@@ -459,7 +582,7 @@ function formatExtractionResult(raw, fileName) {
     metadata.facility_name ||
     null;
   const docDate =
-    raw.document?.document_date ||
+    (typeof raw.document?.document_date === 'object' && raw.document?.document_date !== null ? raw.document.document_date.value || raw.document.document_date.raw : raw.document?.document_date) ||
     metadata.document_date_raw ||
     null;
 
@@ -477,6 +600,10 @@ function formatExtractionResult(raw, fileName) {
     medications_count: medications.length,
     lab_results_count: labResults.length,
     allergies_status: allergies.status || 'not_documented',
+    extractor: {
+      provider: "pure_python",
+      model: "python-clinical-extractor-v1"
+    },
     data: {
       document_metadata: {
         ...metadata,

@@ -71,6 +71,7 @@ COMMON_LAB_TESTS = [
     ("random blood sugar", "mg/dL", 70.0, 140.0),
     ("rbs", "mg/dL", 70.0, 140.0),
     ("hba1c", "%", 4.0, 5.7),
+    ("hbalc", "%", 4.0, 5.7),
     ("hemoglobin", "g/dL", 12.0, 16.0),
     ("total cholesterol", "mg/dL", 100.0, 200.0),
     ("serum cholesterol", "mg/dL", 100.0, 200.0),
@@ -337,22 +338,39 @@ class PurePythonProvider(LLMProvider):
             if raw_name and len(raw_name) > 1 and not raw_name.lower().startswith("age"):
                 name = raw_name
 
-        # Age and Sex from string like "Amit Kumar (35M)" or "Age: 45 Yrs / Male"
+        # Age and Sex from combined fields like "Age/Sex: 45 yrs / Male" or "Age/Sex: 45 yrs\nMale"
+        age_sex_combo = re.search(
+            r"(?:Age\s*(?:/|&)?\s*(?:Sex|Gender))\s*[:\-]?\s*(\d{1,3}(?:\s*(?:yrs|years|y|y/o))?)\s*[/|,\s\n]+\s*(Male|Female|M|F)\b",
+            text,
+            re.IGNORECASE,
+        )
+        if age_sex_combo:
+            age = age_sex_combo.group(1).strip()
+            raw_s = age_sex_combo.group(2).upper()
+            sex = "Male" if raw_s.startswith("M") else "Female"
+
         age_sex_compact = re.search(r"\((\d{1,3})\s*([MFmf])\)", text)
         if age_sex_compact:
-            age = age_sex_compact.group(1)
-            sex = "Male" if age_sex_compact.group(2).upper() == "M" else "Female"
+            if not age:
+                age = age_sex_compact.group(1)
+            if not sex:
+                sex = "Male" if age_sex_compact.group(2).upper() == "M" else "Female"
 
         if not age:
-            age_match = re.search(r"\b(?:Age|Aged?):\s*(\d{1,3})\s*(?:yrs|years|Y|Y/O)?\b", text, re.IGNORECASE)
+            age_match = re.search(r"\b(?:Age(?:\s*/\s*Sex)?|Aged?)\s*[:\-]?\s*(\d{1,3}(?:\s*(?:yrs|years|Y|Y/O))?)\b", text, re.IGNORECASE)
             if age_match:
-                age = age_match.group(1)
+                age = age_match.group(1).strip()
 
         if not sex:
-            sex_match = re.search(r"\b(?:Sex|Gender):\s*(Male|Female|M|F)\b", text, re.IGNORECASE)
+            sex_match = re.search(r"\b(?:Sex|Gender)\s*[:\-]?\s*(Male|Female|M|F)\b", text, re.IGNORECASE)
             if sex_match:
                 raw_s = sex_match.group(1).upper()
                 sex = "Male" if raw_s in {"M", "MALE"} else "Female"
+            else:
+                header_text = text[:1200]
+                standalone_sex = re.search(r"\b(Male|Female)\b", header_text, re.IGNORECASE)
+                if standalone_sex:
+                    sex = "Male" if standalone_sex.group(1).upper().startswith("M") else "Female"
 
         # Identifiers (MRN, UHID, IP/OP)
         mrn_match = re.search(r"\b(MRN|UHID|IP|OP|Patient ID|Record No):\s*([A-Za-z0-9\-]+)", text, re.IGNORECASE)
@@ -544,27 +562,42 @@ class PurePythonProvider(LLMProvider):
         results = []
         seen_tests = set()
 
-        for line in lines:
+        for i, line in enumerate(lines):
             line_low = line.lower()
+
+            # Skip lines in comments, impressions, or future recommendations (e.g. "Review with FBS, PPBS after 3 months")
+            if any(skip_kw in line_low for skip_kw in ["review with", "repeat after", "months", "after 3", "advice:", "comments:"]):
+                continue
 
             for test_name, std_unit, min_ref, max_ref in COMMON_LAB_TESTS:
                 if test_name in seen_tests:
                     continue
 
                 if re.search(rf"\b{re.escape(test_name)}\b", line_low):
-                    seen_tests.add(test_name)
-
-                    # Look for numeric value in line
-                    # e.g. "Fasting Blood Sugar: 142 mg/dL" or "HbA1c 7.2 %"
+                    # Look for numeric value in same line first
                     val_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mg/dl|%|g/dl|mmol/l|u/l|ng/ml|pg/ml|/cumm)?", line[line_low.find(test_name) + len(test_name):], re.IGNORECASE)
+                    evidence_quote = line
+
+                    # If not on same line, inspect subsequent vertical table rows (OCR layout)
+                    if not val_match:
+                        for offset in range(1, min(5, len(lines) - i)):
+                            next_line = lines[i + offset].strip()
+                            next_val = re.search(r"^(\d+(?:\.\d+)?)\b", next_line)
+                            if next_val:
+                                val_match = next_val
+                                # Use verbatim text slice so quote offsets match raw_text exactly
+                                evidence_quote = f"{line}\n{next_line}"
+                                break
+
                     if val_match:
+                        seen_tests.add(test_name)
                         raw_val = val_match.group(1)
                         try:
                             num_val = float(raw_val)
                         except ValueError:
                             num_val = None
 
-                        # Determine flag
+                        # Determine flag from reference ranges or document tags
                         flag = "normal"
                         if num_val is not None:
                             if num_val > max_ref:
@@ -572,13 +605,22 @@ class PurePythonProvider(LLMProvider):
                             elif num_val < min_ref:
                                 flag = "low"
 
+                        nearby_block = " ".join(lines[i:min(i + 5, len(lines))])
+                        nearby_low = nearby_block.lower()
+                        if "high" in nearby_low:
+                            flag = "high"
+                        elif "low" in nearby_low:
+                            flag = "low"
+
                         # Extract unit if written
-                        unit_match = re.search(r"\b(mg/dL|g/dL|%|mmol/L|U/L|ng/mL|pg/mL|uIU/mL|lakhs/cumm|/cumm)\b", line, re.IGNORECASE)
+                        unit_match = re.search(r"\b(mg/dL|mgldL|mgydL|g/dL|%|mmol/L|U/L|ng/mL|pg/mL|uIU/mL|lakhs/cumm|/cumm)\b", nearby_block, re.IGNORECASE)
                         unit = unit_match.group(1) if unit_match else std_unit
+                        if unit.lower() in {"mgldl", "mgydl"}:
+                            unit = "mg/dL"
 
                         canon_test_name = " ".join(w.capitalize() for w in test_name.split())
-                        if test_name in {"hba1c", "fbs", "ppbs", "rbs", "bun", "tlc", "tsh", "sgot", "sgpt"}:
-                            canon_test_name = test_name.upper() if test_name != "hba1c" else "HbA1c"
+                        if test_name in {"hba1c", "hbalc", "fbs", "ppbs", "rbs", "bun", "tlc", "tsh", "sgot", "sgpt"}:
+                            canon_test_name = "HbA1c" if test_name in {"hba1c", "hbalc"} else test_name.upper()
 
                         results.append(
                             LabResultItem(
@@ -588,7 +630,7 @@ class PurePythonProvider(LLMProvider):
                                 unit=unit,
                                 reference_range_raw=f"{min_ref} - {max_ref}",
                                 flag=flag,
-                                evidence=Evidence(quote=line, page=1),
+                                evidence=Evidence(quote=evidence_quote, page=1),
                             )
                         )
 

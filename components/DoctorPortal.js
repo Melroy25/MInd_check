@@ -776,8 +776,8 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
           doc_type: uploadCategory.toLowerCase(),
           provider_name: doctorInfo.name,
           facility_name: doctorInfo.clinic,
-          patient_name: targetPatient?.name || 'Melroy Almeida',
-          patient_id: targetPatient?.patientId || 'MV-2026-PAT-892',
+          patient_name: targetPatient?.name || null,
+          patient_id: targetPatient?.patientId || null,
           date: new Date().toISOString().split('T')[0],
         },
         findings: [

@@ -46,22 +46,16 @@ from app.schemas import (
 from app.consultation import router as consultation_router
 
 def get_active_provider():
-    """Select the active extractor provider based on environment and key availability."""
+    """Select the active extractor provider. Defaults strictly to Pure Python."""
     import os
-    pref = os.getenv("EXTRACTOR_PROVIDER", "auto").strip().lower()
-    if pref == "pure_python":
-        return PurePythonProvider()
+    pref = os.getenv("EXTRACTOR_PROVIDER", "pure_python").strip().lower()
     if pref == "gemini":
-        return GeminiProvider()
-    # Auto mode: if a valid Gemini key is present, use Gemini, otherwise Pure Python
-    key = get_gemini_api_key()
-    if key and len(key) > 5 and not key.startswith("your_"):
         return GeminiProvider()
     return PurePythonProvider()
 
 app = FastAPI(
-    title="Verifiable Medical History - Gemini Extractor API",
-    description="Transforms medical documents into verifiable, dated, evidence-linked structured JSON using Google Gemini.",
+    title="Verifiable Medical History - Pure Python Extractor API",
+    description="Transforms medical documents into verifiable, dated, evidence-linked structured JSON using Pure Python NER and OCR.",
     version="2.0.0",
 )
 
