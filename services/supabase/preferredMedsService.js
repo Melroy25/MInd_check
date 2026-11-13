@@ -11,23 +11,14 @@
  */
 
 import { supabase } from './supabaseClient.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const memStore = new Map();
-let storageDriver = {
+const storageDriver = AsyncStorage || {
   getItem: async (key) => memStore.get(key) || null,
   setItem: async (key, val) => { memStore.set(key, val); },
   removeItem: async (key) => { memStore.delete(key); },
 };
-
-try {
-  const AsyncStorageModule = await import('@react-native-async-storage/async-storage');
-  const mod = AsyncStorageModule.default || AsyncStorageModule;
-  if (typeof mod.getItem === 'function') {
-    storageDriver = mod;
-  }
-} catch {
-  // Use memory fallback
-}
 
 const LOCAL_STORAGE_KEY_PREFIX = 'medivault_doctor_preferred_meds_';
 
