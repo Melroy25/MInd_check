@@ -11,6 +11,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 import { callGemini, getGeminiModel, getGeminiApiKeys } from './geminiClient';
+import { callGrok, getGrokApiKeys, getGrokModel } from './grokClient';
 
 export const GEMINI_CONFIG = {
   get apiKey() {
@@ -273,7 +274,28 @@ export async function extractMedicalDocument({
     // Backend offline, fallback to direct Gemini API
   }
 
-  // 2. Direct Gemini Multimodal API Call via Rotated Key Pool
+  // 2. Direct Grok (xAI) API Call via 4-Key Rotation Pool
+  const grokKeys = getGrokApiKeys();
+  if (grokKeys.length > 0) {
+    if (onProgress) onProgress(`Extracting medical facts with Grok (${grokKeys.length} rotating keys)...`);
+    try {
+      const extraction = await callGrokApi({
+        effectiveName,
+        effectiveMime,
+        base64,
+        rawText,
+      });
+      if (extraction) {
+        if (onProgress) onProgress('Verifying evidence quotes & schema compliance...');
+        return formatExtractionResult(extraction, effectiveName);
+      }
+    } catch (grokErr) {
+      console.warn('[GeminiExtractor] Grok extraction error:', grokErr);
+      if (getGeminiApiKeys().length === 0) throw grokErr;
+    }
+  }
+
+  // 3. Direct Gemini Multimodal API Call via Rotated Key Pool
   if (onProgress) onProgress('Connecting to Google Gemini Multimodal Engine...');
 
   const model = GEMINI_CONFIG.primaryModel || getGeminiModel();
@@ -296,7 +318,48 @@ export async function extractMedicalDocument({
     throw err;
   }
 
-  throw new Error('Gemini medical document extraction failed.');
+  throw new Error('Medical document extraction failed. Please check configured API keys.');
+}
+
+/**
+ * Call Grok (xAI) API via 4-Key Rotated Client
+ */
+async function callGrokApi({ effectiveName, effectiveMime, base64, rawText }) {
+  const content = [];
+
+  let textPrompt = `Extract complete structured medical data from this medical document: "${effectiveName}".\nDocument Type: ${effectiveMime}\n`;
+  if (rawText) {
+    textPrompt += `\nExtracted Text:\n${rawText}\n`;
+  }
+  textPrompt += `\nStrictly follow all extraction rules (verbatim evidence quotes, exact doses/units, three-way allergy status). Output valid schema-compliant JSON.`;
+
+  content.push({ type: 'text', text: textPrompt });
+
+  if (base64) {
+    const cleanBase64 = typeof base64 === 'string' ? base64.replace(/^data:[^;]+;base64,/, '').trim() : base64;
+    content.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${effectiveMime};base64,${cleanBase64}`,
+      },
+    });
+  }
+
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: content.length === 1 ? textPrompt : content },
+  ];
+
+  const grokRes = await callGrok(messages);
+  const textOutput = grokRes?.choices?.[0]?.message?.content;
+  if (!textOutput) throw new Error('Grok returned an empty response.');
+
+  try {
+    return JSON.parse(textOutput);
+  } catch {
+    const cleanJson = textOutput.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleanJson);
+  }
 }
 
 /**
