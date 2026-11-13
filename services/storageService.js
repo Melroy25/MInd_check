@@ -155,6 +155,57 @@ export const storageService = {
   },
 
   /**
+   * Load chat conversation history scoped to user
+   */
+  async getChatHistory(userId = null, chatScope = 'patient') {
+    try {
+      const id = userId || 'guest';
+      const key = `@medflow_chat_history_${chatScope}_${id}`;
+      const data = await AsyncStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.warn('[storageService] Failed to load chat history:', e);
+      return null;
+    }
+  },
+
+  /**
+   * Save chat conversation history scoped to user
+   */
+  async saveChatHistory(userId = null, messages = [], chatScope = 'patient') {
+    try {
+      const id = userId || 'guest';
+      const key = `@medflow_chat_history_${chatScope}_${id}`;
+      // Keep up to 60 messages; sanitize imageUri if very long to prevent storage exhaustion
+      const sanitized = (messages || []).slice(-60).map((m) => {
+        if (m.imageUri && m.imageUri.length > 80000) {
+          return { ...m, imageUri: m.imageUri.slice(0, 80000) };
+        }
+        return m;
+      });
+      await AsyncStorage.setItem(key, JSON.stringify(sanitized));
+      return true;
+    } catch (e) {
+      console.warn('[storageService] Failed to save chat history:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Clear chat conversation history scoped to user
+   */
+  async clearChatHistory(userId = null, chatScope = 'patient') {
+    try {
+      const id = userId || 'guest';
+      const key = `@medflow_chat_history_${chatScope}_${id}`;
+      await AsyncStorage.removeItem(key);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
    * Clear all documents for a specific user or global demo
    */
   async clearFiles(userId = null) {

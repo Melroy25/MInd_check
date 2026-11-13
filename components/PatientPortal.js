@@ -12,6 +12,7 @@ import { QRScannerModal, EmergencySosModal } from './common';
 import { storageService } from '../services/storageService';
 import { callGrok } from '../services/grokClient';
 import { updateUserProfile } from '../services/supabase/authService';
+import AiHealthChatbot from './AiHealthChatbot';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -1565,9 +1566,6 @@ Guidelines:
       showToastMsg('Download completed');
     }
   };
-      showToastMsg('Document downloaded');
-    }
-  };
 
   const renderDocumentCard = (file) => {
     const formatLabel = getDocFormatLabel(file.type);
@@ -2442,83 +2440,18 @@ Guidelines:
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 6: CHAT BOT (AI MEDICAL ASSISTANT)                           */}
+        {/* VIEW 6: CHAT BOT (AI MEDICAL ASSISTANT & TABLET IDENTIFIER)       */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'chatbot' && (
           <View style={styles.viewSection}>
-            <TouchableOpacity style={styles.subPageHeaderRow} onPress={() => setActiveTab('home')}>
-              <IconArrowLeft size={22} color={C.textMain} />
-              <Text style={styles.subPageTitle}>Chat Bot</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.pageSub}>Ask questions about your uploaded medical records, medications, and labs.</Text>
-
-            {/* Quick Prompt Chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-              {[
-                'Summarize my health records',
-                'What are my medications?',
-                'Check latest lab results',
-                'Explain my cardiology report',
-              ].map((chip) => (
-                <TouchableOpacity
-                  key={chip}
-                  style={styles.quickPromptChip}
-                  onPress={() => handleSendChatMessage(chip)}
-                >
-                  <Text style={styles.quickPromptChipText}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Chat Messages */}
-            <View style={styles.chatWindow}>
-              {chatMessages.map((msg) => (
-                <View
-                  key={msg.id}
-                  style={[styles.chatBubble, msg.sender === 'user' ? styles.chatBubbleUser : styles.chatBubbleBot]}
-                >
-                  <Text style={[styles.chatText, msg.sender === 'user' ? styles.chatTextUser : styles.chatTextBot]}>
-                    {msg.text}
-                  </Text>
-                </View>
-              ))}
-
-              {isBotTyping && (
-                <View style={[styles.chatBubble, styles.chatBubbleBot, { paddingVertical: 10, paddingHorizontal: 14 }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color="#4F46E5" style={{ marginRight: 8 }} />
-                    <Text style={[styles.chatText, styles.chatTextBot, { color: '#64748B', fontStyle: 'italic' }]}>
-                      MedFlow AI is analyzing records...
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Chat Input Bar */}
-            <View style={styles.chatInputRow}>
-              <TextInput
-                style={styles.chatInputField}
-                placeholder="Ask about medications, test results..."
-                placeholderTextColor="#94A3B8"
-                value={chatInput}
-                onChangeText={setChatInput}
-                onSubmitEditing={() => handleSendChatMessage()}
-                editable={!isBotTyping}
-              />
-              <TouchableOpacity
-                style={[styles.chatSendBtn, isBotTyping && { opacity: 0.6 }]}
-                onPress={() => handleSendChatMessage()}
-                disabled={isBotTyping}
-              >
-                {isBotTyping ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <IconSend size={18} color="white" />
-                )}
-              </TouchableOpacity>
-            </View>
+            <AiHealthChatbot
+              userRole="patient"
+              userDisplayName={patientDisplayName}
+              userId={currentUser?.uid}
+              records={files}
+              onBack={() => setActiveTab('home')}
+              themeColor={C.teal}
+            />
           </View>
         )}
 

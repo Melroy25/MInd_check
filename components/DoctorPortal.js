@@ -12,6 +12,7 @@ import AIConsultationModal from './doctor/AIConsultationModal';
 import MyMedicinesModal from './doctor/MyMedicinesModal';
 import { storageService } from '../services/storageService';
 import { updateUserProfile } from '../services/supabase/authService';
+import AiHealthChatbot from './AiHealthChatbot';
 
 // ─── DESIGN TOKENS (IDENTICAL TO PATIENT PORTAL) ─────────────────────────────
 const C = {
@@ -614,6 +615,7 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   const [showHistoryDetailModal, setShowHistoryDetailModal] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showConsultationModal, setShowConsultationModal] = useState(false);
+  const [showAiChatModal, setShowAiChatModal] = useState(false);
   const [showMyMedicinesModal, setShowMyMedicinesModal] = useState(false);
   const [qrScanInput, setQrScanInput] = useState('');
 
@@ -1129,6 +1131,26 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
               </View>
               <View style={styles.aiHeroBtn}>
                 <Text style={styles.aiHeroBtnText}>Start Session →</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* AI Clinical Assistant & Tablet Identifier Quick Bar */}
+            <TouchableOpacity
+              style={styles.aiHeroCardSecondary}
+              onPress={() => setShowAiChatModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.aiHeroIconWrap, { backgroundColor: '#F0FDF4' }]}>
+                  <IconFileText size={22} color={C.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: C.textMain }}>AI Clinical Assistant & Tablet ID</Text>
+                  <Text style={{ fontSize: 11.5, color: C.textSub, marginTop: 2 }}>Voice chat, tablet photo recognition & NIH pharmacology</Text>
+                </View>
+                <View style={{ backgroundColor: C.greenBg, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.greenBorder }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: C.greenDark }}>Chatbot →</Text>
+                </View>
               </View>
             </TouchableOpacity>
 
@@ -2347,6 +2369,27 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         </View>
       </Modal>
       {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* MODAL 7B: AI CLINICAL ASSISTANT & TABLET IDENTIFIER                */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={showAiChatModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowAiChatModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 16 }}>
+          <AiHealthChatbot
+            userRole="doctor"
+            userDisplayName={doctorInfo?.name || 'Dr. Mark Vance'}
+            userId={currentUser?.uid}
+            records={historyList}
+            onBack={() => setShowAiChatModal(false)}
+            themeColor={C.green}
+          />
+        </View>
+      </Modal>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MODAL 7: AI CONSULTATION ASSISTANT MODAL (SPEECH TO RX DECISION SUPPORT) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <AIConsultationModal
@@ -2403,12 +2446,25 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: C.greenBorder,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: C.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
+  },
+  aiHeroCardSecondary: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.greenBorder,
+    padding: 12,
+    marginBottom: 20,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   aiHeroLeft: {
     flexDirection: 'row',

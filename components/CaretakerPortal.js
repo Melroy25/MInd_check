@@ -9,6 +9,7 @@ import PatientPortal from './PatientPortal';
 import { INITIAL_CARETAKER_WARDS, INITIAL_AUDIT_LOGS } from '../constants/mockData';
 import { storageService } from '../services/storageService';
 import { QRScannerModal, EmergencySosModal } from './common';
+import AiHealthChatbot from './AiHealthChatbot';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -143,6 +144,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
   const [showWardVaultModal, setShowWardVaultModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSosModal, setShowSosModal] = useState(false);
+  const [showAiChatModal, setShowAiChatModal] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const [qrCodeInput, setQrCodeInput] = useState('');
 
@@ -393,6 +395,24 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
                 <Text style={s.quickSub}>Instant broadcast</Text>
               </TouchableOpacity>
             </View>
+
+            {/* AI Medication Assistant & Tablet Identifier Quick Banner */}
+            <TouchableOpacity
+              style={[s.card, { marginTop: 14, marginBottom: 4, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: C.purpleBorder }]}
+              onPress={() => setShowAiChatModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={[s.quickIconBox, { backgroundColor: C.purpleBg, marginRight: 12 }]}>
+                <IconPill size={22} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: C.textMain }}>AI Medication & Tablet Identifier</Text>
+                <Text style={{ fontSize: 11.5, color: C.textSub, marginTop: 2 }}>Voice chat, tablet photo recognition & NIH DailyMed</Text>
+              </View>
+              <View style={{ backgroundColor: C.purpleBg, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.purpleBorder }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: C.purpleDark }}>Open →</Text>
+              </View>
+            </TouchableOpacity>
 
             {/* Search & Select Assigned Patient */}
             <View style={[s.searchWrap, { marginTop: 18, marginBottom: 8 }]}>
@@ -761,6 +781,27 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
           <Text style={[s.navTabText, activeTab === 'profile' && s.navTabTextActive]}>Profile</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── MODAL: AI MEDICATION ASSISTANT & TABLET IDENTIFIER ── */}
+      <Modal
+        visible={showAiChatModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowAiChatModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+          <View style={{ flex: 1, padding: 16 }}>
+            <AiHealthChatbot
+              userRole="caretaker"
+              userDisplayName={caretakerDisplayName}
+              userId={currentUser?.uid}
+              records={wards}
+              onBack={() => setShowAiChatModal(false)}
+              themeColor={C.purple}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* ── MODAL: WARD VAULT DETAILS ── */}
       <Modal
