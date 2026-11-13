@@ -49,3 +49,4 @@ extractor/outputs/
 # generated native folders
 /ios
 /android
+.vercel

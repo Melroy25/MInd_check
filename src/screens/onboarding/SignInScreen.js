@@ -178,56 +178,15 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg,      setErrorMsg]      = useState('');
 
-  const handleInstantDemoLogin = () => {
-    setErrorMsg('');
-    const demoProfiles = {
-      patient: {
-        id: 'mv-patient-sarah-jenkins',
-        email: 'sarah.jenkins@medflow.org',
-        full_name: 'Sarah Jenkins',
-        name: 'Sarah Jenkins',
-        role: 'patient',
-        bloodType: 'O+ (Confirmed)',
-        vaultId: 'MV-6SAOVSJ0',
-        attendingDoctor: 'Dr. Sarah Jenkins',
-        primaryHospital: 'Metro Hospital & Clinical Diagnostics',
-      },
-      doctor: {
-        id: 'mv-doc-sharma',
-        email: 'dr.sharma@medflow.org',
-        full_name: 'Dr. Arjun Sharma',
-        name: 'Dr. Arjun Sharma',
-        role: 'doctor',
-        specialty: 'Endocrinology & Internal Medicine',
-        license: 'MED-78491',
-        hospital: 'Metro Hospital',
-      },
-      caretaker: {
-        id: 'mv-care-maria',
-        email: 'maria.almeida@medflow.org',
-        full_name: 'Maria Almeida',
-        name: 'Maria Almeida',
-        role: 'caretaker',
-        patientName: 'Melroy Almeida',
-        relationship: 'Spouse',
-      },
-    };
-
-    const targetProfile = demoProfiles[role] || demoProfiles.patient;
-    const targetUser = {
-      uid: targetProfile.id,
-      email: targetProfile.email,
-      displayName: targetProfile.full_name,
-    };
-
-    onLogin(role, targetUser, targetProfile);
-  };
-
   const handleLoginSubmit = async () => {
     setErrorMsg('');
     const cleanEmail = email.trim();
-    if (!cleanEmail || !password.trim()) {
-      handleInstantDemoLogin();
+    if (!cleanEmail) {
+      setErrorMsg('Please enter your email or username.');
+      return;
+    }
+    if (!password.trim()) {
+      setErrorMsg('Please enter your password.');
       return;
     }
 
@@ -235,10 +194,6 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
     try {
       const { user, profile, error } = await signInWithEmail(cleanEmail, password, role);
       if (error) {
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-          handleInstantDemoLogin();
-          return;
-        }
         setErrorMsg(error.message || 'Login failed. Please verify credentials.');
         setLoading(false);
         return;
@@ -246,7 +201,7 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
       const targetRole = profile?.role || role;
       onLogin(targetRole, user, profile);
     } catch (err) {
-      handleInstantDemoLogin();
+      setErrorMsg(err?.message || 'Login failed. Please verify credentials.');
     } finally {
       setLoading(false);
     }
@@ -407,17 +362,6 @@ export default function SignInScreen({ role = 'patient', onBack, onLogin, onCrea
                 </View>
               )}
             </TouchableOpacity>
-
-            {/* Instant Demo Access (One-click instant login for testing) */}
-            <TouchableOpacity
-              style={[s.demoBtn, { borderColor: cfg.pillColor }]}
-              activeOpacity={0.8}
-              onPress={handleInstantDemoLogin}
-            >
-              <Text style={[s.demoBtnText, { color: cfg.pillColor }]}>
-                Instant Test Access ({cfg.label}) →
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* ── Create Account ── */}
@@ -574,21 +518,6 @@ const s = StyleSheet.create({
     color: '#334155',
     fontSize: 14,
     fontWeight: '600',
-  },
-
-  demoBtn: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  demoBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.2,
   },
 
   createRow: {
