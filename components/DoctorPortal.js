@@ -1968,8 +1968,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
                     <View style={{ flex: 1, paddingHorizontal: 12 }}>
                       <Text style={styles.patientDirName}>{p.name}</Text>
-                      <Text style={styles.patientDirId}>{p.patientId} · {p.age} · Blood: {p.blood}</Text>
-                      <Text style={styles.patientDirCondition}>{p.condition}</Text>
                     </View>
 
                     <View
