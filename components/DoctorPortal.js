@@ -569,7 +569,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
 
   // Connected Patients Page Filter & Search
   const [patientPageSearch, setPatientPageSearch] = useState('');
-  const [selectedPatientPdfData, setSelectedPatientPdfData] = useState(null);
 
   const handleViewPatientPdf = (patient) => {
     showToast(`Opening clinical PDF for ${patient.name}...`);
@@ -616,9 +615,6 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
     }
   };
 
-  const handleOpenPatientPdf = (patient) => {
-    setSelectedPatientPdfData(patient);
-  };
 
   // History Filter & Search
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all' | 'upload' | 'connection' | 'update'
@@ -1798,15 +1794,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               ) : (
                 filteredPagePatients.map((p) => (
                   <View key={p.id} style={styles.patientFullCard}>
-                    <TouchableOpacity
-                      style={styles.patientFullCardTop}
-                      onPress={() => {
-                        setTargetPatient(p);
-                        setActiveTab('upload');
-                        showToast(`Selected ${p.name} for upload`);
-                      }}
-                      activeOpacity={0.8}
-                    >
+                    <View style={styles.patientFullCardTop}>
                       <View style={[styles.patientFullAvatar, { backgroundColor: p.avatarColor }]}>
                         <Text style={styles.patientFullAvatarText}>
                           {p.name.split(' ').map((n) => n[0]).join('')}
@@ -1818,19 +1806,28 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                           Synced Records: {p.recordsCount} · Last Visit: {p.lastVisit}
                         </Text>
                       </View>
-                      <View style={styles.patientSelectUploadPill}>
-                        <IconUpload size={12} color={C.green} />
-                        <Text style={styles.patientSelectUploadPillText}>Upload</Text>
-                      </View>
-                    </TouchableOpacity>
+                    </View>
 
                     <View style={styles.patientFullCardActions}>
+                      <TouchableOpacity
+                        style={styles.patientFullUploadBtn}
+                        onPress={() => {
+                          setTargetPatient(p);
+                          setActiveTab('upload');
+                          showToast(`Selected ${p.name} for upload`);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <IconUpload size={14} color="#FFFFFF" />
+                        <Text style={styles.patientFullUploadBtnText}>Upload to Vault</Text>
+                      </TouchableOpacity>
+
                       <TouchableOpacity
                         style={styles.patientFullViewPdfBtn}
                         onPress={() => handleViewPatientPdf(p)}
                         activeOpacity={0.8}
                       >
-                        <IconPdfDoc size={14} color="#FFFFFF" />
+                        <IconPdfDoc size={14} color="#1D4ED8" />
                         <Text style={styles.patientFullViewPdfBtnText}>View PDF</Text>
                       </TouchableOpacity>
 
@@ -2186,165 +2183,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
         </Modal>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 5: PATIENT COMPREHENSIVE MEDICAL PDF & DATA MODAL             */}
-      {/* "when u click on the pdf all datas will be given"                   */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {selectedPatientPdfData && (
-        <Modal
-          visible={selectedPatientPdfData !== null}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setSelectedPatientPdfData(null)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.modalContainer, styles.modalContainerLarge]}>
-              <View style={styles.modalHeaderRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={styles.pdfBadgeCircle}>
-                    <IconPdfDoc size={18} color={C.coral} />
-                  </View>
-                  <View>
-                    <Text style={styles.modalHeading}>Patient Medical Summary PDF</Text>
-                    <Text style={styles.modalSubheading}>
-                      {selectedPatientPdfData.name} · Verified Clinical Dossier
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.modalCloseBtnCircle}
-                  onPress={() => setSelectedPatientPdfData(null)}
-                >
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-              </View>
 
-              <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false}>
-                <View style={styles.patientPdfReportDoc}>
-                  {/* Security Flag */}
-                  <View style={styles.pdfReportTopSecurity}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <IconCheck size={12} color={C.green} />
-                      <Text style={styles.pdfSecurityText}>MEDIVAULT VERIFIED CLINICAL DOSSIER</Text>
-                    </View>
-                    <Text style={styles.pdfSecurityId}>{selectedPatientPdfData.patientId}</Text>
-                  </View>
-
-                  {/* Patient Info Card */}
-                  <View style={styles.pdfPatientHero}>
-                    <View style={[styles.patientAvatarMedium, { backgroundColor: selectedPatientPdfData.avatarColor }]}>
-                      <Text style={styles.patientAvatarMediumText}>
-                        {selectedPatientPdfData.name.split(' ').map((n) => n[0]).join('')}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, paddingLeft: 12 }}>
-                      <Text style={styles.pdfHeroName}>{selectedPatientPdfData.name}</Text>
-                      <Text style={styles.pdfHeroSub}>
-                        {selectedPatientPdfData.patientId} · {selectedPatientPdfData.age} · {selectedPatientPdfData.gender}
-                      </Text>
-                      <View style={styles.pdfHeroBadges}>
-                        <View style={styles.pdfBloodBadge}>
-                          <Text style={styles.pdfBloodBadgeText}>Blood: {selectedPatientPdfData.blood}</Text>
-                        </View>
-                        <View style={styles.pdfStatusBadge}>
-                          <Text style={styles.pdfStatusBadgeText}>{selectedPatientPdfData.status}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Diagnosis & Care Plan */}
-                  <View style={styles.pdfDataSection}>
-                    <Text style={styles.pdfSectionTitle}>PRIMARY DIAGNOSIS & STATUS</Text>
-                    <View style={styles.pdfDataCard}>
-                      <Text style={styles.pdfDiagnosisText}>{selectedPatientPdfData.condition}</Text>
-                      <Text style={styles.pdfMetaNote}>
-                        Under care of {doctorInfo.name} at {doctorInfo.hospital}.
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Metrics Grid */}
-                  <View style={styles.pdfDataSection}>
-                    <Text style={styles.pdfSectionTitle}>CLINICAL METRICS & VAULT OVERVIEW</Text>
-                    <View style={styles.pdfMetricsGrid}>
-                      <View style={styles.pdfMetricBox}>
-                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.recordsCount}</Text>
-                        <Text style={styles.pdfMetricLbl}>Synced Records</Text>
-                      </View>
-                      <View style={styles.pdfMetricBox}>
-                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.blood}</Text>
-                        <Text style={styles.pdfMetricLbl}>Blood Group</Text>
-                      </View>
-                      <View style={styles.pdfMetricBox}>
-                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.age}</Text>
-                        <Text style={styles.pdfMetricLbl}>Age</Text>
-                      </View>
-                      <View style={styles.pdfMetricBox}>
-                        <Text style={styles.pdfMetricVal}>{selectedPatientPdfData.lastVisit}</Text>
-                        <Text style={styles.pdfMetricLbl}>Last Consultation</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Synced Records in Dossier */}
-                  <View style={styles.pdfDataSection}>
-                    <Text style={styles.pdfSectionTitle}>SYNCHRONIZED MEDICAL RECORDS</Text>
-                    {historyList
-                      .filter((h) => h.patientName === selectedPatientPdfData.name || h.patientId === selectedPatientPdfData.patientId)
-                      .slice(0, 5)
-                      .map((rec) => (
-                        <View key={rec.id} style={styles.pdfRecordRow}>
-                          <View style={styles.pdfRecordBullet} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.pdfRecordTitle}>{rec.title}</Text>
-                            <Text style={styles.pdfRecordDetails}>{rec.details}</Text>
-                            <Text style={styles.pdfRecordTimestamp}>{rec.date} · {rec.time}</Text>
-                          </View>
-                        </View>
-                      ))}
-                    {historyList.filter((h) => h.patientName === selectedPatientPdfData.name || h.patientId === selectedPatientPdfData.patientId).length === 0 && (
-                      <View style={styles.pdfRecordRow}>
-                        <View style={styles.pdfRecordBullet} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.pdfRecordTitle}>Initial Vault Access Established</Text>
-                          <Text style={styles.pdfRecordDetails}>Vault sharing permission active with Dr. Sarah Jenkins.</Text>
-                          <Text style={styles.pdfRecordTimestamp}>{selectedPatientPdfData.lastVisit}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </ScrollView>
-
-              {/* Action Buttons: 2 buttons (View PDF and Download PDF) as requested */}
-              <View style={styles.pdfModalActions}>
-                <TouchableOpacity
-                  style={styles.pdfModalPrimaryBtn}
-                  onPress={() => {
-                    handleViewPatientPdf(selectedPatientPdfData);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <IconPdfDoc size={16} color="#FFFFFF" />
-                  <Text style={styles.pdfModalPrimaryBtnText}>View PDF</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.pdfModalDownloadBtn}
-                  onPress={() => {
-                    handleDownloadPatientPdf(selectedPatientPdfData);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <IconDownload size={16} color="#0F172A" />
-                  <Text style={styles.pdfModalDownloadBtnText}>Download PDF</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MODAL 6: END SESSION / CLEAR CACHE MODAL                           */}
@@ -2939,18 +2778,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  patientFullViewPdfBtn: {
-    flex: 1,
+  patientFullUploadBtn: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     backgroundColor: C.green,
     paddingVertical: 9,
+    paddingHorizontal: 6,
     borderRadius: 10,
   },
-  patientFullViewPdfBtnText: {
+  patientFullUploadBtnText: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  patientFullViewPdfBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#FFF7ED',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+  },
+  patientFullViewPdfBtnText: {
+    color: C.coral,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2959,30 +2817,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#F8FAFC',
     paddingVertical: 9,
+    paddingHorizontal: 6,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#CBD5E1',
   },
   patientFullDownloadPdfBtnText: {
     color: '#0F172A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  patientFullUploadBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: C.green,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  patientFullUploadBtnText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },

@@ -214,9 +214,18 @@ export async function generateMedicalPdf(record) {
 }
 
 /**
- * Open PDF in browser tab (or preview modal)
+ * Open PDF directly in a new browser tab with immediate user-gesture handling
  */
 export async function viewMedicalPdf(record) {
+  let newTab = null;
+  if (typeof window !== 'undefined') {
+    try {
+      newTab = window.open('about:blank', '_blank');
+    } catch (e) {
+      // fallback if popup blocker intervenes
+    }
+  }
+
   try {
     let blob;
     if (record.fileBlob && (record.fileBlob.type === 'application/pdf' || record.name?.toLowerCase().endsWith('.pdf'))) {
@@ -227,26 +236,24 @@ export async function viewMedicalPdf(record) {
     }
     const url = URL.createObjectURL(blob);
 
-    if (typeof window !== 'undefined') {
-      try {
-        const opened = window.open(url, '_blank');
-        if (!opened) {
-          const a = document.createElement('a');
-          a.href = url;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            if (a.parentNode) document.body.removeChild(a);
-          }, 300);
-        }
-      } catch (e) {
-        console.warn('window.open blocked:', e);
-      }
+    if (newTab && !newTab.closed) {
+      newTab.location.href = url;
+    } else if (typeof window !== 'undefined') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) document.body.removeChild(a);
+      }, 300);
     }
     return url;
   } catch (err) {
+    if (newTab && !newTab.closed) {
+      try { newTab.close(); } catch (e) {}
+    }
     console.warn('[viewMedicalPdf] Error viewing PDF:', err);
     throw err;
   }
