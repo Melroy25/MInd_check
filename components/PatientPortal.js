@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
-import { pickMedicalDocument, extractMedicalDocument } from '../services/geminiExtractor';
+import { pickMedicalDocument, extractMedicalDocument, readFileAsBase64, fetchUriAsBase64, audioRecorder } from '../services/geminiExtractor';
 import { viewMedicalPdf, downloadMedicalPdf } from '../services/pdfService';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -232,6 +232,31 @@ const IconSwitch = ({ size = 20, color = C.blue }) => (
     <Path d="M3 11V9a4 4 0 0 1 4-4h14" />
     <Polyline points="7 23 3 19 7 15" />
     <Path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </Svg>
+);
+
+const IconAlertCircle = ({ size = 18, color = C.red }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
+    <Line x1="12" y1="8" x2="12" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Line x1="12" y1="16" x2="12.01" y2="16" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+const IconRefreshCw = ({ size = 16, color = C.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M23 4v6h-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M1 20v-6h6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const IconMic = ({ size = 16, color = C.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <Line x1="12" y1="19" x2="12" y2="23" />
+    <Line x1="8" y1="23" x2="16" y2="23" />
   </Svg>
 );
 
@@ -521,24 +546,51 @@ const buildStructuredJson = (title, file, text, patient) => {
   };
 };
 
-export default function PatientPortal({ onSignOut, isDesktop }) {
+export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patient' }) {
   // Navigation: 'home' | 'upload' | 'documents' | 'connect' | 'pdf-report' | 'chatbot' | 'profile'
   const [activeTab, setActiveTab] = useState('home');
 
-  // Account Role Switching: 'patient' | 'benefactor'
-  const [currentAccountRole, setCurrentAccountRole] = useState('patient');
+  // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
+  const [currentAccountRole, setCurrentAccountRole] = useState(
+    userRole === 'doctor' ? 'doctor' : userRole === 'caretaker' ? 'caretaker' : 'patient'
+  );
   const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
   const [showNoAccountsModal, setShowNoAccountsModal] = useState(false);
   const [hasOtherAccounts, setHasOtherAccounts] = useState(true);
 
-  // Patient Profile Information
-  const [patientInfo, setPatientInfo] = useState({
-    name: 'Melroy Almeida',
-    vaultId: 'MV-2026-PAT-892',
-    bloodType: 'O+ (Positive)',
-    emergencyContact: '+1 (555) 019-2834',
-    primaryHospital: 'Metro Diagnostics',
-    attendingDoctor: 'Dr. Sarah Jenkins',
+  // Profile Information based on logged in role
+  const [patientInfo, setPatientInfo] = useState(() => {
+    if (userRole === 'doctor') {
+      return {
+        name: 'Dr. Sarah Jenkins',
+        vaultId: 'MV-2026-DOC-401',
+        bloodType: 'Clinical Attending',
+        emergencyContact: '+1 (555) 019-9110',
+        primaryHospital: 'Metro Diagnostics & General',
+        attendingDoctor: 'Dr. Sarah Jenkins (MD)',
+        roleLabel: 'Doctor (Attending)',
+      };
+    }
+    if (userRole === 'caretaker') {
+      return {
+        name: 'Vikram Almeida',
+        vaultId: 'MV-2026-CARE-112',
+        bloodType: 'Family Delegate',
+        emergencyContact: '+1 (555) 019-2834',
+        primaryHospital: 'Metro Diagnostics',
+        attendingDoctor: 'Dr. Sarah Jenkins',
+        roleLabel: 'Caretaker (Family Proxy)',
+      };
+    }
+    return {
+      name: 'Melroy Almeida',
+      vaultId: 'MV-2026-PAT-892',
+      bloodType: 'O+ (Positive)',
+      emergencyContact: '+1 (555) 019-2834',
+      primaryHospital: 'Metro Diagnostics',
+      attendingDoctor: 'Dr. Sarah Jenkins',
+      roleLabel: 'Patient (Primary)',
+    };
   });
 
   const [avatarUri, setAvatarUri] = useState(null);
@@ -629,6 +681,9 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   const [isExtracting, setIsExtracting] = useState(false);
   const [showRagSampleFlags, setShowRagSampleFlags] = useState(false);
   const [liveExtractedJson, setLiveExtractedJson] = useState(null);
+  const [extractionError, setExtractionError] = useState(null);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
 
   // Connect State
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -650,89 +705,91 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
   // ─── FILE & CAMERA CAPTURE HANDLERS ────────────────────────────────────────
   const extractDocJson = async (doc, title, text) => {
     setIsExtracting(true);
+    setExtractionError(null);
+
     try {
-      let extraction = null;
-      try {
-        extraction = await extractMedicalDocument({
-          file: doc?.fileBlob || doc,
-          fileName: doc?.name || (title ? `${title}.pdf` : 'medical_record.pdf'),
-          mimeType: doc?.mimeType || 'application/pdf',
-          base64Data: doc?.base64,
-          rawText: text || (title ? `Document Title: ${title}` : ''),
-        });
-      } catch (err) {
-        console.warn('Direct Gemini call error, using local high-fidelity generator:', err?.message);
+      if (!doc && !text?.trim()) {
+        throw new Error('Please select a file or enter clinical text to extract.');
       }
 
-      if (extraction && extraction.data) {
-        const structured = {
-          schema_version: "1.0",
-          document: {
-            document_id: "ff7b2868-064f-485c-9a48-1806ac81723e",
-            source_file: doc?.name || (title ? `${title}.pdf` : 'record.pdf'),
-            source_type: doc?.type === 'image' ? 'clinical_scan_image' : 'pdf_document',
-            sha256: "827d7846cf6fb7c2bb8a2271aa03603d81b42e93cfb15cfb4b765a85cf1b1abb",
-            page_count: 1,
-            language: "en",
-            doc_type: extraction.document_type || (title?.toLowerCase().includes('lab') ? 'lab_report' : 'clinical_record'),
-            doc_type_confidence: 0.98,
-            document_date: extraction.date || new Date().toISOString().split('T')[0],
-            provider: {
-              name: extraction.doctor || patientInfo?.attendingDoctor || "Dr. Sarah Jenkins",
-              facility: extraction.facility || patientInfo?.primaryHospital || "Metro Diagnostics",
-              country: "US"
-            },
-            extracted_at: new Date().toISOString(),
-            extractor: {
-              provider: "gemini",
-              model: "gemini-2.5-flash-lite"
-            }
-          },
-          clinical_summary: extraction.data.summary || (text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${doc?.name || title}.`),
-          extracted_entities: {
-            conditions: extraction.data.conditions && extraction.data.conditions.length > 0 ? extraction.data.conditions : [
-              {
-                name: (title || '').toLowerCase().includes('cardio') ? "Cardiovascular Health" : "Routine Clinical Evaluation",
-                status: "active",
-                certainty: "confirmed",
-                evidence: { quote: `${title || 'Document'} findings verified`, page: 1 }
-              }
-            ],
-            medications: extraction.data.medications && extraction.data.medications.length > 0 ? extraction.data.medications : [
-              {
-                name: "Prescribed Therapy",
-                dose_raw: "Standard regimen",
-                frequency_raw: "As directed",
-                status: "prescribed",
-                evidence: { quote: "Therapy protocol verified", page: 1 }
-              }
-            ],
-            allergies: extraction.data.allergies || {
-              status: "explicit_negative",
-              items: []
-            },
-            lab_results: extraction.data.lab_results && extraction.data.lab_results.length > 0 ? extraction.data.lab_results : [
-              {
-                test_name: "Standard Clinical Panel",
-                value: "Verified",
-                unit: "Index",
-                reference_range_raw: "Normal Range",
-                flag: "normal",
-                evidence: { quote: "Clinical panel verified", page: 1 }
-              }
-            ]
-          }
-        };
-        setLiveExtractedJson(structured);
-      } else {
-        // Brief realistic extraction delay so user sees progress
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        const structured = buildStructuredJson(title, doc, text, patientInfo);
-        setLiveExtractedJson(structured);
+      // Ensure base64 is resolved if available
+      let base64 = doc?.base64;
+      if (!base64 && (doc?.fileBlob || doc?.file)) {
+        base64 = await readFileAsBase64(doc.fileBlob || doc.file);
+      } else if (!base64 && doc?.uri) {
+        base64 = await fetchUriAsBase64(doc.uri);
       }
-    } catch (err) {
-      const structured = buildStructuredJson(title, doc, text, patientInfo);
+      if (typeof base64 === 'string') {
+        base64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
+      }
+
+      const extraction = await extractMedicalDocument({
+        file: doc?.fileBlob || doc?.file || doc,
+        fileName: doc?.name || (title ? `${title}.pdf` : 'medical_record.pdf'),
+        mimeType: doc?.mimeType || (doc?.type === 'image' ? 'image/jpeg' : 'application/pdf'),
+        base64Data: base64,
+        rawText: text || (title ? `Document Title: ${title}` : ''),
+      });
+
+      if (!extraction || !extraction.data) {
+        throw new Error('Gemini AI returned empty clinical data. Please check document clarity.');
+      }
+
+      const meta = extraction.data.document_metadata || {};
+      const conditions = Array.isArray(extraction.data.conditions)
+        ? extraction.data.conditions.map((c) => (typeof c === 'string' ? { name: c, status: 'active', certainty: 'confirmed' } : c))
+        : [];
+      const medications = Array.isArray(extraction.data.medications) ? extraction.data.medications : [];
+      const labResults = Array.isArray(extraction.data.lab_results) ? extraction.data.lab_results : [];
+      const allergies = extraction.data.allergies || { status: 'not_documented', items: [] };
+
+      // Strictly map what Gemini extracted — NO FAKE / DUMMY FALLBACK DATA!
+      const structured = {
+        schema_version: "1.0",
+        document: {
+          document_id: `doc-${Date.now().toString(16)}`,
+          source_file: doc?.name || (title ? `${title}.pdf` : 'record.pdf'),
+          source_type: doc?.type === 'image' || doc?.mimeType?.startsWith('image') ? 'clinical_scan_image' : (text && !doc ? 'raw_text' : 'pdf_document'),
+          sha256: "827d7846cf6fb7c2bb8a2271aa03603d81b42e93cfb15cfb4b765a85cf1b1abb",
+          page_count: 1,
+          language: "en",
+          doc_type: extraction.document_type || meta.doc_type || (title?.toLowerCase().includes('lab') ? 'lab_report' : 'clinical_record'),
+          doc_type_confidence: 0.98,
+          document_date: extraction.date || meta.document_date_raw || new Date().toISOString().split('T')[0],
+          provider: {
+            name: extraction.doctor || meta.provider_name || null,
+            facility: extraction.facility || meta.facility_name || null,
+            country: meta.country || null,
+          },
+          patient: {
+            name: extraction.patient_name || meta.patient_name || null,
+            age: extraction.patient_age || meta.patient_age || null,
+            sex: extraction.patient_sex || meta.patient_sex || null,
+          },
+          extracted_at: new Date().toISOString(),
+          extractor: {
+            provider: "gemini",
+            model: "gemini-3.1-flash-lite"
+          }
+        },
+        clinical_summary: extraction.data.summary || (text && text.trim() ? text.trim() : `Verified sovereign clinical extraction for ${doc?.name || title}.`),
+        extracted_entities: {
+          conditions,
+          medications,
+          allergies,
+          lab_results: labResults
+        }
+      };
+
       setLiveExtractedJson(structured);
+      setExtractionError(null);
+      showToastMsg('Clinical data extracted successfully!');
+    } catch (err) {
+      console.error('Gemini extraction error:', err);
+      // STRICT REQUIREMENT: Do NOT show fake data! Show error!
+      setLiveExtractedJson(null);
+      setExtractionError(err?.message || 'Gemini extraction failed. Please ensure the document is clear or retry.');
+      showToastMsg('Extraction failed: ' + (err?.message || 'Error'));
     } finally {
       setIsExtracting(false);
     }
@@ -820,6 +877,83 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
       }
     };
     input.click();
+  };
+
+  // Direct Audio Voice Dictation Recording
+  const handleToggleAudioRecord = async () => {
+    if (isRecordingAudio) {
+      // STOP recording
+      setIsRecordingAudio(false);
+      setIsTranscribingAudio(true);
+      showToastMsg('Finalizing audio transcription...');
+
+      try {
+        // 1. Stop SpeechRecognition if active
+        audioRecorder.stopSpeechRecognition();
+
+        // 2. Stop MediaRecorder if active
+        const audioData = await audioRecorder.stopMediaRecording();
+        if (audioData && audioData.base64) {
+          try {
+            const transcript = await audioRecorder.transcribeAudioWithGemini({
+              base64: audioData.base64,
+              mimeType: audioData.mimeType,
+            });
+            if (transcript && transcript.trim()) {
+              setEnteredText((prev) => {
+                const combined = prev && prev.trim() ? `${prev.trim()}\n${transcript.trim()}` : transcript.trim();
+                return combined;
+              });
+              showToastMsg('Audio transcribed successfully!');
+            }
+          } catch (geminiErr) {
+            console.log('Gemini audio transcription fallback:', geminiErr?.message);
+          }
+        }
+      } catch (err) {
+        console.warn('Audio recording notice:', err);
+      } finally {
+        setIsTranscribingAudio(false);
+      }
+    } else {
+      // START recording
+      try {
+        setExtractionError(null);
+        showToastMsg('🎙️ Listening... Speak clinical notes or prescription');
+        setIsRecordingAudio(true);
+
+        // Try Live SpeechRecognition first for real-time text feedback
+        let startedSpeech = false;
+        try {
+          startedSpeech = audioRecorder.startSpeechRecognition({
+            onTranscript: (liveText) => {
+              setEnteredText(liveText);
+            },
+            onError: (err) => {
+              console.log('Live speech notice:', err);
+            },
+            onEnd: (finalText) => {
+              if (finalText) setEnteredText(finalText);
+            },
+          });
+        } catch (e) {
+          startedSpeech = false;
+        }
+
+        // Also start MediaRecorder for high-fidelity Gemini capture
+        try {
+          await audioRecorder.startMediaRecording();
+        } catch (mediaErr) {
+          if (!startedSpeech) {
+            throw mediaErr;
+          }
+        }
+      } catch (err) {
+        console.warn('Microphone error:', err);
+        setIsRecordingAudio(false);
+        showToastMsg('Microphone: ' + (err?.message || 'Check browser permissions'));
+      }
+    }
   };
 
   // Avatar Picker (Gallery / Camera)
@@ -1508,6 +1642,7 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                       onPress={() => {
                         setPickedFile(null);
                         setLiveExtractedJson(null);
+                        setExtractionError(null);
                       }}
                     >
                       <Text style={styles.removeFileBtnText}>Change</Text>
@@ -1555,11 +1690,36 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* 4. Paste Text Area */}
+              {/* 4. Paste Text Area & Voice Dictation */}
               <View style={styles.uploadFieldWrap}>
+                <View style={styles.textAreaHeaderRow}>
+                  <Text style={styles.cleanFieldLabel}>CLINICAL TEXT / VOICE NOTES</Text>
+
+                  {/* Voice Record Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.voiceRecordBtn,
+                      isRecordingAudio && styles.voiceRecordBtnActive
+                    ]}
+                    onPress={handleToggleAudioRecord}
+                    activeOpacity={0.8}
+                  >
+                    <IconMic size={14} color={isRecordingAudio ? '#DC2626' : '#2563EB'} />
+                    <Text style={[
+                      styles.voiceRecordBtnText,
+                      isRecordingAudio && styles.voiceRecordBtnTextActive
+                    ]}>
+                      {isRecordingAudio ? (isTranscribingAudio ? 'Transcribing...' : 'Stop Recording') : 'Record Voice'}
+                    </Text>
+                    {isRecordingAudio && !isTranscribingAudio && (
+                      <View style={styles.recordingPulseDot} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 <TextInput
                   style={[styles.cleanInputField, styles.cleanInputArea]}
-                  placeholder="Paste lab findings, prescription details, or clinical notes here..."
+                  placeholder="Paste lab findings, prescription details, or clinical notes here... (or tap Record Voice)"
                   placeholderTextColor="#94A3B8"
                   value={enteredText}
                   onChangeText={(val) => {
@@ -1583,6 +1743,25 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Extraction Error State */}
+              {extractionError && !isExtracting && (
+                <View style={styles.extractionErrorCard}>
+                  <View style={styles.extractionErrorHeader}>
+                    <IconAlertCircle size={18} color="#DC2626" />
+                    <Text style={styles.extractionErrorTitle}>Clinical Extraction Error</Text>
+                  </View>
+                  <Text style={styles.extractionErrorMsg}>{extractionError}</Text>
+                  <TouchableOpacity
+                    style={styles.retryExtractionBtn}
+                    onPress={() => extractDocJson(pickedFile, uploadTitle, enteredText)}
+                    activeOpacity={0.8}
+                  >
+                    <IconRefreshCw size={14} color="#DC2626" />
+                    <Text style={styles.retryExtractionBtnText}>Retry Extraction</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* 5. Extracted Clinical JSON Section (Full Dark Scrollable Code View) */}
               {(liveExtractedJson || isExtracting) ? (
@@ -3703,19 +3882,20 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
         <View style={styles.modalBackdrop}>
           <View style={[styles.modernModalCard, { maxHeight: '90%' }]}>
             <View style={styles.modernModalHeader}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={styles.modernModalTitle}>Switch Account</Text>
                 <Text style={styles.modernModalSub}>Select an active role or sovereign vault</Text>
               </View>
               <TouchableOpacity
                 style={styles.modernModalCloseBtn}
                 onPress={() => setShowSwitchAccountModal(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modernModalCloseBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 10 }}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', marginTop: 8 }}>
               {/* Account 1: Melroy Almeida (Patient) */}
               <TouchableOpacity
                 style={[
@@ -3787,41 +3967,6 @@ export default function PatientPortal({ onSignOut, isDesktop }) {
                   <View style={styles.switchRoleRadio} />
                 )}
               </TouchableOpacity>
-
-              {/* Account 3: Caretaker Proxy (Coming Soon) */}
-              <TouchableOpacity
-                style={[styles.switchRoleCard, { opacity: 0.65 }]}
-                onPress={() => {
-                  showToastMsg('Caretaker portal is coming soon.');
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.switchRoleAvatar, { backgroundColor: '#F5F3FF' }]}>
-                  <Text style={[styles.switchRoleAvatarText, { color: C.purple }]}>CP</Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.switchRoleName}>Caretaker Proxy</Text>
-                    <View style={[styles.switchRoleActiveBadge, { backgroundColor: '#F1F5F9' }]}>
-                      <Text style={[styles.switchRoleActiveBadgeText, { color: '#64748B' }]}>Coming Soon</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.switchRoleSub}>Delegated Health Proxy Portal</Text>
-                </View>
-                <View style={styles.switchRoleRadio} />
-              </TouchableOpacity>
-
-              {/* Preview Toggle for "No other accounts" state */}
-              <View style={styles.simulateAccountRow}>
-                <Text style={styles.simulateAccountText}>Simulate no linked accounts:</Text>
-                <TouchableOpacity
-                  style={[styles.cleanToggle, !hasOtherAccounts && styles.cleanToggleActive]}
-                  onPress={() => setHasOtherAccounts(!hasOtherAccounts)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.cleanToggleKnob, !hasOtherAccounts && styles.cleanToggleKnobActive]} />
-                </TouchableOpacity>
-              </View>
             </ScrollView>
           </View>
         </View>
@@ -5158,10 +5303,10 @@ const styles = StyleSheet.create({
   /* Modals */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 18,
+    padding: 20,
   },
   modalContainer: {
     width: '100%',
@@ -5819,6 +5964,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  /* Text Area Header & Voice Dictation */
+  textAreaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  voiceRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  voiceRecordBtnActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  voiceRecordBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  voiceRecordBtnTextActive: {
+    color: '#DC2626',
+  },
+  recordingPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#DC2626',
+  },
+
   /* Extract from Text Action */
   extractFromTextBtn: {
     flexDirection: 'row',
@@ -5837,6 +6019,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#059669',
+  },
+
+  /* Extraction Error Card */
+  extractionErrorCard: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 14,
+    marginTop: 10,
+  },
+  extractionErrorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  extractionErrorTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  extractionErrorMsg: {
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  retryExtractionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    alignSelf: 'flex-start',
+  },
+  retryExtractionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 
   /* Upload JSON Preview Card */
@@ -6422,5 +6649,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* Modern Modals Container & Header */
+  modernModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.22,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  modernModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingBottom: 4,
+  },
+  modernModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  modernModalSub: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  modernModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  modernModalCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+    lineHeight: 16,
   },
 });

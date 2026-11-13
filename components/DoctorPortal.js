@@ -529,7 +529,8 @@ const INITIAL_NOTIFICATIONS = [
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── DOCTOR PORTAL COMPONENT ──────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function DoctorPortal({ isDesktop = false, onSignOut }) {
+export default function DoctorPortal({ isDesktop = false, onSignOut, onLogout }) {
+  const handleSignOut = onSignOut || onLogout || (() => {});
   // Navigation: 4 Pages as specified
   // 1. 'home', 2. 'upload', 3. 'history', 4. 'profile'
   const [activeTab, setActiveTab] = useState('home');
@@ -1675,7 +1676,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
               <View style={styles.profileActionGroup}>
                 <TouchableOpacity
                   style={styles.pageSignOutBtn}
-                  onPress={onSignOut}
+                  onPress={handleSignOut}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.pageSignOutBtnText}>Sign Out</Text>
@@ -2169,7 +2170,7 @@ export default function DoctorPortal({ isDesktop = false, onSignOut }) {
                 style={[styles.pageDeleteBtn, { flex: 1 }]}
                 onPress={() => {
                   setShowDeleteModal(false);
-                  onSignOut();
+                  handleSignOut();
                 }}
               >
                 <Text style={styles.pageDeleteBtnText}>End Session</Text>
