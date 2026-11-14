@@ -351,7 +351,7 @@ export default function PatientPortal({ onSignOut, isDesktop, userRole = 'patien
   const [activeTab, setActiveTab] = useState('home');
 
   const isRealUser = Boolean(currentUser || currentProfile);
-  const patientDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Verified Patient');
+  const patientDisplayName = currentProfile?.full_name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Patient');
   const userVaultId = currentUser?.uid ? `MV-${currentUser.uid.slice(0, 8).toUpperCase()}` : 'MV-SOVEREIGN';
 
   // Account Role Switching: 'patient' | 'benefactor' | 'doctor' | 'caretaker'
@@ -1588,7 +1588,7 @@ Guidelines:
 
   // Dynamic universal emergency QR URL
   const emergencyQrUrl = useMemo(() => {
-    const pName = encodeURIComponent(patientInfo?.name || patientDisplayName || 'Verified Patient');
+    const pName = encodeURIComponent(patientInfo?.name || patientDisplayName || 'Patient');
     const vId = encodeURIComponent(patientInfo?.vaultId || userVaultId || 'MV-SOVEREIGN');
     const bType = encodeURIComponent(patientInfo?.bloodType || 'Not documented');
     const doc = encodeURIComponent(patientInfo?.attendingDoctor || 'Clinical Team');
@@ -3659,8 +3659,10 @@ Guidelines:
                           type: 'consent_token',
                           token: inviteCode,
                           category: shareCodeCategory,
-                          patientId: 'p1',
-                          patientName: patientInfo.name,
+                          patientId: patientInfo?.vaultId || userVaultId || 'MV-SOVEREIGN',
+                          patientName: patientInfo?.name || patientDisplayName || 'Patient',
+                          bloodType: patientInfo?.bloodType || 'Not documented',
+                          emergencyContact: patientInfo?.emergencyContact || 'Not specified',
                           scopes: shareCodeCategory === 'caretaker' ? caretakerPerms : ['view_records'],
                           expiry: shareCodeCategory === 'caretaker' ? caretakerExpiry : '30 Days',
                           timestamp: Date.now(),

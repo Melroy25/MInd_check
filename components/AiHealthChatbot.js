@@ -702,7 +702,7 @@ STRICT SAFETY RULES:
 
       const consultRecord = {
         name: `Clinical Consultation - ${cleanTitle}`,
-        patientName: userDisplayName || 'Verified Patient',
+        patientName: userDisplayName || 'Patient',
         patientId: userId ? `MV-${userId.slice(0, 8).toUpperCase()}` : 'MV-SOVEREIGN',
         doctor: 'MedFlow Clinical Intelligence',
         facility: 'MedFlow Sovereign Health Network',

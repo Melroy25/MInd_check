@@ -193,7 +193,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
           return {
             ...m,
             taken: !m.taken,
-            lastUpdated: `Just now by Vikram`,
+            lastUpdated: `Just now by ${caretakerDisplayName}`,
           };
         }
         return m;
@@ -211,7 +211,7 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
       patientId: ward.id,
       patientName: ward.name,
       title: `${isNowTaken ? 'Marked' : 'Unmarked'} ${updatedMedName}`,
-      detail: `Caretaker Vikram toggled dose status at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      detail: `Caretaker ${caretakerDisplayName} toggled dose status at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       timestamp: 'Just now',
       status: 'applied',
     };
@@ -804,71 +804,73 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
       </Modal>
 
       {/* ── MODAL: WARD VAULT DETAILS ── */}
-      <Modal
-        visible={showWardVaultModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowWardVaultModal(false)}
-      >
-        <View style={s.modalBackdrop}>
-          <View style={[s.modernModalCard, { maxHeight: '90%' }]}>
-            <View style={s.modernModalHeader}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={s.modernModalTitle}>{activeWard.name}'s Vault</Text>
-                <Text style={s.modernModalSub}>Delegated Access Scope: {activeWard.relation}</Text>
-              </View>
-              <TouchableOpacity
-                style={s.modalCloseBtn}
-                onPress={() => setShowWardVaultModal(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={s.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 10 }}>
-              <View style={s.permissionBanner}>
-                <Text style={s.permissionBannerTitle}>Permission Policy:</Text>
-                <Text style={s.permissionBannerSub}>
-                  {activeWard.permissions.editMeds
-                    ? '✓ Full Medication & Dose Editing Enabled (Reversible)'
-                    : '⚠ Read-Only Mode (Dose changes restricted by patient)'}
-                </Text>
-              </View>
-
-              <Text style={[s.sectionTitle, { fontSize: 15, marginTop: 14, marginBottom: 8 }]}>Prescribed Care Regimen</Text>
-              {activeWard.meds.map((m) => (
-                <View key={m.id} style={s.medRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.medName}>{m.name}</Text>
-                    <Text style={s.medTime}>Target: {m.time} · {m.lastUpdated}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[s.statusPill, m.taken ? s.statusPillTaken : s.statusPillPending]}
-                    onPress={() => handleToggleMed(activeWard.id, m.id)}
-                    activeOpacity={activeWard.permissions.editMeds ? 0.75 : 1}
-                  >
-                    <Text style={[s.statusPillText, m.taken ? s.statusPillTextTaken : s.statusPillTextPending]}>
-                      {m.taken ? 'Logged' : 'Mark Done'}
-                    </Text>
-                  </TouchableOpacity>
+      {showWardVaultModal && activeWard && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowWardVaultModal(false)}
+        >
+          <View style={s.modalBackdrop}>
+            <View style={[s.modernModalCard, { maxHeight: '90%' }]}>
+              <View style={s.modernModalHeader}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.modernModalTitle}>{activeWard.name}'s Vault</Text>
+                  <Text style={s.modernModalSub}>Delegated Access Scope: {activeWard.relation}</Text>
                 </View>
-              ))}
+                <TouchableOpacity
+                  style={s.modalCloseBtn}
+                  onPress={() => setShowWardVaultModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.modalCloseBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: C.purple, marginTop: 20 }]}
-                onPress={() => {
-                  setShowWardVaultModal(false);
-                  showToast('Changes saved to versioned audit log');
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={s.actionBtnText}>Done</Text>
-              </TouchableOpacity>
-            </ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 10 }}>
+                <View style={s.permissionBanner}>
+                  <Text style={s.permissionBannerTitle}>Permission Policy:</Text>
+                  <Text style={s.permissionBannerSub}>
+                    {activeWard.permissions?.editMeds
+                      ? '✓ Full Medication & Dose Editing Enabled (Reversible)'
+                      : '⚠ Read-Only Mode (Dose changes restricted by patient)'}
+                  </Text>
+                </View>
+
+                <Text style={[s.sectionTitle, { fontSize: 15, marginTop: 14, marginBottom: 8 }]}>Prescribed Care Regimen</Text>
+                {(activeWard.meds || []).map((m) => (
+                  <View key={m.id} style={s.medRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.medName}>{m.name}</Text>
+                      <Text style={s.medTime}>Target: {m.time} · {m.lastUpdated}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[s.statusPill, m.taken ? s.statusPillTaken : s.statusPillPending]}
+                      onPress={() => handleToggleMed(activeWard.id, m.id)}
+                      activeOpacity={activeWard.permissions?.editMeds ? 0.75 : 1}
+                    >
+                      <Text style={[s.statusPillText, m.taken ? s.statusPillTextTaken : s.statusPillTextPending]}>
+                        {m.taken ? 'Logged' : 'Mark Done'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  style={[s.actionBtn, { backgroundColor: C.purple, marginTop: 20 }]}
+                  onPress={() => {
+                    setShowWardVaultModal(false);
+                    showToast('Changes saved to versioned audit log');
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.actionBtnText}>Done</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* ── MODAL 1: REAL-TIME QR SCANNER ── */}
       <QRScannerModal
@@ -886,19 +888,81 @@ export default function CaretakerPortal({ onSignOut, isDesktop, currentUser, cur
         })}
         onScan={(token, parsed) => {
           setShowQrModal(false);
-          const rawToken = String(token || '').toUpperCase();
+          const rawToken = String(token || '').trim();
+          const rawUpper = rawToken.toUpperCase();
+
+          // Try to find existing ward
           const match = wards.find(
             (w) =>
-              w.name.toUpperCase().includes(rawToken) ||
-              w.id.toUpperCase() === rawToken ||
-              (w.code && w.code.toUpperCase() === rawToken)
+              w.name.toUpperCase().includes(rawUpper) ||
+              w.id.toUpperCase() === rawUpper ||
+              (w.code && w.code.toUpperCase() === rawUpper)
           );
+
           if (match) {
             setSelectedWardId(match.id);
             showToast(`Linked to ${match.name}'s verified health vault`);
-          } else {
-            showToast(`Access code ${token} claimed with Caretaker permissions`);
+            return;
           }
+
+          // Parse patient info from QR token
+          let wardName = 'Patient Ward';
+          let wardId = `ward-${Date.now().toString(36).toUpperCase()}`;
+          let bloodType = 'Not documented';
+          let relation = 'Patient';
+
+          if (parsed && typeof parsed === 'object') {
+            wardName = parsed.patient || parsed.name || wardName;
+            wardId = parsed.vaultId || parsed.id || wardId;
+            bloodType = parsed.bloodType || parsed.blood || bloodType;
+            relation = parsed.relation || relation;
+          } else if (rawToken.includes('?')) {
+            try {
+              const params = new URLSearchParams(rawToken.split('?')[1]);
+              wardName = params.get('patient') || params.get('name') || wardName;
+              wardId = params.get('vaultId') || wardId;
+              bloodType = params.get('blood') || params.get('bloodType') || bloodType;
+            } catch (e) {}
+          } else if (rawToken.startsWith('{')) {
+            try {
+              const p = JSON.parse(rawToken);
+              wardName = p.patient || p.name || wardName;
+              wardId = p.vaultId || p.id || wardId;
+              bloodType = p.bloodType || p.blood || bloodType;
+              relation = p.relation || relation;
+            } catch (e) {
+              wardName = rawToken || wardName;
+            }
+          } else if (rawToken) {
+            wardName = rawToken;
+          }
+
+          const avatarColors = ['#7C3AED', '#2563EB', '#16A34A', '#D97706', '#DC2626'];
+          const newWard = {
+            id: wardId,
+            name: wardName,
+            relation,
+            blood: bloodType,
+            age: 'Adult',
+            avatarText: '#FFFFFF',
+            avatarBg: avatarColors[wards.length % avatarColors.length],
+            permissions: {
+              viewMeds: true,
+              editMeds: false,
+              viewReports: true,
+              editReports: false,
+              viewContacts: true,
+            },
+            meds: [],
+            reports: [],
+            contacts: [],
+          };
+
+          const updatedWards = [newWard, ...wards];
+          setWards(updatedWards);
+          setSelectedWardId(newWard.id);
+          storageService.saveWards(updatedWards);
+          showToast(`Patient ward linked: ${wardName}`);
         }}
       />
 

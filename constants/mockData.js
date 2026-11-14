@@ -10,7 +10,7 @@
 export const PROFILES = {
   patient: {
     id: 'patient',
-    name: 'Verified Patient',
+    name: 'Patient',
     vaultId: 'MV-SOVEREIGN',
     role: 'patient',
     roleLabel: 'Patient (Primary)',

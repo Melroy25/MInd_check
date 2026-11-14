@@ -202,7 +202,7 @@ export default function PdfReportStudio({
   // Build the compiled record object for View/Download (real patient info, zero fake names)
   const compiledReportRecord = useMemo(() => {
     const presetObj = REPORT_PRESETS.find((p) => p.id === activePreset) || REPORT_PRESETS[0];
-    const patientDisplayName = patientInfo?.name || 'Verified Patient';
+    const patientDisplayName = patientInfo?.name || 'Patient';
     const patientVaultId = patientInfo?.vaultId || 'MV-SOVEREIGN';
     const attendingDoc = patientInfo?.attendingDoctor || 'Attending Clinical Team';
     const hospitalFacility = patientInfo?.primaryHospital || 'MedFlow Sovereign Health Network';

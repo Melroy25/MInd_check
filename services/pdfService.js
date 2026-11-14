@@ -75,7 +75,7 @@ export const formatSource = (src, maxLen = 46) => {
  * - Patient Privacy Redaction: excludes sensitive conditions/terms SILENTLY with zero disclaimers
  */
 export function generateMedicalHtml(record = {}) {
-  const patientName = cleanAscii(record.patientName || record.patient || 'Verified Patient');
+  const patientName = cleanAscii(record.patientName || record.patient || 'Patient');
   const patientId = cleanAscii(record.patientId || 'MV-SOVEREIGN');
   const doctorName = cleanAscii(record.doctor || 'Attending Clinical Team');
   const facilityName = cleanAscii(record.facility || 'MedFlow Sovereign Health Network');
@@ -408,7 +408,7 @@ export async function generateMedicalPdf(record) {
     return new Uint8Array(arrayBuffer);
   }
 
-  const patientName = cleanAscii(record.patientName || record.patient || 'Verified Patient');
+  const patientName = cleanAscii(record.patientName || record.patient || 'Patient');
   const patientId = cleanAscii(record.patientId || 'MV-SOVEREIGN');
   const doctorName = cleanAscii(record.doctor || 'Attending Clinical Team');
   const facilityName = cleanAscii(record.facility || 'MedFlow Sovereign Health Network');

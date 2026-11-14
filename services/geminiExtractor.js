@@ -10,6 +10,8 @@
 
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
+import { anonymizeMedicalText, restoreSovereignMetadata } from './privacyAnonymizer';
+import { callGrok } from './grokClient';
 
 export const GEMINI_CONFIG = {
   fallbackModel: 'python-clinical-extractor-v1',
@@ -227,20 +229,22 @@ export async function fetchUriAsBase64(uri) {
  */
 export async function extractMedicalDocument(arg1, arg2, arg3, arg4) {
   let file, fileName, mimeType, base64Data, rawText, onProgress;
+  let patientInfo = arg4 || {};
 
   if (arg1 && typeof arg1 === 'object' && ('fileName' in arg1 || 'base64Data' in arg1 || 'rawText' in arg1 || 'file' in arg1)) {
     // Object signature
     ({ file, fileName, mimeType, base64Data, rawText, onProgress } = arg1);
+    if (arg1.patientInfo) patientInfo = arg1.patientInfo;
   } else {
     // Positional signature: (fileObj, title, enteredText, patientInfo)
     file = arg1;
     fileName = arg2 || file?.name || 'medical_document.pdf';
     rawText = arg3 || '';
-    mimeType = file?.type || inferMimeType(fileName);
+    mimeType = file?.mimeType || (file?.type && file.type.includes('/') ? file.type : null) || inferMimeType(fileName);
   }
 
   const effectiveName = fileName || (file && file.name) || 'medical_document.pdf';
-  const effectiveMime = mimeType || (file && file.type) || inferMimeType(effectiveName);
+  const effectiveMime = mimeType || file?.mimeType || (file && file.type && file.type.includes('/') ? file.type : null) || inferMimeType(effectiveName);
 
   // If base64 is not passed but file or uri is available
   let base64 = base64Data || file?.base64;
@@ -257,7 +261,7 @@ export async function extractMedicalDocument(arg1, arg2, arg3, arg4) {
     base64 = base64.replace(/^data:[^;]+;base64,/, '').trim();
   }
 
-  // 1. Primary Engine: Pure Python Extractor Backend (FastAPI on Port 8000)
+  // 1. Primary Engine: Pure Python Extractor Backend (FastAPI on Port 8000 if running locally)
   try {
     const backendResult = await callBackendExtract({
       base64,
@@ -268,10 +272,24 @@ export async function extractMedicalDocument(arg1, arg2, arg3, arg4) {
     });
     if (backendResult) return backendResult;
   } catch (backendErr) {
-    console.warn('[Extractor] Python backend unavailable or error:', backendErr?.message || backendErr);
+    // Local Python backend not reachable (normal on Vercel deployment)
   }
 
-  // 2. Pure Python Engine Client-Side Fallback (zero Gemini, strictly pure clinical regex)
+  // 2. Sovereign Privacy De-identification & Groq openai/gpt-oss-120b Clinical Extractor
+  try {
+    const grokResult = await callAnonymizedGrokExtract({
+      base64,
+      effectiveMime,
+      effectiveName,
+      rawText,
+      patientInfo,
+    });
+    if (grokResult) return grokResult;
+  } catch (grokErr) {
+    console.warn('[Extractor] Groq extraction fallback failed:', grokErr?.message || grokErr);
+  }
+
+  // 3. Deterministic pure JS regex extractor
   const clientParsed = extractPurePythonClientSide({
     fileName: effectiveName,
     rawText: rawText || (typeof base64 === 'string' && base64.length < 5000 ? base64 : ''),
@@ -516,6 +534,179 @@ function formatExtractionResult(raw, fileName) {
     },
     raw_json: JSON.stringify(raw, null, 2),
   };
+}
+
+/**
+ * Extract printable text and PDF text streams from a base64 payload
+ */
+function extractTextFromBase64Payload(base64) {
+  if (!base64 || typeof base64 !== 'string') return '';
+  try {
+    let binaryStr = '';
+    if (typeof atob === 'function') {
+      try {
+        binaryStr = atob(base64.slice(0, 120000));
+      } catch (e) {}
+    }
+    if (!binaryStr && typeof Buffer !== 'undefined') {
+      try {
+        binaryStr = Buffer.from(base64.slice(0, 120000), 'base64').toString('binary');
+      } catch (e) {}
+    }
+    if (!binaryStr) return '';
+
+    const textPieces = [];
+    const tjRegex = /\(([^)]{2,120})\)\s*Tj/g;
+    let m;
+    while ((m = tjRegex.exec(binaryStr)) !== null) {
+      textPieces.push(m[1]);
+    }
+    const tjArrayRegex = /\[([^\]]{2,200})\]\s*TJ/g;
+    while ((m = tjArrayRegex.exec(binaryStr)) !== null) {
+      const inner = m[1].replace(/\(([^)]+)\)/g, '$1 ');
+      textPieces.push(inner);
+    }
+    if (textPieces.length > 0) {
+      return textPieces.join(' ');
+    }
+
+    // General ASCII printable text runs
+    const runs = binaryStr.match(/[A-Za-z0-9\s.,:\-\/\(\)%#@&]{4,}/g);
+    if (runs && runs.length > 0) {
+      return runs.filter((r) => r.trim().length > 4).slice(0, 150).join(' ');
+    }
+  } catch (err) {
+    console.warn('[Extractor] Failed parsing base64 text stream:', err?.message);
+  }
+  return '';
+}
+
+/**
+ * Sovereign Privacy De-Identification & Groq openai/gpt-oss-120b Clinical Extractor.
+ *
+ * Pipeline:
+ * 1. Extract content from document text, filename, and binary stream.
+ * 2. Anonymize/mask Personally Identifiable Information (PII) before transmission.
+ * 3. Groq openai/gpt-oss-120b structures the anonymized clinical data into entities & understandable summary.
+ * 4. Sovereign patient metadata is restored locally on the client.
+ */
+async function callAnonymizedGrokExtract({ base64, effectiveMime, effectiveName, rawText, patientInfo }) {
+  let extractedStreamText = '';
+  if (base64) {
+    extractedStreamText = extractTextFromBase64Payload(base64);
+  }
+
+  const combinedContent = [
+    rawText ? `Clinical Text: ${rawText}` : '',
+    effectiveName ? `Document File: ${effectiveName}` : '',
+    extractedStreamText ? `Extracted Content:\n${extractedStreamText}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  if (!combinedContent.trim()) {
+    throw new Error('No content available for AI clinical extraction');
+  }
+
+  // B. Remove or mask PII before sending to external AI
+  const { anonymizedText } = anonymizeMedicalText(combinedContent, patientInfo || {});
+
+  // C. Groq-hosted openai/gpt-oss-120b Structured Clinical Extraction
+  const prompt = `Analyze the following de-identified medical document content.
+Extract the structured clinical information and organize it into a clear, understandable clinical summary.
+Return ONLY valid JSON strictly matching this schema:
+{
+  "document_metadata": {
+    "doc_type": "prescription" | "lab_report" | "discharge_summary" | "scan_report" | "consultation_note" | "clinical_record",
+    "document_date_raw": string | null,
+    "provider_name": string | null,
+    "facility_name": string | null
+  },
+  "patient": {
+    "age": string | null,
+    "sex": string | null
+  },
+  "conditions": [
+    {
+      "name": string,
+      "status": "active" | "resolved" | "historical" | "suspected",
+      "certainty": "confirmed" | "suspected"
+    }
+  ],
+  "medications": [
+    {
+      "name": string,
+      "dose_raw": string | null,
+      "frequency_raw": string | null,
+      "route": string | null,
+      "status": "prescribed" | "continued" | "changed" | "stopped",
+      "indication": string | null
+    }
+  ],
+  "allergies": {
+    "status": "present" | "explicit_negative" | "not_documented",
+    "items": [
+      {
+        "substance": string,
+        "reaction": string | null,
+        "severity": string | null
+      }
+    ]
+  },
+  "lab_results": [
+    {
+      "test_name": string,
+      "value": string,
+      "unit": string | null,
+      "reference_range_raw": string | null,
+      "flag": "high" | "low" | "normal" | "abnormal" | "not_stated"
+    }
+  ],
+  "clinical_summary": string
+}
+
+De-identified Document Content:
+${anonymizedText}`;
+
+  const grokMessages = [
+    {
+      role: 'system',
+      content: 'You are an expert clinical documentation specialist. Convert de-identified medical documents into accurate, structured clinical JSON with understandable clinical summaries without hallucinating.',
+    },
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ];
+
+  const grokResponse = await callGrok(grokMessages, {
+    json: true,
+    temperature: 0.1,
+  });
+
+  let rawJsonText = '';
+  if (typeof grokResponse === 'string') {
+    rawJsonText = grokResponse;
+  } else if (grokResponse?.choices?.[0]?.message?.content) {
+    rawJsonText = grokResponse.choices[0].message.content;
+  } else if (grokResponse?.content) {
+    rawJsonText = grokResponse.content;
+  }
+
+  if (!rawJsonText) throw new Error('Empty response from Groq extraction');
+
+  let parsed;
+  try {
+    const cleaned = rawJsonText.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch (err) {
+    const match = rawJsonText.match(/\{[\s\S]+\}/);
+    if (match) parsed = JSON.parse(match[0]);
+    else throw err;
+  }
+
+  // D. Restore sovereign patient metadata locally on the client
+  const sovereignRestored = restoreSovereignMetadata(parsed, patientInfo || {});
+
+  return formatExtractionResult(sovereignRestored, effectiveName);
 }
 
 /**

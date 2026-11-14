@@ -300,9 +300,15 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
     async function loadDoctorPatients() {
       try {
         const stored = await storageService.getConnectedPatients(currentUser?.uid || 'doctor');
-        if (Array.isArray(stored) && stored.length > 0) {
-          setConnectedPatients(stored);
-          setTargetPatient((prev) => prev || stored[0]);
+        if (Array.isArray(stored)) {
+          const cleaned = stored.filter(
+            (p) => p.name && p.name !== 'Verified Patient' && p.name !== 'Verified Person'
+          );
+          setConnectedPatients(cleaned);
+          setTargetPatient((prev) => prev || cleaned[0] || null);
+          if (cleaned.length !== stored.length) {
+            storageService.saveConnectedPatients(currentUser?.uid || 'doctor', cleaned);
+          }
         }
       } catch (e) {
         console.warn('[DoctorPortal] Error loading connected patients:', e);
@@ -560,15 +566,16 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
   // ─── UPLOAD ACTION: CHOOSE FILE ──────────────────────────────────────────────
   const handlePickDocument = async () => {
     try {
-      const res = await pickMedicalDocument();
-      if (res && !res.canceled && res.assets && res.assets[0]) {
-        const asset = res.assets[0];
+      const doc = await pickMedicalDocument();
+      if (doc) {
         const fileObj = {
-          name: asset.name || 'Medical_Record.pdf',
-          size: asset.size ? `${(asset.size / (1024 * 1024)).toFixed(1)} MB` : '1.5 MB',
-          type: asset.mimeType?.includes('image') ? 'IMG' : 'PDF',
-          uri: asset.uri,
-          fileBlob: asset.file,
+          name: doc.name || 'Medical_Record.pdf',
+          size: doc.size || '1.5 MB',
+          type: doc.mimeType?.includes('image') ? 'IMG' : 'PDF',
+          uri: doc.uri,
+          base64: doc.base64,
+          fileBlob: doc.fileBlob || doc.file,
+          mimeType: doc.mimeType,
         };
         setPickedFile(fileObj);
         if (!uploadTitle.trim()) {
@@ -781,43 +788,85 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
 
   // ─── HANDLE QR CODE SCAN / LINK PATIENT ──────────────────────────────────────
   const handleProcessQrScan = (code, parsed) => {
-    let patientName = 'Verified Patient';
-    let vaultId = `MV-${Date.now().toString(36).slice(-6).toUpperCase()}`;
-    let bloodType = 'Not documented';
-    let emergencyContact = 'Not specified';
+    let patientName = '';
+    let vaultId = '';
+    let bloodType = '';
+    let emergencyContact = '';
+    let condition = 'Active Sovereign Vault';
 
+    // Helper to extract query parameters from URL strings
+    const extractFromUrl = (str) => {
+      if (!str || typeof str !== 'string' || !str.includes('?')) return;
+      try {
+        const query = str.split('?')[1];
+        const params = new URLSearchParams(query);
+        const pName = params.get('patient') || params.get('name') || params.get('patientName') || params.get('patient_name');
+        if (pName && !patientName) patientName = decodeURIComponent(pName);
+        const vId = params.get('vaultId') || params.get('vault_id') || params.get('patientId') || params.get('patient_id') || params.get('id');
+        if (vId && !vaultId) vaultId = decodeURIComponent(vId);
+        const bType = params.get('blood') || params.get('bloodType') || params.get('blood_type');
+        if (bType && !bloodType) bloodType = decodeURIComponent(bType);
+        const contact = params.get('contact') || params.get('emergencyContact') || params.get('emergency_contact') || params.get('phone');
+        if (contact && !emergencyContact) emergencyContact = decodeURIComponent(contact);
+      } catch (e) {}
+    };
+
+    // 1. Inspect parsed object
     if (parsed && typeof parsed === 'object') {
-      patientName = parsed.patient || parsed.name || patientName;
-      vaultId = parsed.vaultId || parsed.id || vaultId;
-      bloodType = parsed.bloodType || parsed.blood || bloodType;
-      emergencyContact = parsed.emergencyContact || emergencyContact;
-    } else if (typeof code === 'string') {
-      const trimmed = code.trim();
-      if (trimmed.includes('?')) {
-        try {
-          const query = trimmed.split('?')[1];
-          const params = new URLSearchParams(query);
-          patientName = params.get('patient') || params.get('name') || patientName;
-          vaultId = params.get('vaultId') || vaultId;
-          bloodType = params.get('blood') || params.get('bloodType') || bloodType;
-          emergencyContact = params.get('contact') || emergencyContact;
-        } catch (e) {}
-      } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-        try {
-          const p = JSON.parse(trimmed);
-          patientName = p.patient || p.name || patientName;
-          vaultId = p.vaultId || p.id || vaultId;
-          bloodType = p.bloodType || p.blood || bloodType;
-          emergencyContact = p.emergencyContact || emergencyContact;
-        } catch (e) {
-          patientName = trimmed;
-        }
-      } else if (trimmed) {
-        patientName = trimmed;
+      patientName = parsed.patientName || parsed.patient_name || parsed.patient || parsed.name || parsed.full_name || '';
+      vaultId = parsed.vaultId || parsed.vault_id || parsed.patientId || parsed.patient_id || parsed.id || '';
+      bloodType = parsed.bloodType || parsed.blood_type || parsed.blood || '';
+      emergencyContact = parsed.emergencyContact || parsed.emergency_contact || parsed.contact || parsed.phone || '';
+      if (parsed.condition) condition = parsed.condition;
+
+      if (parsed.token) {
+        extractFromUrl(parsed.token);
       }
     }
 
-    const matched = connectedPatients.find(
+    // 2. Inspect raw code string
+    if (typeof code === 'string' && code.trim()) {
+      const trimmed = code.trim();
+      extractFromUrl(trimmed);
+
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const p = JSON.parse(trimmed);
+          if (!patientName) patientName = p.patientName || p.patient_name || p.patient || p.name || p.full_name || '';
+          if (!vaultId) vaultId = p.vaultId || p.vault_id || p.patientId || p.patient_id || p.id || '';
+          if (!bloodType) bloodType = p.bloodType || p.blood_type || p.blood || '';
+          if (!emergencyContact) emergencyContact = p.emergencyContact || p.emergency_contact || p.contact || p.phone || '';
+          if (p.condition) condition = p.condition;
+        } catch (e) {}
+      } else if (!patientName && !trimmed.startsWith('http') && !trimmed.includes('?')) {
+        if (trimmed.startsWith('MV-')) {
+          vaultId = trimmed;
+        } else {
+          patientName = trimmed;
+        }
+      }
+    }
+
+    // Strict sanitize: do NOT allow fake "Verified Patient" or "Verified Person"
+    if (!patientName || patientName.toLowerCase().includes('verified patient') || patientName.toLowerCase().includes('verified person')) {
+      patientName = vaultId ? `Patient (${vaultId})` : 'Connected Patient';
+    }
+    if (!vaultId) {
+      vaultId = `MV-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+    }
+    if (!bloodType) {
+      bloodType = 'Not documented';
+    }
+    if (!emergencyContact) {
+      emergencyContact = 'Not specified';
+    }
+
+    // Filter out any stale dummy "Verified Patient" entries from previous sessions
+    const sanitizedPatients = connectedPatients.filter(
+      (p) => p.name && p.name !== 'Verified Patient' && p.name !== 'Verified Person'
+    );
+
+    const matched = sanitizedPatients.find(
       (p) =>
         (p.patientId && p.patientId.toLowerCase() === vaultId.toLowerCase()) ||
         (p.name && p.name.toLowerCase() === patientName.toLowerCase())
@@ -858,14 +907,14 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
         gender: 'Patient',
         blood: bloodType,
         emergencyContact: emergencyContact,
-        condition: 'Active Sovereign Vault',
+        condition: condition,
         recordsCount: 0,
         lastVisit: 'Connected Today',
         status: 'Full Access Granted',
         avatarColor: '#2563EB',
         folder: 'labs',
       };
-      const updated = [newP, ...connectedPatients];
+      const updated = [newP, ...sanitizedPatients];
       setConnectedPatients(updated);
       setTargetPatient(newP);
       storageService.saveConnectedPatients(currentUser?.uid || 'doctor', updated);
@@ -1200,12 +1249,18 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                         {targetPatient.name.split(' ').map((n) => n[0]).join('')}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={styles.targetPatientName}>{targetPatient.name}</Text>
-                      <View style={styles.finalizedBadge}>
-                        <IconCheck size={10} color={C.green} />
-                        <Text style={styles.finalizedBadgeText}>FINALIZED</Text>
+                    <View style={{ flex: 1, paddingLeft: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.targetPatientName}>{targetPatient.name}</Text>
+                        <View style={styles.finalizedBadge}>
+                          <IconCheck size={10} color={C.green} />
+                          <Text style={styles.finalizedBadgeText}>FINALIZED</Text>
+                        </View>
                       </View>
+                      <Text style={styles.targetPatientMeta}>
+                        ID: {targetPatient.patientId || targetPatient.id}
+                        {targetPatient.blood && targetPatient.blood !== 'Not documented' ? ` · Blood: ${targetPatient.blood}` : ''}
+                      </Text>
                     </View>
                   </View>
                 ) : (
@@ -1822,9 +1877,19 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
                       </View>
                       <View style={{ flex: 1, paddingHorizontal: 12 }}>
                         <Text style={styles.patientFullCardName}>{p.name}</Text>
+                        <Text style={styles.patientFullCardId}>ID: {p.patientId || p.id}</Text>
+                        {p.blood && p.blood !== 'Not documented' && (
+                          <Text style={styles.patientFullCardMeta}>Blood: {p.blood}</Text>
+                        )}
+                        {p.emergencyContact && p.emergencyContact !== 'Not specified' && (
+                          <Text style={styles.patientFullCardMeta}>Emergency: {p.emergencyContact}</Text>
+                        )}
                         <Text style={styles.patientFullCardMeta}>
-                          Synced Records: {p.recordsCount} · Last Visit: {p.lastVisit}
+                          Records: {p.recordsCount ?? 0} · {p.lastVisit || 'Just connected'}
                         </Text>
+                        {p.condition && (
+                          <Text style={[styles.patientFullCardMeta, { color: '#16A34A', fontWeight: '600' }]}>{p.condition}</Text>
+                        )}
                       </View>
                     </View>
 
@@ -2015,6 +2080,10 @@ export default function DoctorPortal({ isDesktop = false, currentUser, currentPr
 
                     <View style={{ flex: 1, paddingHorizontal: 12 }}>
                       <Text style={styles.patientDirName}>{p.name}</Text>
+                      <Text style={styles.patientFullCardId}>
+                        ID: {p.patientId || p.id}
+                        {p.blood && p.blood !== 'Not documented' ? ` · Blood: ${p.blood}` : ''}
+                      </Text>
                     </View>
 
                     <View
